@@ -40,6 +40,7 @@ export async function build_dashboard_state(
   options: DashboardOptions,
   recent_messages: RecentMessage[],
   team_id?: string,
+  user_id?: string,
 ): Promise<Record<string, unknown>> {
   const queue = options.bus.get_sizes();
   const channel_status = options.channels.get_status();
@@ -49,7 +50,7 @@ export async function build_dashboard_state(
     build_merged_tasks(options, team_id),
     options.decisions.get_effective_decisions({ include_p2: true, team_id: team_id ?? null }),
     options.promises.get_effective_promises({ include_p2: true, team_id: team_id ?? null }),
-    options.events.list({ limit: 40, team_id }),
+    options.events.list({ limit: 40, team_id, user_id }),
     options.agent_provider_ops
       ? options.agent_provider_ops.list(
           team_id !== undefined

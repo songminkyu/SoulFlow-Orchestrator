@@ -1,5 +1,5 @@
 import type { RouteContext } from "../route-context.js";
-import { get_filter_team_id, require_team_manager } from "../route-context.js";
+import { get_filter_team_id, get_filter_user_id, require_team_manager } from "../route-context.js";
 
 export async function handle_state(ctx: RouteContext): Promise<boolean> {
   const { url, res, json, add_sse_client, build_state, metrics } = ctx;
@@ -11,7 +11,7 @@ export async function handle_state(ctx: RouteContext): Promise<boolean> {
     return true;
   }
   if (url.pathname === "/api/state") {
-    json(res, 200, await build_state(get_filter_team_id(ctx)));
+    json(res, 200, await build_state(get_filter_team_id(ctx), get_filter_user_id(ctx)));
     return true;
   }
   if (url.pathname === "/api/events") {

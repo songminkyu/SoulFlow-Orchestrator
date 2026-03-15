@@ -56,7 +56,7 @@ export type RouteContext = {
   json: (res: ServerResponse, status: number, data: unknown) => void;
   read_body: (req: IncomingMessage) => Promise<Record<string, unknown> | null>;
   add_sse_client: (res: ServerResponse, team_id?: string) => void;
-  build_state: (team_id?: string) => Promise<Record<string, unknown>>;
+  build_state: (team_id?: string, user_id?: string) => Promise<Record<string, unknown>>;
   build_merged_tasks: (team_id?: string) => Promise<unknown[]>;
   recent_messages: RecentMessage[];
   metrics: SystemMetricsCollector;

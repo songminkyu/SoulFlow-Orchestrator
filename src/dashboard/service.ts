@@ -293,7 +293,7 @@ export class DashboardService implements ServiceLike {
       json: (r, s, d) => this._json(r, s, d),
       read_body: (r) => this._read_json_body(r, res),
       add_sse_client: (r, tid) => this._sse.add_client(r, tid),
-      build_state: (team_id?: string) => build_dashboard_state(this.options, this._sse.recent_messages, team_id),
+      build_state: (team_id?: string, user_id?: string) => build_dashboard_state(this.options, this._sse.recent_messages, team_id, user_id),
       build_merged_tasks: (team_id?: string) => build_merged_tasks(this.options, team_id),
       recent_messages: this._sse.recent_messages,
       metrics: this._metrics,
