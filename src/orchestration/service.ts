@@ -251,9 +251,15 @@ export class OrchestrationService implements OrchestrationServiceLike {
 
   /** 공통 AgentHooks 구성. args.req + stream + backend_id 조합. */
   private _hooks_for(stream: StreamBuffer, args: { req: OrchestrationRequest; runtime_policy: RuntimeExecutionPolicy }, backend_id: string, task_id?: string, tools_accumulator?: string[]) {
-    const hooks_deps = args.req.provider === "web"
+    const req_team_id = args.req.message?.metadata?.team_id as string | undefined;
+    const req_user_id = args.req.message?.sender_id;
+    const base_deps = args.req.provider === "web"
       ? { ...this.hooks_deps, streaming_config: streaming_cfg_for(this.streaming_cfg, "web") }
       : this.hooks_deps;
+    const hooks_deps = {
+      ...base_deps,
+      log_event: (e: AppendWorkflowEventInput) => this.log_event(e, req_team_id, req_user_id),
+    };
     return build_agent_hooks(hooks_deps, {
       buffer: stream, on_stream: args.req.on_stream, runtime_policy: args.runtime_policy,
       channel_context: { channel: args.req.provider, chat_id: String(args.req.message.chat_id || ""), task_id },
@@ -320,7 +326,7 @@ export class OrchestrationService implements OrchestrationServiceLike {
       get_mcp_configs: this.get_mcp_configs,
       streaming_cfg: this.streaming_cfg,
       hooks_deps: this.hooks_deps,
-      tool_deps: this.tool_deps,
+      tool_deps: { ...this.tool_deps, log_event: (e: AppendWorkflowEventInput) => this.log_event(e, req?.message?.metadata?.team_id as string | undefined, req?.message?.sender_id) },
       session_cd: this.session_cd,
       workspace: req?.workspace_override ?? this.deps.workspace,
       build_overlay: (mode: "once" | "agent") => this._build_overlay(mode),

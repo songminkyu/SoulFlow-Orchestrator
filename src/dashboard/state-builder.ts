@@ -89,9 +89,10 @@ export async function build_dashboard_state(
     subagent_ids: p.subagent_ids,
     tool_calls_count: p.tool_calls_count, error: p.error,
   });
+  const filter_by_user = (p: ProcessEntry) => user_id === undefined || !p.sender_id || p.sender_id === user_id;
   const processes = {
-    active: (tracker?.list_active(team_id) ?? []).map(map_process),
-    recent: (tracker?.list_recent(20, team_id) ?? []).map(map_process),
+    active: (tracker?.list_active(team_id) ?? []).filter(filter_by_user).map(map_process),
+    recent: (tracker?.list_recent(20, team_id) ?? []).filter(filter_by_user).map(map_process),
   };
 
   const cron_sched = options.cron;
