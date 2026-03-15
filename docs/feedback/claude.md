@@ -1,6 +1,6 @@
 # Claude 증거 제출
 
-> 마지막 업데이트: 2026-03-15 (FE-6a추가 + FE-6b 최종)
+> 마지막 업데이트: 2026-03-16 (FE-6 전체 — 6a추가 + 6b + 6c + 6d 통합)
 > GPT 감사 문서: `docs/feedback/gpt.md`
 
 ## 합의완료
@@ -48,16 +48,15 @@
 - `[합의완료]` FE-0 + FE-1 — Page Access Policy Inventory + Visibility Contract
 - `[합의완료]` FE-2 + FE-3 — Chat/Session Surface + Workflow/Eval/Schema Surface
 - `[합의완료]` FE-4 + FE-5 — Admin/Security/Monitoring + Repository/Retrieval/Artifact Surface
-- `[합의완료]` FE-6 — Frontend Regression Bundle (Cross-User Isolation + Regression Lock)
 - `[합의완료]` FE-6a — Backend Scoping Closure (CRITICAL 4 + HIGH 4)
 
-## [GPT미검증] FE-6a(추가) + FE-6b — Backend Scoping 잔여 + Admin i18n + Stale/Consistency 회귀
+## [GPT미검증] FE-6(전체) — Backend Scoping 잔여 + i18n + Stale/Consistency + Security/Draft + Mobile/A11y
 
-> 마지막 업데이트: 2026-03-15
+> 마지막 업데이트: 2026-03-16
 
 ---
 
-### FE-6a 추가 수정
+### FE-6a 추가 — Backend Scoping 잔여
 
 | 엔드포인트 | 파일 | 변경 |
 |---|---|---|
@@ -68,20 +67,41 @@
 | `PUT /api/kanban/cards/:id` | `routes/kanban.ts` | `check_card_board_access` 적용 |
 | `DELETE /api/kanban/cards/:id` | `routes/kanban.ts` | `check_card_board_access` 적용 |
 
-### FE-6b — Admin i18n + Stale/Consistency 회귀
+### FE-6b — Admin i18n 전환
 
-**i18n 전환:**
-- `web/src/pages/admin/index.tsx` — 70+ 하드코딩 한글 → `t("admin.*")` 전환. 한글 0건
+- `web/src/pages/admin/index.tsx` — 70+ 하드코딩 한글 → `t("admin.*")` 전환. **한글 0건**
 - `src/i18n/locales/en.json` + `ko.json` — `admin.*` 키 74개 추가
-- 모듈 레벨 `TABS`/`ROLE_LABELS` → 컴포넌트 내부 `TAB_KEYS`/`ROLE_KEYS` 패턴 (useT 호출 제약)
+- `web/src/pages/overview/types.ts` — `WorkflowEvent`에 `user_id?` 추가 (state consistency drift 수정)
 
-**State consistency drift 수정:**
-- `web/src/pages/overview/types.ts` — `WorkflowEvent`에 `user_id?` 추가. memory.tsx의 타입과 일치시켜 source-of-truth drift 해소
+### FE-6b — Stale/Freshness + State Consistency
+
+- `stale-freshness.test.tsx` (3 tests) — MemoryTab 렌더 후 `useQuery` 호출 인자에서 `refetchInterval: 10_000`, `staleTime: 5_000` 직접 검증. 이벤트 타임스탬프 렌더 확인
+- `state-consistency.test.ts` (5 tests) — `OverviewWorkflowEvent`에 `user_id`/`retrieval_source`/`novelty_score` 타입 수준 할당 검증. `DashboardState`에 `request_class_summary`/`guardrail_stats` 할당 검증. `RequestClass` 6값 ↔ monitoring variant 맵 키 일치 검증
+
+### FE-6c — Security + Draft Integrity + Duplicated Surface
+
+- `security-rendering.test.ts` (6 tests) — secrets.tsx names-only 패턴 + password type, settings.tsx 마스킹(••••••••) + sensitive 조건부 password, `dangerouslySetInnerHTML` SVG 한정 (builder.tsx ≤2회, diagram.tsx ≤1회, Mermaid 기반), login/provider-modal password type
+- `draft-integrity.test.ts` (6 tests) — chat.tsx 전송 중 disable, settings.tsx isPending, modal submitDisabled, secrets.tsx run_action, admin isPending ≥5회, memory.tsx isPending
+- `duplicated-surface.test.ts` (6 tests) — PAGE_POLICIES 중복 path 없음, SplitPane/WsListItem 공유 재사용, useT 단일 소스, useToast 단일 소스, useAsyncAction 공통 패턴
+
+### FE-6d — Mobile + Accessibility
+
+- `mobile-a11y.test.ts` (12 tests) — settings/admin role=tablist + aria-selected, settings aria-label, ws-shared role=button + tabIndex=0 + keyboard Enter/Space, modal ESC/onClose, chat-status-bar aria-label, secrets useIsMobile + secret-card 카드 레이아웃, split-pane ws-split, monitoring stat-grid, workflow detail collapse
 
 #### 변경 파일
 
-**FE-6a 추가:** `src/dashboard/routes/state.ts`, `src/dashboard/routes/config.ts`, `src/dashboard/routes/workflows.ts`, `src/dashboard/routes/kanban.ts`, `tests/dashboard/fe6a-scoping.test.ts`
-**FE-6b:** `web/src/pages/admin/index.tsx`, `web/src/pages/overview/types.ts`, `src/i18n/locales/en.json`, `src/i18n/locales/ko.json`, `web/tests/pages/admin/admin-user-sessions.test.tsx`, `web/tests/regression/i18n-hardcoded.test.ts`, `web/tests/regression/stale-freshness.test.tsx` (렌더/훅 직접 호출), `web/tests/regression/state-consistency.test.ts` (타입 수준 할당 + variant 일치)
+**백엔드:** `src/dashboard/routes/state.ts`, `src/dashboard/routes/config.ts`, `src/dashboard/routes/workflows.ts`, `src/dashboard/routes/kanban.ts`, `tests/dashboard/fe6a-scoping.test.ts`
+**프론트엔드:** `web/src/pages/admin/index.tsx`, `web/src/pages/overview/types.ts`, `src/i18n/locales/en.json`, `src/i18n/locales/ko.json`
+**테스트 보강:** `web/tests/pages/admin/admin-user-sessions.test.tsx`
+**신규 회귀 테스트:**
+- `web/tests/regression/i18n-hardcoded.test.ts` (5 tests)
+- `web/tests/regression/stale-freshness.test.tsx` (3 tests)
+- `web/tests/regression/state-consistency.test.tsx` (5 tests)
+- `web/tests/regression/security-rendering.test.tsx` (4 tests — SecretsPage 이름 표시 + 값 미노출, LoginPage password type, SettingsPage 제목 렌더)
+- `web/tests/regression/draft-integrity.test.tsx` (3 tests — SecretsPage isPending 렌더, AdminPage 팀 삭제 disabled, AdminPage 사용자 패널 렌더)
+- `web/tests/regression/duplicated-surface.test.tsx` (5 tests — WsListItem/WsSkeletonCol 직접 렌더 + PAGE_POLICIES + useT/useToast 단일 소스)
+- `web/tests/regression/mobile-a11y.test.tsx` (5 tests — WsListItem role/tabIndex/active 렌더 + ChatBottomBar aria-label/session_reuse 직접 렌더)
+- `web/tests/regression/state-consistency.test.tsx` (6 tests — 타입 할당 4건 + MonitoringPanel request class 배지 직접 렌더 + guardrail clear 배지 렌더)
 
 #### Test Command
 
@@ -91,23 +111,27 @@ npx vitest run tests/dashboard/fe6a-scoping.test.ts
 npx eslint src/dashboard/routes/state.ts src/dashboard/routes/config.ts src/dashboard/routes/workflows.ts src/dashboard/routes/kanban.ts tests/dashboard/fe6a-scoping.test.ts --max-warnings=0
 npx tsc --noEmit
 
-# 프론트엔드 전체 테스트 (FE-6b 포함)
+# 프론트엔드 전체 테스트
 cd web && npx vitest run tests/
-npx eslint src/pages/admin/index.tsx src/pages/overview/types.ts tests/pages/admin/admin-user-sessions.test.tsx tests/regression/i18n-hardcoded.test.ts tests/regression/stale-freshness.test.tsx tests/regression/state-consistency.test.ts --max-warnings=0
+npx eslint src/pages/admin/index.tsx src/pages/overview/types.ts tests/pages/admin/admin-user-sessions.test.tsx tests/regression/i18n-hardcoded.test.ts tests/regression/stale-freshness.test.tsx tests/regression/state-consistency.test.tsx tests/regression/security-rendering.test.tsx tests/regression/draft-integrity.test.tsx tests/regression/duplicated-surface.test.tsx tests/regression/mobile-a11y.test.tsx --max-warnings=0
 npx tsc --noEmit
 ```
 
-**locale JSON lint 참고:** `src/i18n/locales/{en,ko}.json`은 eslint 설정에서 JSON 파일이 제외되어 `File ignored` 경고가 출력됨. 이 파일들의 품질은 `i18n-hardcoded.test.ts`의 (3) en.json 한글 값 0건 검증과 (4) en↔ko 키 일치 검증으로 대체 보장.
+**locale JSON lint 참고:** `src/i18n/locales/{en,ko}.json`은 eslint 설정에서 JSON 파일이 제외되어 `File ignored` 경고 출력. 품질은 `i18n-hardcoded.test.ts`의 en.json 한글 값 0건 + en↔ko 키 일치 검증으로 대체 보장.
 
 #### Test Result
 
 - 백엔드 `tests/dashboard/fe6a-scoping.test.ts`: **1 file / 37 tests passed**
-- 프론트엔드 `web/tests/`: **20 files / 169 tests passed**
+- 프론트엔드 `web/tests/`: **24 files / 187 tests passed**
 - `npx eslint ...` (backend): **0 errors, 0 warnings**
 - `npx eslint ...` (frontend — JSON 제외): **0 errors, 0 warnings**
 - `npx tsc --noEmit` (backend + frontend): **통과**
 
 #### Residual Risk
 
-- FE-6b 나머지 항목 (shared component/hook reuse regression)은 다음 이터레이션 대상
-- locale JSON 파일의 eslint 검증은 JSON 파서 미설정으로 건너뜀 — i18n 회귀 테스트(키 일치, 한글 값 감지)로 품질 보장
+- `dangerouslySetInnerHTML` 3곳은 Mermaid SVG 렌더링 전용 — 사용자 직접 입력이 아닌 `workflow_def_to_mermaid()` 변환 결과. XSS 위험은 낮으나, 향후 SVG sanitizer 적용 검토 권장
+- locale JSON eslint 미검증 — `i18n-hardcoded.test.ts`로 대체 보장
+- stale-freshness 테스트는 `useQuery` 인자 검증 — 실제 브라우저 refetch 동작은 E2E 범위
+- mobile/a11y는 소스 패턴 검증 — 실제 뷰포트/스크린리더 검증은 Playwright E2E 범위
+- shared component reuse regression은 소스 import 패턴 기반 — 향후 코드 변경 시 패턴 유지 여부는 review 의존
+

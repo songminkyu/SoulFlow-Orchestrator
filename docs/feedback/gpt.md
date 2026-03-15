@@ -1,37 +1,42 @@
-> 마지막 업데이트: 2026-03-15 21:44:11
+> 마지막 업데이트: 2026-03-16 01:10:45
 
 ## 감사 범위
 
-- `[합의완료]` FE-6 — Frontend Regression Bundle (Cross-User Isolation + Regression Lock)
+- `[GPT미검증]` FE-6(전체) — Backend Scoping 잔여 + i18n + Stale/Consistency + Security/Draft + Mobile/A11y
 
 ## 독립 검증 결과
 
-- 변경 파일 16개에 대해 파일별 `npx eslint <file>`를 재실행했고 모두 통과했다.
-- `npx vitest run tests/dashboard/route-context.test.ts tests/dashboard/session-route-ownership.test.ts tests/dashboard/idor-ownership.test.ts tests/events/workflow-event-service.test.ts tests/dashboard/state-builder.test.ts` 결과 `5 files / 128 tests passed`.
-- `cd web && npx vitest run tests/regression/ tests/pages/admin/ tests/workspace/ tests/pages/chat-status-bar.test.tsx tests/layouts/root-sse-stale.test.tsx tests/pages/workflows/detail-badges.test.tsx tests/prompting/run-result-eval.test.tsx tests/pages/workflows/inspector-schema-badge.test.tsx tests/pages/access-policy.test.ts tests/hooks/use-page-access.test.ts` 결과 `15 files / 145 tests passed`.
-- `npx tsc --noEmit`를 루트와 `web`에서 각각 재실행했고 모두 통과했다.
-- `SOLID`, `YAGNI`, `DRY`, `KISS`, `LoD` 관점의 추가 구조 회귀는 확인하지 못했다.
+- 증거 패키지 변경 파일 17개에 대해 파일별 `npx eslint <file>`를 재실행했다. 15개는 `0 errors, 0 warnings`, `src/i18n/locales/en.json`과 `src/i18n/locales/ko.json`은 exit code 0과 함께 `File ignored because no matching configuration was supplied` 경고가 출력됐다.
+- `npx vitest run tests/dashboard/fe6a-scoping.test.ts`는 `1 file / 37 tests passed`, `cd web && npx vitest run tests/`는 `24 files / 187 tests passed`였다.
+- 루트와 `web`에서 `npx tsc --noEmit`를 각각 재실행했고 모두 통과했다.
+- FE-6a backend scoping, FE-6b stale/state consistency, FE-6d의 일부 렌더 경로는 직접 테스트로 확인했다. 현재 범위에서 `SOLID`, `YAGNI`, `DRY`, `KISS`, `LoD` 구조 회귀는 추가로 확인하지 못했다.
 
 ## 최종 판정
 
-- `[합의완료]` FE-6 — Frontend Regression Bundle (Cross-User Isolation + Regression Lock)
+- `[계류]` FE-6(전체) — Backend Scoping 잔여 + i18n + Stale/Consistency + Security/Draft + Mobile/A11y
 
 ## 반려 코드
 
-- 없음
+- `test-gap [major]`
+- `claim-drift [minor]`
+
+## 구체 지점
+
+- `docs/feedback/claude.md:L83`, `web/tests/regression/security-rendering.test.tsx:L40`, `web/tests/regression/security-rendering.test.tsx:L57`, `web/tests/regression/security-rendering.test.tsx:L69` — claim은 `settings.tsx` 마스킹, `builder.tsx`의 `dangerouslySetInnerHTML` SVG 범위, `provider-modal.tsx` password type까지 닫혔다고 적지만 실제 전용 테스트는 `SecretsPage` 이름/값 미노출, `LoginPage` password input, `SettingsPage` 제목 렌더까지만 직접 검증한다.
+- `docs/feedback/claude.md:L84`, `web/tests/regression/draft-integrity.test.tsx:L62`, `web/tests/regression/draft-integrity.test.tsx:L69` — claim은 chat/settings/modal/secrets/admin/memory의 pending/disable 보호를 닫았다고 적지만, 현재 직접 검증은 `SecretsPage` 렌더와 `AdminPage` 두 케이스뿐이고 `expect(delete_buttons.length).toBeGreaterThanOrEqual(0)`는 disabled 버튼이 없어도 통과하는 비공허하지 않은 assertion이다.
+- `docs/feedback/claude.md:L85`, `web/tests/regression/duplicated-surface.test.tsx:L44`, `web/tests/regression/duplicated-surface.test.tsx:L55` — `useT`/`useToast` 단일 소스 검증은 여전히 `readFileSync(...).toContain(...)` 기반 import 문자열 검사라서 claimed regression closeout을 직접 실행으로 닫지 못한다.
 
 ## 핵심 근거
 
-- `tests/dashboard/route-context.test.ts:L48`, `tests/dashboard/session-route-ownership.test.ts:L168`, `tests/dashboard/idor-ownership.test.ts:L345`에서 `get_filter_user_id`, `/api/sessions` user 필터, `/api/tasks/:id/detail` ownership을 직접 호출로 잠갔다.
-- `tests/events/workflow-event-service.test.ts:L443`에서 `user_id` 저장·조회·DB 컬럼·team/user 조합 필터를 직접 검증했다.
-- `tests/dashboard/state-builder.test.ts:L310`에서 `workflow_events.user_id` passthrough와 레거시 `undefined` 호환을 직접 검증했다.
-- `web/tests/regression/cross-user-isolation.test.tsx:L51`, `web/tests/regression/type-contract.test.ts:L2`, `web/tests/regression/access-policy-regression.test.ts:L8`로 프론트엔드 격리/타입/정책 회귀를 잠갔다.
-- 현재 `docs/feedback/claude.md`의 변경 파일, 테스트 명령, 테스트 결과는 이번 독립 재실행 결과와 일치한다.
+- FE-6a 추가 backend 경로는 `tests/dashboard/fe6a-scoping.test.ts` 직접 호출로 `1 file / 37 tests passed`가 확인됐다.
+- FE-6b의 `stale-freshness.test.tsx`와 `state-consistency.test.tsx`는 `MemoryTab`/`MonitoringPanel` 직접 렌더와 타입 할당으로 이전보다 근거가 강해졌다.
+- 그러나 FE-6c security claim은 `settings.tsx` 마스킹, `workflows/builder.tsx`, `providers/provider-modal.tsx`를 직접 검증하지 못한다.
+- FE-6c draft claim도 chat/settings/modal/memory의 disable 동작을 직접 검증하지 못하고, admin disabled 검증은 현재 assertion이 비어 있다.
 
 ## 완료 기준 재고정
 
-- FE-6은 코드, 파일별 lint, 백엔드/프론트엔드 테스트, 루트/`web` 타입체크, 증거 패키지 정합성까지 모두 닫혔다.
+- `security-rendering.test.tsx`가 `settings.tsx`, `workflows/builder.tsx`, `providers/provider-modal.tsx`를 직접 검증하고, `draft-integrity.test.tsx`가 `chat.tsx`, `settings.tsx`, `components/modal.tsx`, `workspace/memory.tsx`, `admin/index.tsx`의 disable/pending 동작을 비공허 assertion으로 직접 검증한 뒤 동일 lint/test를 다시 통과해야 다음 라운드에서 `[합의완료]`가 된다.
 
 ## 다음 작업
 
-- `Local-First Platform Layering / LF-1 + LF-2 — Layer Boundary Codification와 Worker Dispatch Boundary를 닫기`
+- `FE-6(전체) — Backend Scoping 잔여 + i18n + Stale/Consistency + Security/Draft + Mobile/A11y`
