@@ -269,6 +269,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const store = store_or_503(ctx);
     if (!store) return true;
     const card_id = decodeURIComponent(comments_match[1]);
+    const access = await check_card_board_access(store, card_id);
+    if (!access.ok) { json(res, access.status, { error: access.status === 404 ? "not_found" : "forbidden" }); return true; }
     const limit = url.searchParams.has("limit") ? Number(url.searchParams.get("limit")) : undefined;
     const comments = await store.list_comments(card_id, limit);
     json(res, 200, comments);
@@ -279,6 +281,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const store = store_or_503(ctx);
     if (!store) return true;
     const card_id = decodeURIComponent(comments_match[1]);
+    const access = await check_card_board_access(store, card_id);
+    if (!access.ok) { json(res, access.status, { error: access.status === 404 ? "not_found" : "forbidden" }); return true; }
     const body = await read_body(req);
     if (!body?.text) { json(res, 400, { error: "text required" }); return true; }
     const comment = await store.add_comment(card_id, String(body.author ?? "user:dashboard"), String(body.text));
