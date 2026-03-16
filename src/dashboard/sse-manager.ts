@@ -13,7 +13,7 @@ import { now_iso, short_id } from "../utils/common.js";
 import { set_no_cache } from "./route-context.js";
 import { pick_agent_event_fields } from "./state-builder.js";
 
-type SseClient = { id: string; res: ServerResponse; team_id?: string };
+type SseClient = { id: string; res: ServerResponse; team_id?: string; user_id?: string };
 type RichStreamListener = (event: WebStreamEvent) => void;
 
 const MAX_RECENT_MESSAGES = 40;
@@ -29,14 +29,14 @@ export class SseManager implements SseBroadcasterLike {
 
   get client_count(): number { return this.clients.size; }
 
-  add_client(res: ServerResponse, team_id?: string): void {
+  add_client(res: ServerResponse, team_id?: string, user_id?: string): void {
     const id = short_id(8);
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
     res.setHeader("Connection", "keep-alive");
     set_no_cache(res);
     res.write(`event: ready\ndata: ${JSON.stringify({ id, at: now_iso() })}\n\n`);
-    this.clients.set(id, { id, res, team_id });
+    this.clients.set(id, { id, res, team_id, user_id });
     res.on("close", () => { this.clients.delete(id); });
   }
 
@@ -52,13 +52,13 @@ export class SseManager implements SseBroadcasterLike {
     this._broadcast_scoped(payload, (entry as { team_id?: string }).team_id);
   }
 
-  broadcast_message_event(direction: "inbound" | "outbound", sender_id: string, content?: string, chat_id?: string, team_id?: string): void {
+  broadcast_message_event(direction: "inbound" | "outbound", sender_id: string, content?: string, chat_id?: string, team_id?: string, user_id?: string): void {
     this._count_broadcast("message");
     const at = now_iso();
-    this.recent_messages.push({ direction, sender_id, content: String(content || "").slice(0, 200), chat_id: chat_id || "", team_id: team_id || "", at });
+    this.recent_messages.push({ direction, sender_id, content: String(content || "").slice(0, 200), chat_id: chat_id || "", team_id: team_id || "", user_id: user_id || "", at });
     while (this.recent_messages.length > MAX_RECENT_MESSAGES) this.recent_messages.shift();
     if (this.clients.size === 0) return;
-    this._broadcast_scoped(`event: message\ndata: ${JSON.stringify({ direction, sender_id, at })}\n\n`, team_id);
+    this._broadcast_scoped(`event: message\ndata: ${JSON.stringify({ direction, sender_id, at })}\n\n`, team_id, user_id);
   }
 
   broadcast_cron_event(type: string, job_id?: string, team_id?: string): void {
@@ -164,13 +164,15 @@ export class SseManager implements SseBroadcasterLike {
     for (const id of dead) this.clients.delete(id);
   }
 
-  /** 팀 스코프 전송. team_id 없는 클라이언트(superadmin)는 항상 수신. */
-  private _broadcast_scoped(payload: string, team_id?: string): void {
-    if (team_id === undefined) { this._broadcast(payload); return; }
+  /** 팀+유저 스코프 전송. team_id/user_id 없는 클라이언트(superadmin)는 항상 수신. */
+  private _broadcast_scoped(payload: string, team_id?: string, user_id?: string): void {
+    if (team_id === undefined && user_id === undefined) { this._broadcast(payload); return; }
     const dead: string[] = [];
     for (const [id, client] of this.clients.entries()) {
       // team_id 없는 클라이언트 = superadmin/single-user → 모든 이벤트 수신
-      if (client.team_id && client.team_id !== team_id) continue;
+      if (team_id !== undefined && client.team_id && client.team_id !== team_id) continue;
+      // TN-6a: user_id 스코핑 — user_id 지정 시 본인에게만 전달 (superadmin/unscoped 제외)
+      if (user_id !== undefined && client.user_id && client.user_id !== user_id) continue;
       try { client.res.write(payload); } catch { dead.push(id); }
     }
     for (const id of dead) this.clients.delete(id);

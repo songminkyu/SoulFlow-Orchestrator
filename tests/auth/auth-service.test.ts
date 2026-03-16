@@ -127,6 +127,24 @@ describe("AuthService — login", () => {
     await svc.login("carol", "pw");
     expect(store.get_user_by_id(user.id)?.last_login_at).not.toBeNull();
   });
+
+  // TN-1: default_team_id는 JWT tid의 초기값으로 사용되는 편의 힌트
+  it("default_team_id 없는 사용자 → tid = 'default' fallback", async () => {
+    const { store, svc } = make_svc();
+    const hash = svc.hash_password("pw");
+    store.create_user({ username: "dave", password_hash: hash, system_role: "user" /* default_team_id: 미설정 */ });
+    const result = await svc.login("dave", "pw");
+    expect(result!.payload.tid).toBe("default");
+  });
+
+  it("default_team_id 설정 사용자 → tid = 설정값 (편의 힌트, 접근 제어 아님)", async () => {
+    const { store, svc } = make_svc();
+    store.ensure_team("alpha", "Alpha");
+    const hash = svc.hash_password("pw");
+    store.create_user({ username: "eve", password_hash: hash, system_role: "user", default_team_id: "alpha" });
+    const result = await svc.login("eve", "pw");
+    expect(result!.payload.tid).toBe("alpha");
+  });
 });
 
 describe("AuthService — 전역 프로바이더 위임", () => {

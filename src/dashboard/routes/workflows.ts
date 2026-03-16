@@ -2,7 +2,7 @@
 
 import type { RouteHandler } from "../route-context.js";
 import type { DashboardWorkflowOps } from "../service.js";
-import { set_no_cache, get_filter_team_id } from "../route-context.js";
+import { set_no_cache, get_filter_team_id, build_scope_filter } from "../route-context.js";
 import { renderMermaid, renderMermaidAscii } from "@vercel/beautiful-mermaid";
 import { error_message } from "../../utils/common.js";
 import {
@@ -191,6 +191,7 @@ export const handle_workflow: RouteHandler = async (ctx) => {
       provider_id: typeof body.provider_instance_id === "string" ? body.provider_instance_id : undefined,
       model: typeof body.model === "string" ? body.model : undefined,
       save: body.save === true,
+      scope_filter: build_scope_filter(ctx),
     });
     json(res, result.ok ? 200 : 400, result);
     return true;
@@ -230,6 +231,7 @@ export const handle_workflow: RouteHandler = async (ctx) => {
         provider_id: typeof body.provider_instance_id === "string" ? body.provider_instance_id : undefined,
         model: typeof body.model === "string" ? body.model : undefined,
         save: body.save === true,
+        scope_filter: build_scope_filter(ctx),
         on_patch: (patch_path, section) => send_event("patch", { path: patch_path, section }),
         on_stream: (text) => send_event("stream", { text }),
       });

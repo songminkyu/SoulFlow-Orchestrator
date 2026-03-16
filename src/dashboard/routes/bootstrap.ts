@@ -1,4 +1,5 @@
 import type { RouteContext } from "../route-context.js";
+import { require_superadmin } from "../route-context.js";
 
 export async function handle_bootstrap(ctx: RouteContext): Promise<boolean> {
   const { req, url, res, options, json, read_body } = ctx;
@@ -10,6 +11,7 @@ export async function handle_bootstrap(ctx: RouteContext): Promise<boolean> {
     return true;
   }
   if (url.pathname === "/api/bootstrap" && req.method === "POST") {
+    if (!require_superadmin(ctx)) return true;
     const ops = options.bootstrap_ops;
     if (!ops) { json(res, 503, { error: "bootstrap_unavailable" }); return true; }
     const body = await read_body(req);

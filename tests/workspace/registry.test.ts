@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { WorkspaceRegistry } from "@src/workspace/registry.js";
+import { WorkspaceRegistry, type WorkspaceRuntimeLocator } from "@src/workspace/registry.js";
 import { WorkspaceRuntime } from "@src/workspace/runtime.js";
 
 function make_registry(): { registry: WorkspaceRegistry; root: string } {
@@ -299,5 +299,65 @@ describe("WorkspaceRegistry — size / stop_all()", () => {
     registry.stop_all();
     expect(registry.size).toBe(0);
     expect(registry.list_active()).toHaveLength(0);
+  });
+});
+
+// ══════════════════════════════════════════
+// TN-2: WorkspaceRuntimeLocator 포트 준수
+// ══════════════════════════════════════════
+
+describe("TN-2: WorkspaceRuntimeLocator 인터페이스 준수", () => {
+  it("WorkspaceRegistry는 WorkspaceRuntimeLocator로 할당 가능 (포트 준수)", () => {
+    const { registry, root } = make_registry();
+    // 포트 인터페이스 타입으로 참조 — 컴파일 타임 검증
+    const locator: WorkspaceRuntimeLocator = registry;
+    expect(typeof locator.get_or_create).toBe("function");
+    expect(typeof locator.get_runtime).toBe("function");
+    void root; // suppress unused var
+  });
+
+  it("미들웨어 패턴: get_or_create → get_runtime 같은 인스턴스 반환", () => {
+    const { registry } = make_registry();
+    // 미들웨어에서 init
+    const created = registry.get_or_create({ team_id: "t1", user_id: "u1" });
+    // route context builder에서 조회
+    const fetched = registry.get_runtime({ team_id: "t1", user_id: "u1" });
+    expect(fetched).toBe(created);
+  });
+
+  it("get_runtime: 미등록 키 → null (init되지 않은 요청)", () => {
+    const { registry } = make_registry();
+    expect(registry.get_runtime({ team_id: "never", user_id: "never" })).toBeNull();
+  });
+
+  it("WorkspaceRuntimeRef 구조: get_runtime 반환값이 포트 타입 만족", () => {
+    const { registry } = make_registry();
+    registry.get_or_create({ team_id: "t1", user_id: "u1" });
+    const ref = registry.get_runtime({ team_id: "t1", user_id: "u1" })!;
+    // WorkspaceRuntimeRef 필수 필드 검증
+    expect(typeof ref.team_id).toBe("string");
+    expect(typeof ref.user_id).toBe("string");
+    expect(typeof ref.workspace_path).toBe("string");
+    expect(Array.isArray(ref.workspace_layers)).toBe(true);
+    expect(typeof ref.runtime_path).toBe("string");
+    expect(typeof ref.workspace).toBe("string");
+    expect(typeof ref.admin_runtime).toBe("string");
+    expect(typeof ref.team_runtime).toBe("string");
+    expect(typeof ref.user_runtime).toBe("string");
+    expect(typeof ref.user_content).toBe("string");
+    expect(typeof ref.is_active).toBe("boolean");
+    expect(typeof ref.started_at).toBe("string");
+  });
+
+  it("팀 전환: 동일 user + 다른 team_id → get_runtime이 각각 다른 ref 반환", () => {
+    const { registry } = make_registry();
+    registry.get_or_create({ team_id: "t1", user_id: "alice" });
+    registry.get_or_create({ team_id: "t2", user_id: "alice" });
+    const r1 = registry.get_runtime({ team_id: "t1", user_id: "alice" });
+    const r2 = registry.get_runtime({ team_id: "t2", user_id: "alice" });
+    expect(r1).not.toBeNull();
+    expect(r2).not.toBeNull();
+    expect(r1).not.toBe(r2);
+    expect(r1!.workspace_path).not.toBe(r2!.workspace_path);
   });
 });

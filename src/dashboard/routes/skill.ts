@@ -1,4 +1,5 @@
 import type { RouteContext } from "../route-context.js";
+import { require_team_manager_for_write } from "../route-context.js";
 import { create_scoped_skill_ops } from "../ops/skill.js";
 
 function get_skill_ops(ctx: RouteContext) {
@@ -16,6 +17,8 @@ function skill_ops_or_503(ctx: RouteContext) {
 }
 
 export async function handle_skill(ctx: RouteContext): Promise<boolean> {
+  // TN-6: skill 쓰기는 team_manager 이상만
+  if (!require_team_manager_for_write(ctx)) return true;
   const { req, url, res, json, read_body } = ctx;
   const path = url.pathname;
 

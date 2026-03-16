@@ -198,6 +198,10 @@ export class AuthService {
   /**
    * username + password로 로그인 시도.
    * 성공 시 JWT 반환, 실패 시 null.
+   *
+   * TN-1: default_team_id는 JWT의 초기 tid로 사용되는 **편의 힌트** 일 뿐.
+   * 실제 멤버십 검증(access control)은 요청마다 service.ts 미들웨어에서 TeamStore로 수행한다.
+   * "default" 팀 = 별도 TeamStore 없이 허용하는 fallback (MembershipSource.default_team_fallback).
    */
   async login(username: string, password: string): Promise<{ token: string; payload: JwtPayload } | null> {
     const user = this.store.get_user_by_username(username);

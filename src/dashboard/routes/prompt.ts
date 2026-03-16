@@ -1,4 +1,5 @@
 import type { RouteContext } from "../route-context.js";
+import { build_scope_filter } from "../route-context.js";
 import { error_message } from "../../utils/common.js";
 
 export async function handle_prompt(ctx: RouteContext): Promise<boolean> {
@@ -23,6 +24,7 @@ export async function handle_prompt(ctx: RouteContext): Promise<boolean> {
         system: typeof body.system === "string" ? body.system : undefined,
         temperature: typeof body.temperature === "number" ? body.temperature : undefined,
         max_tokens: typeof body.max_tokens === "number" ? body.max_tokens : undefined,
+        scope_filter: build_scope_filter(ctx),
       });
       json(res, 200, result);
     } catch (err) {
@@ -40,6 +42,7 @@ export async function handle_prompt(ctx: RouteContext): Promise<boolean> {
       return true;
     }
     const targets = (body.targets as Array<{ provider_id?: string; model?: string }>).slice(0, 6);
+    const scope = build_scope_filter(ctx);
     const results = await Promise.allSettled(
       targets.map((target) =>
         prompt_ops.run({
@@ -49,6 +52,7 @@ export async function handle_prompt(ctx: RouteContext): Promise<boolean> {
           system: typeof body.system === "string" ? body.system : undefined,
           temperature: typeof body.temperature === "number" ? body.temperature : undefined,
           max_tokens: typeof body.max_tokens === "number" ? body.max_tokens : undefined,
+          scope_filter: scope,
         }),
       ),
     );

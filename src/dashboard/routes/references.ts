@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { writeFile, unlink, mkdir } from "node:fs/promises";
 import { join, resolve as path_resolve, sep } from "node:path";
 import type { RouteContext } from "../route-context.js";
+import { require_team_manager } from "../route-context.js";
 import { sanitize_filename, is_inside } from "../ops/shared.js";
 
 export async function handle_references(ctx: RouteContext): Promise<boolean> {
@@ -12,6 +13,9 @@ export async function handle_references(ctx: RouteContext): Promise<boolean> {
   const store = options.reference_store;
 
   if (!store) { json(res, 503, { error: "reference_store_unavailable" }); return path.startsWith("/api/references"); }
+
+  // TN-6: reference 문서는 팀 공유 자산 — team_manager 이상만 접근
+  if (!require_team_manager(ctx)) return true;
 
   // GET /api/references — 문서 목록 + 통계
   if (path === "/api/references" && req.method === "GET") {

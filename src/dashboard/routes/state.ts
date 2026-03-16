@@ -15,7 +15,7 @@ export async function handle_state(ctx: RouteContext): Promise<boolean> {
     return true;
   }
   if (url.pathname === "/api/events") {
-    add_sse_client(res, get_filter_team_id(ctx));
+    add_sse_client(res, get_filter_team_id(ctx), get_filter_user_id(ctx));
     return true;
   }
 

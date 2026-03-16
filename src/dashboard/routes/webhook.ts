@@ -10,17 +10,19 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 export type WebhookDeps = {
   webhook_store: WebhookStore;
-  /** Bearer 토큰. 미설정 시 인증 없이 허용. */
+  /** Bearer 토큰. */
   webhook_secret?: string;
+  /** auth가 활성화되어 있는지. true이면 webhook_secret 필수. */
+  auth_enabled?: boolean;
   /** 인바운드 메시지 발행. wake/agent에서 사용. */
   publish_inbound: (msg: import("../../bus/types.js").InboundMessage) => Promise<void>;
   json: (res: ServerResponse, status: number, data: unknown) => void;
   read_body: (req: IncomingMessage) => Promise<Record<string, unknown> | null>;
 };
 
-/** Authorization 헤더 검증. secret 미설정 시 통과. */
-function verify_token(req: IncomingMessage, secret: string | undefined): boolean {
-  if (!secret) return true;
+/** Authorization 헤더 검증. auth 활성 + secret 미설정 시 거부 (TN-6a: 무인증 차단). */
+function verify_token(req: IncomingMessage, secret: string | undefined, auth_enabled?: boolean): boolean {
+  if (!secret) return !auth_enabled; // auth 비활성(싱글유저) 시만 허용
   const auth = String(req.headers.authorization || "").trim();
   if (!auth.startsWith("Bearer ")) return false;
   const token = auth.slice(7).trim();
@@ -144,7 +146,7 @@ export async function dispatch_webhook(
   if (!url.pathname.startsWith("/hooks/")) return false;
 
   // 토큰 인증
-  if (!verify_token(req, deps.webhook_secret)) {
+  if (!verify_token(req, deps.webhook_secret, deps.auth_enabled)) {
     deps.json(res, 401, { ok: false, error: "unauthorized" });
     return true;
   }

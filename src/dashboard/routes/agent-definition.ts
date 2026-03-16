@@ -39,7 +39,7 @@ export async function handle_agent_definition(ctx: RouteContext): Promise<boolea
     const body = await read_body(req);
     const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
     if (!prompt) { json(res, 400, { error: "prompt_required" }); return true; }
-    const result = await ops.generate(prompt);
+    const result = await ops.generate(prompt, build_scope_filter(ctx));
     json(res, result.ok ? 200 : (result.error === "generate_unavailable" ? 503 : 500), result);
     return true;
   }

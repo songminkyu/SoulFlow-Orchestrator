@@ -62,10 +62,20 @@ import { handle_admin } from "./routes/admin.js";
 import { handle_team_providers } from "./routes/team-providers.js";
 import { extract_token } from "../auth/auth-middleware.js";
 import { TeamStore } from "../auth/team-store.js";
+import { resolve_tenant_context } from "../auth/tenant-context.js";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 const RE_MEDIA_TOKEN = /^\/media\/([a-z0-9]{16,})$/i;
+
+/** TN-6c: publicUrl 우선, X-Forwarded-Host 무시. 테스트에서 직접 호출 가능. */
+export function resolve_request_origin(req: IncomingMessage, public_url?: string, fallback_port?: number): string {
+  if (public_url) return public_url.replace(/\/+$/, "");
+  const proto = req.headers["x-forwarded-proto"] || "http";
+  const host = req.headers.host || "";
+  if (host) return `${proto}://${host}`;
+  return `http://localhost:${fallback_port ?? 0}`;
+}
 
 // --- 하위 호환성 상수 재노출 ---
 export { MAX_CHAT_SESSIONS, MAX_MESSAGES_PER_SESSION };
@@ -175,11 +185,7 @@ export class DashboardService implements ServiceLike {
   get sse(): SseManager { return this._sse; }
 
   private _resolve_request_origin(req: IncomingMessage): string {
-    const proto = req.headers["x-forwarded-proto"] || "http";
-    const host = req.headers["x-forwarded-host"] || req.headers.host || "";
-    if (host) return `${proto}://${host}`;
-    const port = this.bound_port ?? this.options.port;
-    return `http://localhost:${port}`;
+    return resolve_request_origin(req, (this.options as Record<string, unknown>).public_url as string | undefined, this.bound_port ?? this.options.port);
   }
 
   private _json(res: ServerResponse, status: number, data: unknown): void {
@@ -285,14 +291,16 @@ export class DashboardService implements ServiceLike {
       options: this.options,
       auth_user,
       team_context,
+      // TN-2: get_runtime 사용 — 미들웨어(get_or_create)가 이미 init한 것을 read-only 조회.
+      // 미인증/공개 라우트에서는 미들웨어가 실행되지 않으므로 null 반환이 정상.
       workspace_runtime: (tid && uid && this.options.workspace_registry)
-        ? this.options.workspace_registry.get_or_create({ team_id: tid, user_id: uid })
+        ? this.options.workspace_registry.get_runtime({ team_id: tid, user_id: uid })
         : null,
       workspace_layers,
       personal_dir,
       json: (r, s, d) => this._json(r, s, d),
       read_body: (r) => this._read_json_body(r, res),
-      add_sse_client: (r, tid) => this._sse.add_client(r, tid),
+      add_sse_client: (r, tid, uid) => this._sse.add_client(r, tid, uid),
       build_state: (team_id?: string, user_id?: string) => build_dashboard_state(this.options, this._sse.recent_messages, team_id, user_id),
       build_merged_tasks: (team_id?: string) => build_merged_tasks(this.options, team_id),
       recent_messages: this._sse.recent_messages,
@@ -333,9 +341,17 @@ export class DashboardService implements ServiceLike {
       await serve_static(this.web_dir, web_path, res); return;
     }
 
-    // 미디어 토큰
+    // 미디어 토큰 — TN-6b: auth 활성 시 JWT 쿠키 OR 토큰 인증 필수
     const media_match = RE_MEDIA_TOKEN.exec(url.pathname);
-    if (media_match && req.method === "GET") { await this._media.serve(media_match[1], res); return; }
+    if (media_match && req.method === "GET") {
+      if (this.options.auth_svc) {
+        const token = extract_token(req);
+        const valid = token ? this.options.auth_svc.verify_token(token) : null;
+        if (!valid) { this._json(res, 401, { error: "unauthorized" }); return; }
+      }
+      await this._media.serve(media_match[1], res);
+      return;
+    }
 
     // JWT 인증 미들웨어 (auth_svc 설정 시에만 적용)
     if (this.options.auth_svc && url.pathname.startsWith("/api/")) {
@@ -363,28 +379,50 @@ export class DashboardService implements ServiceLike {
         }
         // 3단계: 팀 멤버십 검증 — JWT의 tid가 실제 멤버십인지 확인 (팀 전환 후에도 유효)
         // superadmin은 모든 팀 접근 허용. 일반 유저는 TeamStore 멤버십 필수.
-        let team_role: import("../auth/team-store.js").TeamRole = "member";
-        if (db_user.system_role !== "superadmin" && payload.tid && payload.tid !== "default") {
-          const workspace = this.options.workspace ?? "";
+        const workspace = this.options.workspace ?? "";
+        let tenant_ctx: import("../auth/tenant-context.js").TenantContext | null = null;
+        if (payload.tid && db_user.system_role !== "superadmin" && payload.tid !== "default") {
           const team_db = join(workspace, "tenants", payload.tid, "team.db");
           if (!existsSync(team_db)) {
-            this._json(res, 403, { error: "team_not_found" });
-            return;
-          }
-          const membership = new TeamStore(team_db, payload.tid).get_membership(payload.sub);
-          if (!membership) {
+            // TN-6b: team 존재 여부를 노출하지 않음 — not_a_member로 통합
             this._json(res, 403, { error: "not_a_member" });
             return;
           }
-          team_role = membership.role;
-        } else if (db_user.system_role === "superadmin") {
-          team_role = "owner";
+          const team_store = new TeamStore(team_db, payload.tid);
+          tenant_ctx = resolve_tenant_context({
+            user_id: payload.sub,
+            system_role: db_user.system_role,
+            team_id: payload.tid,
+            get_membership: (uid) => team_store.get_membership(uid),
+          });
+          if (!tenant_ctx) {
+            this._json(res, 403, { error: "not_a_member" });
+            return;
+          }
+        } else if (payload.tid) {
+          if (db_user.system_role === "superadmin") {
+            // superadmin: 멤버십 없이 모든 팀 owner
+            tenant_ctx = resolve_tenant_context({
+              user_id: payload.sub,
+              system_role: "superadmin",
+              team_id: payload.tid,
+              get_membership: () => null,
+            });
+          } else {
+            // "default" 팀: 별도 TeamStore 없이 허용하는 편의 접근 (TN-1: default_team_fallback)
+            tenant_ctx = {
+              user_id: payload.sub,
+              team_id: payload.tid,
+              team_role: "member",
+              membership_source: "default_team_fallback",
+            };
+          }
         }
         // 검증된 페이로드를 요청 객체에 첨부 (라우트 핸들러에서 접근 가능)
         (req as unknown as Record<string, unknown>)["_auth_user"] = payload;
-        // Phase 8-23: team_context 주입
-        if (payload.tid) {
-          (req as unknown as Record<string, unknown>)["_team_context"] = { team_id: payload.tid, team_role };
+        // TN-1: team_context에 TenantContext(membership_source 포함) 주입
+        if (tenant_ctx) {
+          (req as unknown as Record<string, unknown>)["_team_context"] = tenant_ctx;
         }
         // workspace_middleware: 개인 워크스페이스 디렉토리 보장 (lazy init)
         this.options.workspace_registry?.get_or_create({ team_id: payload.tid, user_id: payload.sub });
@@ -441,6 +479,7 @@ export class DashboardService implements ServiceLike {
         {
           webhook_store: store,
           webhook_secret,
+          auth_enabled: !!this.options.auth_svc,
           publish_inbound: (msg) => bus ? bus.publish_inbound(msg) : Promise.resolve(),
           json: ctx.json,
           read_body: ctx.read_body,

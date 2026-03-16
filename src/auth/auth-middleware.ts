@@ -23,14 +23,14 @@ export function extract_token(req: IncomingMessage): string | null {
   return null;
 }
 
-/** Set-Cookie 헤더 문자열 생성 (HttpOnly, SameSite=Strict). */
+/** Set-Cookie 헤더 문자열 생성 (HttpOnly, Secure, SameSite=Strict). TN-6b: Secure 플래그 추가. */
 export function make_auth_cookie(token: string, max_age_sec = 7 * 24 * 3600): string {
-  return `${AUTH_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${max_age_sec}`;
+  return `${AUTH_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${max_age_sec}`;
 }
 
 /** Set-Cookie 헤더: 토큰 삭제용 (Max-Age=0). */
 export function clear_auth_cookie(): string {
-  return `${AUTH_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`;
+  return `${AUTH_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
 }
 
 function parse_cookies(header: string): Record<string, string> {

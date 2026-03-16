@@ -5,38 +5,20 @@ import type { DashboardOptions, ChatSession, RecentMessage } from "./service.js"
 import type { SystemMetricsCollector } from "./system-metrics.js";
 import type { SessionStoreLike } from "../session/index.js";
 import type { JwtPayload } from "../auth/auth-service.js";
-import type { TeamRole } from "../auth/team-store.js";
 import type { DashboardMemoryOps } from "./service.types.js";
 import { type CorrelationContext, create_correlation } from "../observability/correlation.js";
+import { type TenantContext } from "../auth/tenant-context.js";
+import { type WorkspaceRuntimeRef } from "../workspace/runtime.js";
 
-/** Phase 8-23: 현재 요청의 팀 문맥. auth_middleware 검증 후 주입. */
-export type TeamContext = {
-  team_id: string;
-  team_role: TeamRole;
-};
+/** Phase 8-23 / TN-1: 현재 요청의 팀 문맥. auth_middleware 검증 후 주입. */
+export type { TenantContext };
+/** 하위 호환 별칭. TenantContext와 구조적으로 호환. */
+export type TeamContext = TenantContext;
 
-/** Phase 8-25: 사용자 워크스페이스 런타임 접근 인터페이스. UserWorkspace 호환. */
-export type WorkspaceRuntimeLike = {
-  team_id: string;
-  user_id: string;
-  workspace_path: string;
-  /** 3-tier 경로 [global, team, personal]. 병합 읽기 시 뒤쪽이 앞쪽을 override. */
-  workspace_layers: readonly string[];
-  /** 런타임 데이터 디렉토리 (workspace_path/runtime). */
-  runtime_path: string;
-  /** 워크스페이스 루트 경로. */
-  workspace: string;
-  /** 글로벌 런타임 경로 (config, security, providers, definitions). */
-  admin_runtime: string;
-  /** 팀 런타임 경로 (channels, oauth, cron, dlq, datasources). */
-  team_runtime: string;
-  /** 유저 런타임 경로 (sessions, decisions, events). */
-  user_runtime: string;
-  /** 유저 콘텐츠 루트. */
-  user_content: string;
-  is_active: boolean;
-  started_at: string;
-};
+/** TN-2: WorkspaceRuntimeRef 재노출. 라우트 핸들러가 소비하는 runtime 포트 타입. */
+export type { WorkspaceRuntimeRef };
+/** 하위 호환 별칭. WorkspaceRuntimeRef와 동일. */
+export type WorkspaceRuntimeLike = WorkspaceRuntimeRef;
 
 export type RouteContext = {
   req: IncomingMessage;
@@ -45,17 +27,17 @@ export type RouteContext = {
   options: DashboardOptions;
   /** 인증된 사용자의 JWT 페이로드. 인증 비활성 또는 미인증 시 null. */
   auth_user: JwtPayload | null;
-  /** Phase 8-23: 현재 요청의 팀 문맥. 인증 비활성 또는 미인증 시 null. */
-  team_context: TeamContext | null;
-  /** Phase 8-24: 현재 사용자의 워크스페이스 런타임. per-user RuntimeApp 완성 전까지 null. */
-  workspace_runtime: WorkspaceRuntimeLike | null;
+  /** TN-1: 현재 요청의 팀 문맥 (멤버십 출처 포함). 인증 비활성 또는 미인증 시 null. */
+  team_context: TenantContext | null;
+  /** TN-2: 현재 사용자의 워크스페이스 런타임 (WorkspaceRuntimeRef 포트). 미인증 시 null. */
+  workspace_runtime: WorkspaceRuntimeRef | null;
   /** [global, team, personal] 워크스페이스 레이어 경로 (낮은 → 높은 우선순위). */
   workspace_layers: string[];
   /** 저장/삭제용 개인 workspace 경로 (최상위 레이어). */
   personal_dir: string;
   json: (res: ServerResponse, status: number, data: unknown) => void;
   read_body: (req: IncomingMessage) => Promise<Record<string, unknown> | null>;
-  add_sse_client: (res: ServerResponse, team_id?: string) => void;
+  add_sse_client: (res: ServerResponse, team_id?: string, user_id?: string) => void;
   build_state: (team_id?: string, user_id?: string) => Promise<Record<string, unknown>>;
   build_merged_tasks: (team_id?: string) => Promise<unknown[]>;
   recent_messages: RecentMessage[];

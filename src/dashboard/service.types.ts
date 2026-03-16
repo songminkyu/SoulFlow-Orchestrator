@@ -286,7 +286,7 @@ export interface DashboardWorkflowOps {
   update_settings(workflow_id: string, settings: { auto_approve?: boolean; auto_resume?: boolean }): Promise<{ ok: boolean; error?: string }>;
   run_single_node?(node: Record<string, unknown>, input_memory: Record<string, unknown>): Promise<{ ok: boolean; output?: unknown; duration_ms?: number; error?: string }>;
   test_single_node?(node: Record<string, unknown>, input_memory: Record<string, unknown>): { ok: boolean; preview?: unknown; warnings?: string[] };
-  suggest?(instruction: string, options: { name?: string; workflow?: Record<string, unknown>; provider_id?: string; model?: string; save?: boolean; on_patch?: (path: string, section: Record<string, unknown> | unknown[]) => void; on_stream?: (text: string) => void }): Promise<{ ok: boolean; workflow?: Record<string, unknown>; name?: string; error?: string }>;
+  suggest?(instruction: string, options: { name?: string; workflow?: Record<string, unknown>; provider_id?: string; model?: string; save?: boolean; scope_filter?: import("../agent/provider-store.js").ProviderScopeFilter; on_patch?: (path: string, section: Record<string, unknown> | unknown[]) => void; on_stream?: (text: string) => void }): Promise<{ ok: boolean; workflow?: Record<string, unknown>; name?: string; error?: string }>;
 }
 
 export interface DashboardCliAuthOps {
@@ -299,6 +299,7 @@ export interface DashboardPromptOps {
   run(input: {
     provider_id?: string;
     model?: string;
+    scope_filter?: import("../agent/provider-store.js").ProviderScopeFilter;
     prompt: string;
     system?: string;
     temperature?: number;
@@ -362,8 +363,8 @@ export type DashboardOptions = {
   auth_svc?: import("../auth/auth-service.js").AuthService | null;
   /** 3-tier workspace 레이어 해석기. 인증 사용 시 필수. */
   workspace_resolver?: import("../workspace/resolver.js").WorkspaceResolver | null;
-  /** 멀티유저 워크스페이스 경로 레지스트리. JWT 인증 후 자동 디렉토리 보장. */
-  workspace_registry?: import("../workspace/registry.js").WorkspaceRegistry | null;
+  /** TN-2: 멀티유저 런타임 locator. JWT 인증 후 자동 디렉토리 보장. 포트 인터페이스로 의존. */
+  workspace_registry?: import("../workspace/registry.js").WorkspaceRuntimeLocator | null;
   logger?: Logger | null;
   /** OB-5: observability 주입. 미설정 시 no-op. */
   observability?: import("../observability/context.js").ObservabilityLike | null;
@@ -374,7 +375,7 @@ export type DashboardOptions = {
 export const MAX_CHAT_SESSIONS = 20;
 export const MAX_MESSAGES_PER_SESSION = 500;
 
-export type RecentMessage = { direction: "inbound" | "outbound"; sender_id: string; content: string; chat_id: string; team_id: string; at: string };
+export type RecentMessage = { direction: "inbound" | "outbound"; sender_id: string; content: string; chat_id: string; team_id: string; user_id: string; at: string };
 
 export type ChatMediaItem = { type: string; url: string; mime?: string; name?: string };
 export type ChatSessionMessage = { direction: "user" | "assistant"; content: string; at: string; media?: ChatMediaItem[]; model?: string; provider_instance_id?: string };

@@ -19,7 +19,7 @@ export type MirrorMessageEvent = {
 
 export interface SseBroadcasterLike {
   broadcast_process_event(type: "start" | "end", entry: ProcessEntry): void;
-  broadcast_message_event(direction: "inbound" | "outbound", sender_id: string, content?: string, chat_id?: string, team_id?: string): void;
+  broadcast_message_event(direction: "inbound" | "outbound", sender_id: string, content?: string, chat_id?: string, team_id?: string, user_id?: string): void;
   broadcast_cron_event(type: string, job_id?: string, team_id?: string): void;
   broadcast_progress_event(event: ProgressEvent, team_id?: string): void;
   broadcast_task_event(type: "status_change", task: TaskState): void;

@@ -1,24 +1,37 @@
 /**
  * WorkspaceRegistry — (team_id, user_id) 기반 per-user 런타임 레지스트리.
  *
- * Phase 4: 경로 계산 + 디렉토리 보장 + 활성 세션 추적
- * Phase 8: WorkspaceRuntime 기반 런타임 locator — identity + lifecycle 관리
+ * TN-2: WorkspaceRuntimeLocator 포트를 구현하는 runtime locator.
+ * - get_or_create: lazy init + 디렉토리 보장 (미들웨어에서 1회 호출)
+ * - get_runtime:   캐시 조회 (route context 빌더에서 read-only 조회)
  */
 
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { WorkspaceRuntime } from "./runtime.js";
+import { WorkspaceRuntime, type WorkspaceRuntimeRef } from "./runtime.js";
 
 export { WorkspaceRuntime };
+export type { WorkspaceRuntimeRef };
 
 export interface WorkspaceKey {
   team_id: string;
   user_id: string;
 }
 
+/**
+ * TN-2: WorkspaceRuntimeLocator — 런타임 위치 결정 포트.
+ * 라우트 핸들러·DashboardOptions는 구체 클래스 대신 이 인터페이스에 의존한다.
+ */
+export interface WorkspaceRuntimeLocator {
+  /** lazy init: 존재하면 touch(), 없으면 생성 + 디렉토리 초기화 후 반환. */
+  get_or_create(key: WorkspaceKey): WorkspaceRuntimeRef;
+  /** 등록된 runtime 조회 (touch 포함). 미등록 시 null. */
+  get_runtime(key: WorkspaceKey): WorkspaceRuntimeRef | null;
+}
+
 const USER_WORKSPACE_SUBDIRS = ["runtime", "workflows", "skills", "templates"];
 
-export class WorkspaceRegistry {
+export class WorkspaceRegistry implements WorkspaceRuntimeLocator {
   private readonly entries = new Map<string, WorkspaceRuntime>();
 
   constructor(private readonly workspace_root: string) {}

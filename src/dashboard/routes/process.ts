@@ -29,11 +29,16 @@ export async function handle_process(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // DELETE /api/processes/:id
+  // DELETE /api/processes/:id — TN-6b: user_id 소유권 검사 추가
   if (id_match && req.method === "DELETE") {
     const tracker = options.process_tracker;
     if (!tracker) { json(res, 503, { error: "process_tracker_unavailable" }); return true; }
     const run_id = decodeURIComponent(id_match[1]);
+    // 삭제 전 소유권 확인: 본인 프로세스만 취소 가능
+    const entry = tracker.get(run_id);
+    if (!entry) { json(res, 404, { error: "not_found" }); return true; }
+    if (team_id !== undefined && entry.team_id !== team_id) { json(res, 404, { error: "not_found" }); return true; }
+    if (user_id !== undefined && entry.sender_id && entry.sender_id !== user_id) { json(res, 404, { error: "not_found" }); return true; }
     const result = await tracker.cancel(run_id, { team_id });
     json(res, result.cancelled ? 200 : 404, result);
     return true;

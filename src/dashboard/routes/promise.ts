@@ -1,6 +1,9 @@
 import type { RouteContext } from "../route-context.js";
+import { require_team_manager_for_write } from "../route-context.js";
 
 export async function handle_promise(ctx: RouteContext): Promise<boolean> {
+  // TN-6: promise 쓰기/삭제는 team_manager 이상
+  if (!require_team_manager_for_write(ctx)) return true;
   const { req, url, res, options, json, read_body } = ctx;
   const path = url.pathname;
 

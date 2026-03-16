@@ -61,9 +61,13 @@ export async function build_dashboard_state(
   ]);
 
   const subagents = options.agent.list_subagents(team_id);
-  const scoped_messages = team_id !== undefined
+  // TN-6b: team_id + user_id 이중 필터. user_id 있으면 본인 메시지만.
+  let scoped_messages = team_id !== undefined
     ? recent_messages.filter((m) => (m as { team_id?: string }).team_id === team_id)
     : recent_messages;
+  if (user_id !== undefined) {
+    scoped_messages = scoped_messages.filter((m) => (m as { user_id?: string }).user_id === user_id);
+  }
   const messages = scoped_messages.slice(-20).reverse();
   const lastBySender = new Map<string, string>();
   for (const m of messages) {

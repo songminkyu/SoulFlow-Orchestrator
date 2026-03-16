@@ -8,6 +8,32 @@
 import { join } from "node:path";
 import type { UserWorkspace } from "./workspace-context.js";
 
+/**
+ * TN-2: WorkspaceRuntimeRef — 라우트 핸들러가 소비하는 runtime 읽기 전용 포트 타입.
+ * WorkspaceRuntime 구현체와 분리해 route-context 등에서 순수 인터페이스로 참조한다.
+ */
+export type WorkspaceRuntimeRef = {
+  team_id: string;
+  user_id: string;
+  workspace_path: string;
+  /** 3-tier 경로 [global, team, personal]. 병합 읽기 시 뒤쪽이 앞쪽을 override. */
+  workspace_layers: readonly string[];
+  /** 런타임 데이터 디렉토리 (workspace_path/runtime). */
+  runtime_path: string;
+  /** 워크스페이스 루트 경로. */
+  workspace: string;
+  /** 글로벌 런타임 경로 (config, security, providers, definitions). */
+  admin_runtime: string;
+  /** 팀 런타임 경로 (channels, oauth, cron, dlq, datasources). */
+  team_runtime: string;
+  /** 유저 런타임 경로 (sessions, decisions, events). */
+  user_runtime: string;
+  /** 유저 콘텐츠 루트. */
+  user_content: string;
+  is_active: boolean;
+  started_at: string;
+};
+
 export class WorkspaceRuntime implements UserWorkspace {
   readonly started_at: string;
   readonly workspace_layers: readonly string[];

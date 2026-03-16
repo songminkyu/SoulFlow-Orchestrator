@@ -155,7 +155,7 @@ export function create_workflow_ops(deps: {
   invoke_tool?: (tool_id: string, params: Record<string, unknown>, context?: { workflow_id?: string; channel?: string; chat_id?: string; sender_id?: string }) => Promise<string>;
   providers?: import("../../providers/service.js").ProviderRegistry | null;
   get_tool_summaries?: () => Array<{ name: string; description: string; category: string }>;
-  get_provider_summaries?: () => Array<{ backend: string; label: string; provider_type: string; models: string[] }>;
+  get_provider_summaries?: (scope?: import("../../agent/provider-store.js").ProviderScopeFilter) => Array<{ backend: string; label: string; provider_type: string; models: string[] }>;
   tool_index?: import("../../orchestration/tool-index.js").ToolIndex | null;
   decision_service?: import("../../decision/service.js").DecisionService | null;
   promise_service?: import("../../decision/promise.service.js").PromiseService | null;
@@ -679,7 +679,7 @@ export function create_workflow_ops(deps: {
       // orchestrator_llm(Ollama 등)은 multi-turn tool-call 루프를 신뢰할 수 없으므로 제외.
       // 자동 선택 시: 사용자가 Providers 페이지에서 설정한 priority 순서를 따름.
       const requested = options?.provider_id;
-      const summaries = deps.get_provider_summaries?.() ?? [];
+      const summaries = deps.get_provider_summaries?.(options?.scope_filter) ?? [];
       let suggest_provider_id: import("../../providers/types.js").ProviderId | undefined;
 
       if (!requested || requested === "auto") {
@@ -917,7 +917,7 @@ export function create_workflow_ops(deps: {
         if (!suggest_node_catalog_cache) suggest_node_catalog_cache = build_node_catalog();
 
         const provider_section = deps.get_provider_summaries
-          ? deps.get_provider_summaries()
+          ? deps.get_provider_summaries(options?.scope_filter)
               .map((p) => `- ${p.backend} (${p.provider_type}): ${p.models.join(", ") || "(no models)"}`)
               .join("\n")
           : "";

@@ -44,6 +44,12 @@ import type { AuthService } from "../auth/auth-service.js";
 import { WorkspaceResolver } from "../workspace/resolver.js";
 import type { WorkspaceRegistry } from "../workspace/registry.js";
 import type { ObservabilityLike } from "../observability/context.js";
+import type { ProviderScopeFilter } from "../agent/provider-store.js";
+
+/** TN-5: scope-aware chat provider 선택. 테스트에서 직접 호출 가능. */
+export function find_scoped_chat_provider(provider_store: AgentProviderStore, scope?: ProviderScopeFilter) {
+  return provider_store.list(scope).find((p) => p.enabled && p.model_purpose === "chat") ?? null;
+}
 
 export interface DashboardBundleDeps {
   workspace: string;
@@ -188,7 +194,7 @@ export function create_dashboard_bundle(deps: DashboardBundleDeps): DashboardBun
     usage_ops: usage_store,
     prompt_ops: {
       async run(input) {
-        const chat_provider = provider_store.list().find((p) => p.enabled && p.model_purpose === "chat");
+        const chat_provider = find_scoped_chat_provider(provider_store, input.scope_filter);
         const result = await providers.run_headless_prompt({
           provider_id: (input.provider_id ?? chat_provider?.provider_type) as import("../providers/types.js").ProviderId | undefined,
           prompt: input.prompt,
@@ -202,9 +208,8 @@ export function create_dashboard_bundle(deps: DashboardBundleDeps): DashboardBun
     },
     agent_definition_ops: create_agent_definition_ops({
       store: agent_definition_store,
-      generate_fn: async (prompt) => {
-        // model_purpose=chat인 활성 프로바이더 우선 선택 (임베딩 모델 제외)
-        const chat_provider = provider_store.list().find((p) => p.enabled && p.model_purpose === "chat");
+      generate_fn: async (prompt, scope) => {
+        const chat_provider = find_scoped_chat_provider(provider_store, scope);
         const result = await providers.run_headless({
           provider_id: chat_provider?.provider_type as import("../providers/types.js").ProviderId | undefined,
           messages: [
@@ -247,9 +252,11 @@ Description: ${prompt}`,
   dash.set_oauth_callback_handler((code: string, state: string) => oauth_flow.handle_callback(code, state));
   dash.set_webhook_store(webhook_store);
   bus.on_publish((dir, msg) => {
-    const msg_team_id = typeof (msg.metadata as Record<string, unknown>)?.team_id === "string"
-      ? (msg.metadata as Record<string, unknown>).team_id as string : undefined;
-    broadcaster.broadcast_message_event(dir, msg.sender_id, msg.content, msg.chat_id, msg_team_id);
+    const meta = (msg.metadata ?? {}) as Record<string, unknown>;
+    const msg_team_id = typeof meta.team_id === "string" ? meta.team_id : undefined;
+    // TN-6b: user_id — web inbound는 sender_id가 user_id, 그 외는 metadata에서 추출
+    const msg_user_id = typeof meta.user_id === "string" ? meta.user_id : (msg.provider === "web" ? msg.sender_id : undefined);
+    broadcaster.broadcast_message_event(dir, msg.sender_id, msg.content, msg.chat_id, msg_team_id, msg_user_id);
     if (dir === "outbound" && msg.provider === "web" && msg.chat_id) {
       const media = msg.media?.map((m) => ({ type: m.type as string, url: m.url, mime: m.mime, name: m.name }));
       dash.capture_web_outbound(msg.chat_id, msg.content, media);

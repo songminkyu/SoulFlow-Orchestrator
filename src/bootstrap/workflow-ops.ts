@@ -8,7 +8,7 @@ import type { ChannelManager } from "../channels/manager.js";
 import type { DecisionService } from "../decision/index.js";
 import type { HitlPendingStore } from "../orchestration/hitl-pending-store.js";
 import type { ProviderRegistry } from "../providers/index.js";
-import type { AgentProviderStore } from "../agent/provider-store.js";
+import type { AgentProviderStore, ProviderScopeFilter } from "../agent/provider-store.js";
 import type { PhaseWorkflowStore } from "../agent/phase-workflow-store.js";
 import type { KanbanStore } from "../services/kanban-store.js";
 import type { KanbanAutomationRuntime } from "../services/kanban-automation-runtime.js";
@@ -57,6 +57,18 @@ export interface WorkflowOpsBundleDeps {
   on_template_changed?: () => Promise<void>;
 }
 
+/** TN-5: scope-aware provider summaries 팩토리. 테스트에서 직접 호출 가능. */
+export function create_scoped_provider_summaries(provider_store: AgentProviderStore) {
+  return (scope?: ProviderScopeFilter) => {
+    try {
+      return provider_store.list(scope).filter((p) => p.enabled).map((p) => ({
+        backend: p.instance_id, label: p.label, provider_type: p.provider_type,
+        models: [String(p.settings?.model || "")].filter(Boolean),
+      }));
+    } catch { return []; }
+  };
+}
+
 export interface WorkflowOpsBundleResult {
   workflow_ops: ReturnType<typeof create_workflow_ops>;
 }
@@ -81,14 +93,7 @@ export async function create_workflow_ops_bundle(deps: WorkflowOpsBundleDeps): P
     get_tool_summaries: () => agent.tools.get_all().map((t) => ({
       name: t.name, description: t.description, category: t.category,
     })),
-    get_provider_summaries: () => {
-      try {
-        return provider_store.list().filter((p) => p.enabled).map((p) => ({
-          backend: p.instance_id, label: p.label, provider_type: p.provider_type,
-          models: [String(p.settings?.model || "")].filter(Boolean),
-        }));
-      } catch { return []; }
-    },
+    get_provider_summaries: create_scoped_provider_summaries(provider_store),
     decision_service: decisions,
     promise_service: agent.context.promise_service,
     oauth_fetch: oauth_fetch_service,

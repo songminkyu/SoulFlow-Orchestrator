@@ -1,7 +1,7 @@
 import type { IncomingMessage } from "node:http";
 import { now_iso } from "../../utils/common.js";
 import type { RouteContext } from "../route-context.js";
-import { get_filter_team_id, require_team_manager } from "../route-context.js";
+import { get_filter_team_id, get_filter_user_id, require_team_manager } from "../route-context.js";
 
 const CLAUDE_CODE_NATIVE_TOOLS = [
   "Bash", "Read", "Write", "Edit", "Glob", "Grep",
@@ -104,6 +104,8 @@ export async function handle_health(ctx: RouteContext): Promise<boolean> {
     if (chat_id) filter.chat_id = chat_id;
     const team_id = get_filter_team_id(ctx);
     if (team_id !== undefined) filter.team_id = team_id;
+    const user_id = get_filter_user_id(ctx);
+    if (user_id !== undefined) filter.user_id = user_id;
     json(res, 200, await options.events.list(filter));
     return true;
   }

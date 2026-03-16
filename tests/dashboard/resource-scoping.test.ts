@@ -78,7 +78,7 @@ function last_response(ctx: RouteContext & { _responses?: Array<{ status: number
 // ══════════════════════════════════════════
 
 describe("config.ts — superadmin guard", () => {
-  it("GET /api/config → 일반 유저도 접근 가능", async () => {
+  it("GET /api/config → 일반 유저 403 (TN-6b: raw config에 민감 정보)", async () => {
     const ctx = make_ctx({
       method: "GET",
       pathname: "/api/config",
@@ -87,7 +87,7 @@ describe("config.ts — superadmin guard", () => {
     });
     const handled = await handle_config(ctx);
     expect(handled).toBe(true);
-    expect(last_response(ctx).status).toBe(200);
+    expect(last_response(ctx).status).toBe(403);
   });
 
   it("PUT /api/config/values → 비superadmin 403", async () => {
@@ -143,17 +143,31 @@ describe("models.ts — superadmin guard", () => {
   });
 });
 
-describe("oauth.ts — superadmin guard", () => {
-  it("GET /api/oauth/presets → 일반 유저도 접근 가능", async () => {
+describe("oauth.ts — team_manager guard (FE-6)", () => {
+  it("GET /api/oauth/presets → team_manager 이상 접근 가능", async () => {
     const ctx = make_ctx({
       method: "GET",
       pathname: "/api/oauth/presets",
       auth_user: { role: "user", sub: "u1", tid: "t1" },
+      team_context: { team_id: "t1", team_role: "manager" },
       oauth_ops: { list_presets: () => [] },
     });
     const handled = await handle_oauth(ctx);
     expect(handled).toBe(true);
     expect(last_response(ctx).status).toBe(200);
+  });
+
+  it("GET /api/oauth/presets → member(비manager) 403", async () => {
+    const ctx = make_ctx({
+      method: "GET",
+      pathname: "/api/oauth/presets",
+      auth_user: { role: "user", sub: "u1", tid: "t1" },
+      team_context: { team_id: "t1", team_role: "member" },
+      oauth_ops: { list_presets: () => [] },
+    });
+    const handled = await handle_oauth(ctx);
+    expect(handled).toBe(true);
+    expect(last_response(ctx).status).toBe(403);
   });
 
   it("POST /api/oauth/integrations → 비superadmin 403", async () => {

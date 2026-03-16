@@ -297,6 +297,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const store = store_or_503(ctx);
     if (!store) return true;
     const source_card_id = decodeURIComponent(card_relations_match[1]);
+    const access = await check_card_board_access(store, source_card_id);
+    if (!access.ok) { json(res, access.status, { error: access.status === 404 ? "not_found" : "forbidden" }); return true; }
     const body = await read_body(req);
     if (!body?.target_card_id || !body?.type) { json(res, 400, { error: "target_card_id and type required" }); return true; }
     const rel = await store.add_relation(source_card_id, String(body.target_card_id), String(body.type) as RelationType);
@@ -309,17 +311,27 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const store = store_or_503(ctx);
     if (!store) return true;
     const card_id = decodeURIComponent(card_relations_match[1]);
+    const access = await check_card_board_access(store, card_id);
+    if (!access.ok) { json(res, access.status, { error: access.status === 404 ? "not_found" : "forbidden" }); return true; }
     const relations = await store.list_relations(card_id);
     json(res, 200, relations);
     return true;
   }
 
-  // DELETE /api/kanban/relations/:id
+  // DELETE /api/kanban/relations/:id — TN-6a: source card → board 접근 검사
   const rel_match = path.match(/^\/api\/kanban\/relations\/([^/]+)$/);
   if (rel_match && method === "DELETE") {
     const store = store_or_503(ctx);
     if (!store) return true;
     const relation_id = decodeURIComponent(rel_match[1]);
+    // TN-6a: relation_id로 board 접근 검사 불가 (store가 relation→board 조회 미지원).
+    // 보수적 접근: 비superadmin은 단독 relation 삭제 차단. card relations 화면에서 삭제 유도.
+    const team_filter = get_filter_team_id(ctx);
+    if (team_filter !== undefined) {
+      // 비superadmin은 relation 삭제 불가 (보수적 접근) — board 접근 검사 불가능 시 차단
+      json(res, 403, { error: "forbidden" });
+      return true;
+    }
     const ok = await store.remove_relation(relation_id);
     json(res, ok ? 200 : 404, ok ? { ok: true } : { error: "not_found" });
     return true;
@@ -332,6 +344,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const store = store_or_503(ctx);
     if (!store) return true;
     const board_id = decodeURIComponent(summary_match[1]);
+    const access = await check_board_access(ctx, store, board_id);
+    if (!access.ok) { json(res, access.status, { error: access.status === 403 ? "forbidden" : "not_found" }); return true; }
     const summary = await store.board_summary(board_id);
     json(res, summary ? 200 : 404, summary ?? { error: "not_found" });
     return true;
@@ -344,6 +358,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const store = store_or_503(ctx);
     if (!store) return true;
     const card_id = decodeURIComponent(subtasks_match[1]);
+    const access = await check_card_board_access(store, card_id);
+    if (!access.ok) { json(res, access.status, { error: access.status === 404 ? "not_found" : "forbidden" }); return true; }
     const subtasks = await store.get_subtasks(card_id);
     json(res, 200, subtasks);
     return true;
@@ -357,6 +373,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const store = store_or_503(ctx);
     if (!store) return true;
     const board_id = decodeURIComponent(board_activities_match[1]);
+    const access = await check_board_access(ctx, store, board_id);
+    if (!access.ok) { json(res, access.status, { error: access.status === 403 ? "forbidden" : "not_found" }); return true; }
     const limit = url.searchParams.has("limit") ? Number(url.searchParams.get("limit")) : 100;
     const activities = await store.list_activities({ board_id, limit });
     json(res, 200, activities);
@@ -369,6 +387,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const store = store_or_503(ctx);
     if (!store) return true;
     const card_id = decodeURIComponent(card_activities_match[1]);
+    const access = await check_card_board_access(store, card_id);
+    if (!access.ok) { json(res, access.status, { error: access.status === 404 ? "not_found" : "forbidden" }); return true; }
     const limit = url.searchParams.has("limit") ? Number(url.searchParams.get("limit")) : 50;
     const activities = await store.list_activities({ card_id, limit });
     json(res, 200, activities);
@@ -383,6 +403,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const store = store_or_503(ctx);
     if (!store) return true;
     const board_id = decodeURIComponent(board_rules_match[1]);
+    const access = await check_board_access(ctx, store, board_id);
+    if (!access.ok) { json(res, access.status, { error: access.status === 403 ? "forbidden" : "not_found" }); return true; }
     const rules = await store.list_rules(board_id);
     json(res, 200, rules);
     return true;
@@ -393,6 +415,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const store = store_or_503(ctx);
     if (!store) return true;
     const board_id = decodeURIComponent(board_rules_match[1]);
+    const access = await check_board_access(ctx, store, board_id);
+    if (!access.ok) { json(res, access.status, { error: access.status === 403 ? "forbidden" : "not_found" }); return true; }
     const body = await read_body(req);
     if (!body?.trigger || !body?.action_type) {
       json(res, 400, { error: "trigger and action_type required" });
@@ -504,6 +528,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const store = store_or_503(ctx);
     if (!store) return true;
     const board_id = decodeURIComponent(metrics_match[1]);
+    const access = await check_board_access(ctx, store, board_id);
+    if (!access.ok) { json(res, access.status, { error: access.status === 403 ? "forbidden" : "not_found" }); return true; }
     const days = url.searchParams.has("days") ? Number(url.searchParams.get("days")) : 30;
     const metrics = await store.get_board_metrics(board_id, days);
     json(res, metrics ? 200 : 404, metrics ?? { error: "not_found" });
@@ -518,6 +544,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const store = store_or_503(ctx);
     if (!store) return true;
     const card_id = decodeURIComponent(time_tracking_match[1]);
+    const access = await check_card_board_access(store, card_id);
+    if (!access.ok) { json(res, access.status, { error: access.status === 404 ? "not_found" : "forbidden" }); return true; }
     const tracking = await store.get_card_time_tracking(card_id);
     json(res, tracking ? 200 : 404, tracking ?? { error: "not_found" });
     return true;
@@ -532,6 +560,17 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const q = url.searchParams.get("q") ?? "";
     if (!q) { json(res, 400, { error: "q parameter required" }); return true; }
     const board_id = url.searchParams.get("board_id") ?? undefined;
+    // board_id 지정 시 접근 검사
+    if (board_id) {
+      const access = await check_board_access(ctx, store, board_id);
+      if (!access.ok) { json(res, access.status, { error: access.status === 403 ? "forbidden" : "not_found" }); return true; }
+    }
+    // TN-6: board_id 필수 — board 접근 검사 통과 후 검색 허용. 미지정 시 전체 검색은 superadmin만.
+    const search_team = get_filter_team_id(ctx);
+    if (!board_id && search_team !== undefined) {
+      json(res, 400, { error: "board_id_required" });
+      return true;
+    }
     const limit = url.searchParams.has("limit") ? Number(url.searchParams.get("limit")) : 20;
     const results = await store.search_cards(q, { board_id, limit });
     json(res, 200, results);
@@ -546,6 +585,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const store = store_or_503(ctx);
     if (!store) return true;
     const board_id = decodeURIComponent(board_filters_match[1]);
+    const access = await check_board_access(ctx, store, board_id);
+    if (!access.ok) { json(res, access.status, { error: access.status === 403 ? "forbidden" : "not_found" }); return true; }
     const filters = await store.list_filters(board_id);
     json(res, 200, filters);
     return true;
@@ -556,6 +597,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const store = store_or_503(ctx);
     if (!store) return true;
     const board_id = decodeURIComponent(board_filters_match[1]);
+    const access = await check_board_access(ctx, store, board_id);
+    if (!access.ok) { json(res, access.status, { error: access.status === 403 ? "forbidden" : "not_found" }); return true; }
     const body = await read_body(req);
     if (!body?.name) { json(res, 400, { error: "name required" }); return true; }
     try {
@@ -590,6 +633,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     const store = store_or_503(ctx);
     if (!store) return true;
     const board_id = decodeURIComponent(events_match[1]);
+    const access = await check_board_access(ctx, store, board_id);
+    if (!access.ok) { json(res, access.status, { error: access.status === 403 ? "forbidden" : "not_found" }); return true; }
 
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
