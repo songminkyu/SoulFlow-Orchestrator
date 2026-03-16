@@ -32,13 +32,15 @@ export async function handle_agent_provider(ctx: RouteContext): Promise<boolean>
     return true;
   }
 
-  // GET /api/agents/providers/models/:provider_type — 프로바이더 타입별 모델 목록
+  // GET /api/agents/providers/models/:provider_type — TN-6d: team_manager + SSRF 방지 (api_base 무시)
   const type_models_match = path.match(/^\/api\/agents\/providers\/models\/([^/]+)$/);
   if (type_models_match && req.method === "GET") {
+    if (!require_team_manager(ctx)) return true;
     const ops = agent_provider_ops_or_503(ctx);
     if (!ops) return true;
     const provider_type = decodeURIComponent(type_models_match[1]);
-    const api_base = url.searchParams.get("api_base") || undefined;
+    // TN-6d: api_base를 사용자 입력으로 받지 않음 — SSRF(A10) 방지
+    const api_base = undefined;
     try {
       const models = await ops.list_models(provider_type, { api_base });
       json(res, 200, models);
