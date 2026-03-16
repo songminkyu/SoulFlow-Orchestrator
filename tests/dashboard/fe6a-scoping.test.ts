@@ -138,7 +138,7 @@ describe("workflow/runs — team_id 스코핑 (FE-6a)", () => {
   });
 
   it("DELETE: 타팀 run → 404", async () => {
-    const ctx = make_ctx({ ...USER_ALPHA, method: "DELETE", pathname: "/api/workflow/runs/wf2", workflow_ops: make_ops() });
+    const ctx = make_ctx({ ...MANAGER_ALPHA, method: "DELETE", pathname: "/api/workflow/runs/wf2", workflow_ops: make_ops() });
     await handle_workflow(ctx);
     expect(last(ctx).status).toBe(404);
   });
@@ -347,37 +347,37 @@ describe("workflow resume/settings/messages — team ownership (FE-6a)", () => {
   });
 
   it("POST resume: 타팀 → 404", async () => {
-    const ctx = make_ctx({ ...USER_ALPHA, method: "POST", pathname: "/api/workflow/runs/wf2/resume", workflow_ops: make_ops() });
+    const ctx = make_ctx({ ...MANAGER_ALPHA, method: "POST", pathname: "/api/workflow/runs/wf2/resume", workflow_ops: make_ops() });
     await handle_workflow(ctx);
     expect(last(ctx).status).toBe(404);
   });
 
   it("POST resume: 자기 팀 → 200", async () => {
-    const ctx = make_ctx({ ...USER_ALPHA, method: "POST", pathname: "/api/workflow/runs/wf1/resume", workflow_ops: make_ops() });
+    const ctx = make_ctx({ ...MANAGER_ALPHA, method: "POST", pathname: "/api/workflow/runs/wf1/resume", workflow_ops: make_ops() });
     await handle_workflow(ctx);
     expect(last(ctx).status).toBe(200);
   });
 
   it("PATCH settings: 타팀 → 404", async () => {
-    const ctx = make_ctx({ ...USER_ALPHA, method: "PATCH", pathname: "/api/workflow/runs/wf2/settings", body: { auto_approve: true }, workflow_ops: make_ops() });
+    const ctx = make_ctx({ ...MANAGER_ALPHA, method: "PATCH", pathname: "/api/workflow/runs/wf2/settings", body: { auto_approve: true }, workflow_ops: make_ops() });
     await handle_workflow(ctx);
     expect(last(ctx).status).toBe(404);
   });
 
   it("PATCH settings: 자기 팀 → 200", async () => {
-    const ctx = make_ctx({ ...USER_ALPHA, method: "PATCH", pathname: "/api/workflow/runs/wf1/settings", body: { auto_approve: true }, workflow_ops: make_ops() });
+    const ctx = make_ctx({ ...MANAGER_ALPHA, method: "PATCH", pathname: "/api/workflow/runs/wf1/settings", body: { auto_approve: true }, workflow_ops: make_ops() });
     await handle_workflow(ctx);
     expect(last(ctx).status).toBe(200);
   });
 
   it("POST messages: 타팀 → 404", async () => {
-    const ctx = make_ctx({ ...USER_ALPHA, method: "POST", pathname: "/api/workflow/runs/wf2/messages", body: { phase_id: "p", agent_id: "a", content: "hi" }, workflow_ops: make_ops() });
+    const ctx = make_ctx({ ...MANAGER_ALPHA, method: "POST", pathname: "/api/workflow/runs/wf2/messages", body: { phase_id: "p", agent_id: "a", content: "hi" }, workflow_ops: make_ops() });
     await handle_workflow(ctx);
     expect(last(ctx).status).toBe(404);
   });
 
   it("POST messages: 자기 팀 → 200", async () => {
-    const ctx = make_ctx({ ...USER_ALPHA, method: "POST", pathname: "/api/workflow/runs/wf1/messages", body: { phase_id: "p", agent_id: "a", content: "hi" }, workflow_ops: make_ops() });
+    const ctx = make_ctx({ ...MANAGER_ALPHA, method: "POST", pathname: "/api/workflow/runs/wf1/messages", body: { phase_id: "p", agent_id: "a", content: "hi" }, workflow_ops: make_ops() });
     await handle_workflow(ctx);
     expect(last(ctx).status).toBe(200);
   });
@@ -442,14 +442,14 @@ describe("kanban card PUT/DELETE — board ownership (FE-6a)", () => {
 
   it("DELETE card: 자기 팀 board → 200", async () => {
     const store = make_kanban_store();
-    const ctx = make_ctx({ ...USER_ALPHA, method: "DELETE", pathname: "/api/kanban/cards/c1", kanban_store: store });
+    const ctx = make_ctx({ ...MANAGER_ALPHA, method: "DELETE", pathname: "/api/kanban/cards/c1", kanban_store: store });
     await handle_kanban(ctx);
     expect(last(ctx).status).toBe(200);
   });
 
   it("DELETE card: 타팀 board → 403", async () => {
     const store = make_kanban_store({ board_scope: { scope_type: "team", scope_id: "beta" } });
-    const ctx = make_ctx({ ...USER_ALPHA, method: "DELETE", pathname: "/api/kanban/cards/c1", kanban_store: store });
+    const ctx = make_ctx({ ...MANAGER_ALPHA, method: "DELETE", pathname: "/api/kanban/cards/c1", kanban_store: store });
     await handle_kanban(ctx);
     expect(last(ctx).status).toBe(403);
   });

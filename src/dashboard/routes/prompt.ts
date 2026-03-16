@@ -1,8 +1,10 @@
 import type { RouteContext } from "../route-context.js";
-import { build_scope_filter } from "../route-context.js";
+import { build_scope_filter, require_team_manager } from "../route-context.js";
 import { error_message } from "../../utils/common.js";
 
 export async function handle_prompt(ctx: RouteContext): Promise<boolean> {
+  // TN-6d: LLM 프롬프트 실행은 team_manager 이상 (리소스 소비 제어)
+  if (!require_team_manager(ctx)) return true;
   const { url, req, res, options, json, read_body } = ctx;
   if (!url.pathname.startsWith("/api/prompt")) return false;
 

@@ -1,7 +1,9 @@
 import type { RouteContext } from "../route-context.js";
-import { get_filter_team_id } from "../route-context.js";
+import { get_filter_team_id, require_team_manager_for_write } from "../route-context.js";
 
 export async function handle_task(ctx: RouteContext): Promise<boolean> {
+  // TN-6d: task 쓰기(취소/재개)는 team_manager 이상
+  if (!require_team_manager_for_write(ctx)) return true;
   const { req, url, res, options, json, read_body, build_merged_tasks } = ctx;
   const path = url.pathname;
 

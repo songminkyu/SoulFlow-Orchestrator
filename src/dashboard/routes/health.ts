@@ -1,7 +1,7 @@
 import type { IncomingMessage } from "node:http";
 import { now_iso } from "../../utils/common.js";
 import type { RouteContext } from "../route-context.js";
-import { get_filter_team_id, get_filter_user_id, require_team_manager } from "../route-context.js";
+import { get_filter_team_id, get_filter_user_id, require_team_manager, require_superadmin } from "../route-context.js";
 
 const CLAUDE_CODE_NATIVE_TOOLS = [
   "Bash", "Read", "Write", "Edit", "Glob", "Grep",
@@ -13,14 +13,16 @@ const CLAUDE_CODE_NATIVE_TOOLS = [
 export async function handle_health(ctx: RouteContext): Promise<boolean> {
   const { req, url, res, options, json } = ctx;
 
-  // Stats API
+  // Stats API — TN-6d: team_manager 이상만
   if (url.pathname === "/api/stats/cdscore" && req.method === "GET") {
+    if (!require_team_manager(ctx)) return true;
     const stats = options.stats_ops;
     if (!stats) { json(res, 503, { error: "stats_unavailable" }); return true; }
     json(res, 200, stats.get_cd_score());
     return true;
   }
   if (url.pathname === "/api/stats/cdscore" && req.method === "DELETE") {
+    if (!require_superadmin(ctx)) return true;
     const stats = options.stats_ops;
     if (!stats) { json(res, 503, { error: "stats_unavailable" }); return true; }
     stats.reset_cd_score();
@@ -89,7 +91,7 @@ export async function handle_health(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // Workflow Events API — FE-6a: team_id 스코핑 추가
+  // Workflow Events API — FE-6a: team_id + user_id 스코핑
   if (url.pathname === "/api/workflow/events" && req.method === "GET") {
     const limit = Math.max(1, Math.min(500, Number(url.searchParams.get("limit") || 100)));
     const offset = Math.max(0, Number(url.searchParams.get("offset") || 0));
@@ -110,8 +112,9 @@ export async function handle_health(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // Tools API
+  // Tools API — TN-6d: 인프라 정보, team_manager 이상만
   if (url.pathname === "/api/tools" && req.method === "GET") {
+    if (!require_team_manager(ctx)) return true;
     const ops = options.tool_ops;
     if (!ops) { json(res, 503, { error: "tools_unavailable" }); return true; }
     json(res, 200, {

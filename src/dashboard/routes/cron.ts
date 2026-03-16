@@ -20,8 +20,9 @@ export async function handle_cron(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // GET /api/cron/status
+  // GET /api/cron/status — TN-6d: 글로벌 스케줄러 상태, superadmin only
   if (path === "/api/cron/status" && req.method === "GET") {
+    if (!require_superadmin(ctx)) return true;
     const cron = cron_or_503(ctx);
     if (!cron) return true;
     json(res, 200, await cron.status());

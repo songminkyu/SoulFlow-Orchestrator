@@ -113,7 +113,7 @@ describe("공격: JWT wdir 조작", () => {
       sub: "alice_id", usr: "alice", role: "user", tid: TEAM_A,
       wdir: `tenants/${TEAM_A}/users/SUPERADMIN_ID`,
     });
-    const res = await api("GET", "/api/tools", alice);
+    const res = await api("GET", "/api/workflow/events", alice);
     expect(res.status).toBe(401);
     expect(res.body.error).toBe("invalid_token");
   });
@@ -123,7 +123,7 @@ describe("공격: JWT wdir 조작", () => {
       sub: "evil", usr: "evil", role: "user", tid: TEAM_A,
       wdir: "tenants/../../../etc/passwd",
     });
-    const res = await api("GET", "/api/tools", evil);
+    const res = await api("GET", "/api/workflow/events", evil);
     expect(res.status).toBe(401);
     expect(res.body.error).toBe("invalid_token");
   });
@@ -185,14 +185,14 @@ describe("공격: disabled 사용자 토큰", () => {
     const token = auth_svc.sign_token({ sub: doomed.id, usr: "doomed", role: "user", tid: "default", wdir: wdir("default", doomed.id) });
 
     // 토큰 유효 확인
-    const before = await api("GET", "/api/tools", token);
-    expect(before.status).toBe(503); // 미들웨어 통과 (tools unavailable)
+    const before = await api("GET", "/api/workflow/events", token);
+    expect(before.status).toBe(200); // 미들웨어 통과
 
     // 사용자 비활성화
     admin.update_user(doomed.id, { disabled_at: new Date().toISOString() });
 
     // 같은 토큰으로 재시도 → 401
-    const after = await api("GET", "/api/tools", token);
+    const after = await api("GET", "/api/workflow/events", token);
     expect(after.status).toBe(401);
     expect(after.body.error).toBe("unauthorized");
   });
@@ -204,14 +204,14 @@ describe("공격: disabled 사용자 토큰", () => {
 
 describe("A07: 비정상 JWT 인증 우회", () => {
   it("빈 Bearer 토큰 → 401", async () => {
-    const res = await fetch(`${base_url}/api/tools`, { headers: { Authorization: "Bearer " } });
+    const res = await fetch(`${base_url}/api/workflow/events`, { headers: { Authorization: "Bearer " } });
     expect(res.status).toBe(401);
   });
 
   it("조작된 JWT 서명 → 401", async () => {
     const parts = token_alice_a.split(".");
     const tampered = `${parts[0]}.${parts[1]}.INVALID_SIGNATURE`;
-    const res = await api("GET", "/api/tools", tampered);
+    const res = await api("GET", "/api/workflow/events", tampered);
     expect(res.status).toBe(401);
   });
 
@@ -222,12 +222,12 @@ describe("A07: 비정상 JWT 인증 우회", () => {
       Buffer.from(JSON.stringify({ sub: "alice", usr: "alice", role: "superadmin", tid: TEAM_A, wdir: wdir(TEAM_A, "alice"), iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url"),
       "forged_signature_here",
     ].join(".");
-    const res = await api("GET", "/api/tools", forged);
+    const res = await api("GET", "/api/workflow/events", forged);
     expect(res.status).toBe(401);
   });
 
   it("Authorization 헤더 없이 /api 요청 → 401", async () => {
-    const res = await fetch(`${base_url}/api/tools`, { headers: { Accept: "application/json" } });
+    const res = await fetch(`${base_url}/api/workflow/events`, { headers: { Accept: "application/json" } });
     expect(res.status).toBe(401);
   });
 });

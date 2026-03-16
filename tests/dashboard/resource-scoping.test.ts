@@ -363,13 +363,13 @@ describe("agent-provider.ts — scope-based access control", () => {
 // ══════════════════════════════════════════
 
 describe("secret.ts — team-scoped namespacing", () => {
-  it("POST /api/secrets → 비superadmin: team prefix 자동 추가", async () => {
+  it("POST /api/secrets → team_manager: team prefix 자동 추가", async () => {
     const put_spy = vi.fn(async () => ({ ok: true }));
     const ctx = make_ctx({
       method: "POST",
       pathname: "/api/secrets",
       auth_user: { role: "user", sub: "u1", tid: "t1" },
-      team_context: { team_id: "team-alpha", team_role: "member" },
+      team_context: { team_id: "team-alpha", team_role: "manager" },
       secrets: { put_secret: put_spy, list_names: vi.fn(), remove_secret: vi.fn() },
       body: { name: "my_key", value: "secret123" },
     });
@@ -424,13 +424,13 @@ describe("secret.ts — team-scoped namespacing", () => {
     ]);
   });
 
-  it("DELETE /api/secrets/:name → 비superadmin: team prefix 자동 추가", async () => {
+  it("DELETE /api/secrets/:name → team_manager: team prefix 자동 추가", async () => {
     const remove_spy = vi.fn(async () => true);
     const ctx = make_ctx({
       method: "DELETE",
       pathname: "/api/secrets/my_key",
       auth_user: { role: "user", sub: "u1", tid: "t1" },
-      team_context: { team_id: "team-alpha", team_role: "member" },
+      team_context: { team_id: "team-alpha", team_role: "manager" },
       secrets: { remove_secret: remove_spy, list_names: vi.fn(), put_secret: vi.fn() },
     });
     const handled = await handle_secret(ctx);

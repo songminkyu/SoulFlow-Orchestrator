@@ -1,5 +1,5 @@
 import type { RouteContext } from "../route-context.js";
-import { get_filter_team_id } from "../route-context.js";
+import { get_filter_team_id, require_team_manager_for_write } from "../route-context.js";
 
 /** 비superadmin 사용자의 시크릿 키에 team prefix 추가. */
 function scoped_name(team_id: string | undefined, name: string): string {
@@ -12,6 +12,8 @@ function strip_prefix(prefix: string, full_name: string): string {
 }
 
 export async function handle_secret(ctx: RouteContext): Promise<boolean> {
+  // TN-6d: secret 쓰기는 team_manager 이상 (viewer는 읽기만)
+  if (!require_team_manager_for_write(ctx)) return true;
   const { req, url, res, options, json, read_body } = ctx;
   const path = url.pathname;
   const team_id = get_filter_team_id(ctx);

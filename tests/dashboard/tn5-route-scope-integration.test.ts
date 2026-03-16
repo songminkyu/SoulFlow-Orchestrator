@@ -90,7 +90,7 @@ function seed_providers(store: AgentProviderStore): void {
 describe("TN-5 route: /api/prompt/run — scope_filter 전달", () => {
   it("일반 유저 → scope_filter 포함", async () => {
     const run_spy = vi.fn().mockResolvedValue({ content: "ok" });
-    const ctx = make_ctx({ method: "POST", pathname: "/api/prompt/run", auth_user: { role: "user", sub: "alice", tid: "team-a" }, team_context: { team_id: "team-a", team_role: "member" }, prompt_ops: { run: run_spy }, body: { prompt: "test" } });
+    const ctx = make_ctx({ method: "POST", pathname: "/api/prompt/run", auth_user: { role: "user", sub: "alice", tid: "team-a" }, team_context: { team_id: "team-a", team_role: "manager" }, prompt_ops: { run: run_spy }, body: { prompt: "test" } });
     await handle_prompt(ctx);
     expect(run_spy.mock.calls[0][0].scope_filter).toEqual(ALICE_SCOPE);
   });
@@ -105,7 +105,7 @@ describe("TN-5 route: /api/prompt/run — scope_filter 전달", () => {
 describe("TN-5 route: /api/agent-definitions/generate — scope 전달", () => {
   it("일반 유저 → scope 포함", async () => {
     const gen_spy = vi.fn().mockResolvedValue({ ok: true, data: {} });
-    const ctx = make_ctx({ method: "POST", pathname: "/api/agent-definitions/generate", auth_user: { role: "user", sub: "alice", tid: "team-a" }, team_context: { team_id: "team-a", team_role: "member" }, body: { prompt: "create agent" } });
+    const ctx = make_ctx({ method: "POST", pathname: "/api/agent-definitions/generate", auth_user: { role: "user", sub: "alice", tid: "team-a" }, team_context: { team_id: "team-a", team_role: "manager" }, body: { prompt: "create agent" } });
     (ctx.options as Record<string, unknown>).agent_definition_ops = { generate: gen_spy };
     await handle_agent_definition(ctx);
     expect(gen_spy.mock.calls[0][1]).toEqual(ALICE_SCOPE);
@@ -124,7 +124,7 @@ describe("TN-5 route: /api/agents/providers — scope-filtered list", () => {
 describe("TN-5 route: /api/workflow/suggest — scope_filter 전달", () => {
   it("일반 유저 → suggest options에 scope_filter", async () => {
     const sug_spy = vi.fn().mockResolvedValue({ ok: true, workflow: {} });
-    const ctx = make_ctx({ method: "POST", pathname: "/api/workflow/suggest", auth_user: { role: "user", sub: "alice", tid: "team-a" }, team_context: { team_id: "team-a", team_role: "member" }, workflow_ops: { suggest: sug_spy }, body: { instruction: "add trigger", workflow: { phases: [] } } });
+    const ctx = make_ctx({ method: "POST", pathname: "/api/workflow/suggest", auth_user: { role: "user", sub: "alice", tid: "team-a" }, team_context: { team_id: "team-a", team_role: "manager" }, workflow_ops: { suggest: sug_spy }, body: { instruction: "add trigger", workflow: { phases: [] } } });
     await handle_workflow(ctx);
     expect(sug_spy.mock.calls[0][1].scope_filter).toEqual(ALICE_SCOPE);
   });
@@ -139,7 +139,7 @@ describe("TN-5 route: /api/workflow/suggest — scope_filter 전달", () => {
 describe("TN-5 route: /api/workflow/suggest/stream — scope_filter 전달", () => {
   it("일반 유저 → suggest options에 scope_filter (stream)", async () => {
     const sug_spy = vi.fn().mockResolvedValue({ ok: true, workflow: {} });
-    const ctx = make_ctx({ method: "POST", pathname: "/api/workflow/suggest/stream", auth_user: { role: "user", sub: "alice", tid: "team-a" }, team_context: { team_id: "team-a", team_role: "member" }, workflow_ops: { suggest: sug_spy }, body: { instruction: "add node", workflow: { phases: [] } } });
+    const ctx = make_ctx({ method: "POST", pathname: "/api/workflow/suggest/stream", auth_user: { role: "user", sub: "alice", tid: "team-a" }, team_context: { team_id: "team-a", team_role: "manager" }, workflow_ops: { suggest: sug_spy }, body: { instruction: "add node", workflow: { phases: [] } } });
     await handle_workflow(ctx);
     expect(sug_spy.mock.calls[0][1].scope_filter).toEqual(ALICE_SCOPE);
   });

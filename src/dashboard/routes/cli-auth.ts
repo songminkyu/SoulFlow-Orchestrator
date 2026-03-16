@@ -1,6 +1,7 @@
 /** CLI 에이전트 인증 상태 조회 API 라우트. 로그인은 CLI에서 직접 수행. */
 
 import type { RouteContext } from "../route-context.js";
+import { require_team_manager } from "../route-context.js";
 
 function cli_auth_ops_or_503(ctx: RouteContext) {
   const ops = ctx.options.cli_auth_ops ?? null;
@@ -9,6 +10,8 @@ function cli_auth_ops_or_503(ctx: RouteContext) {
 }
 
 export async function handle_cli_auth(ctx: RouteContext): Promise<boolean> {
+  // TN-6d: CLI 인증 상태는 인프라 정보 — team_manager 이상만
+  if (!require_team_manager(ctx)) return true;
   const { req, url, res, json, read_body } = ctx;
   const ops = cli_auth_ops_or_503(ctx);
   const path = url.pathname;

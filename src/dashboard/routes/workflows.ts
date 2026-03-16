@@ -2,7 +2,7 @@
 
 import type { RouteHandler } from "../route-context.js";
 import type { DashboardWorkflowOps } from "../service.js";
-import { set_no_cache, get_filter_team_id, build_scope_filter } from "../route-context.js";
+import { set_no_cache, get_filter_team_id, build_scope_filter, require_team_manager_for_write } from "../route-context.js";
 import { renderMermaid, renderMermaidAscii } from "@vercel/beautiful-mermaid";
 import { error_message } from "../../utils/common.js";
 import {
@@ -11,6 +11,8 @@ import {
 } from "../../orchestration/workflow-loader.js";
 
 export const handle_workflow: RouteHandler = async (ctx) => {
+  // TN-6d: workflow 쓰기(실행/편집/제안)는 team_manager 이상. 읽기(목록/상세/역할/다이어그램)는 통과.
+  if (!require_team_manager_for_write(ctx)) return true;
   const { req, res, url, json, read_body, options, workspace_layers, personal_dir } = ctx;
   const ops: DashboardWorkflowOps | null = options.workflow_ops ?? null;
   if (!ops) { json(res, 501, { error: "workflow_ops_not_configured" }); return true; }
@@ -274,8 +276,9 @@ export const handle_workflow: RouteHandler = async (ctx) => {
   return false;
 };
 
-/** POST /api/workflow/node/runs, /api/workflow/node/tests — 노드 단독 실행/테스트. */
+/** POST /api/workflow/node/runs, /api/workflow/node/tests — TN-6d: team_manager 이상. */
 export const handle_workflow_node: RouteHandler = async (ctx) => {
+  if (!require_team_manager_for_write(ctx)) return true;
   const { req, res, url, json, read_body, options } = ctx;
   const ops: DashboardWorkflowOps | null = options.workflow_ops ?? null;
   if (!ops) { json(res, 501, { error: "workflow_ops_not_configured" }); return true; }

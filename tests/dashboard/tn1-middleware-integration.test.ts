@@ -127,38 +127,38 @@ async function api_get(path: string, token?: string): Promise<{ status: number; 
 
 describe("TN-1: service.ts auth middleware 3경로 통합 테스트", () => {
   it("토큰 없음 → 401 unauthorized", async () => {
-    const { status, body } = await api_get("/api/tools");
+    const { status, body } = await api_get("/api/workflow/events");
     expect(status).toBe(401);
     expect(body.error).toBe("unauthorized");
   });
 
-  it("경로 1: superadmin_bypass — superadmin + tid=team-alpha → 미들웨어 통과 (503 = route handler 도달)", async () => {
-    const { status, body } = await api_get("/api/tools", token_superadmin);
-    // 503 tools_unavailable = 미들웨어를 통과하여 route handler까지 도달했음을 의미
-    expect(status).toBe(503);
-    expect(body.error).toBe("tools_unavailable");
+  it("경로 1: superadmin_bypass — superadmin + tid=team-alpha → 미들웨어 통과 (200 = route handler 도달)", async () => {
+    const { status } = await api_get("/api/workflow/events", token_superadmin);
+    // 200 = 미들웨어를 통과하여 route handler까지 도달
+    expect(status).toBe(200);
+    // 200 = 미들웨어를 통과하여 route handler까지 도달
   });
 
   it("경로 2: explicit_membership — member + tid=team-alpha + TeamStore 멤버십 → 미들웨어 통과", async () => {
-    const { status, body } = await api_get("/api/tools", token_member);
-    expect(status).toBe(503);
-    expect(body.error).toBe("tools_unavailable");
+    const { status } = await api_get("/api/workflow/events", token_member);
+    expect(status).toBe(200);
+    // 200 = 미들웨어를 통과하여 route handler까지 도달
   });
 
   it("경로 3: default_team_fallback — user + tid=default → 미들웨어 통과", async () => {
-    const { status, body } = await api_get("/api/tools", token_default);
-    expect(status).toBe(503);
-    expect(body.error).toBe("tools_unavailable");
+    const { status } = await api_get("/api/workflow/events", token_default);
+    expect(status).toBe(200);
+    // 200 = 미들웨어를 통과하여 route handler까지 도달
   });
 
   it("거부: non_member — user + tid=team-alpha + 멤버십 없음 → 403 not_a_member", async () => {
-    const { status, body } = await api_get("/api/tools", token_non_member);
+    const { status, body } = await api_get("/api/workflow/events", token_non_member);
     expect(status).toBe(403);
     expect(body.error).toBe("not_a_member");
   });
 
   it("거부: team_not_found — user + tid=ghost-team (team.db 없음) → 403 not_a_member (TN-6b: 팀 존재 미노출)", async () => {
-    const { status, body } = await api_get("/api/tools", token_ghost_team);
+    const { status, body } = await api_get("/api/workflow/events", token_ghost_team);
     expect(status).toBe(403);
     expect(body.error).toBe("not_a_member");
   });

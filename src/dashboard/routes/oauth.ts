@@ -1,5 +1,5 @@
 import type { RouteContext } from "../route-context.js";
-import { require_superadmin_for_write, require_team_manager } from "../route-context.js";
+import { require_team_manager, require_superadmin } from "../route-context.js";
 
 function oauth_ops_or_503(ctx: RouteContext) {
   const ops = ctx.options.oauth_ops ?? null;
@@ -23,8 +23,9 @@ export async function handle_oauth(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // POST /api/oauth/presets { service_type, ... }
+  // POST /api/oauth/presets — TN-6d: 인프라 레벨, superadmin only
   if (path === "/api/oauth/presets" && req.method === "POST") {
+    if (!require_superadmin(ctx)) return true;
     const ops = oauth_ops_or_503(ctx);
     if (!ops) return true;
     const body = await read_body(req);
@@ -39,6 +40,7 @@ export async function handle_oauth(ctx: RouteContext): Promise<boolean> {
   // PUT /api/oauth/presets/:type { ...fields }
   const preset_match = path.match(/^\/api\/oauth\/presets\/([^/]+)$/);
   if (preset_match && req.method === "PUT") {
+    if (!require_superadmin(ctx)) return true;
     const ops = oauth_ops_or_503(ctx);
     if (!ops) return true;
     const service_type = decodeURIComponent(preset_match[1]);
@@ -49,8 +51,9 @@ export async function handle_oauth(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // DELETE /api/oauth/presets/:type
+  // DELETE /api/oauth/presets/:type — TN-6d: superadmin only
   if (preset_match && req.method === "DELETE") {
+    if (!require_superadmin(ctx)) return true;
     const ops = oauth_ops_or_503(ctx);
     if (!ops) return true;
     const service_type = decodeURIComponent(preset_match[1]);

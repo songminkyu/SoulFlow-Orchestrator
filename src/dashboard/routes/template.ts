@@ -1,7 +1,10 @@
 import { create_template_ops } from "../ops-factory.js";
 import type { RouteContext } from "../route-context.js";
+import { require_team_manager_for_write } from "../route-context.js";
 
 export async function handle_template(ctx: RouteContext): Promise<boolean> {
+  // TN-6d: template 쓰기는 team_manager 이상
+  if (!require_team_manager_for_write(ctx)) return true;
   const { req, url, res, options, json, read_body, personal_dir } = ctx;
   const path = url.pathname;
 

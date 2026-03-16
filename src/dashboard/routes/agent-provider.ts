@@ -73,9 +73,10 @@ export async function handle_agent_provider(ctx: RouteContext): Promise<boolean>
     return true;
   }
 
-  // POST /api/agents/providers/:id/test
+  // POST /api/agents/providers/:id/test — TN-6d: scope 가시성 검사
   const test_match = path.match(/^\/api\/agents\/providers\/([^/]+)\/test$/);
   if (test_match && req.method === "POST") {
+    if (!require_team_manager(ctx)) return true;
     const ops = agent_provider_ops_or_503(ctx);
     if (!ops) return true;
     const id = decodeURIComponent(test_match[1]);
@@ -84,7 +85,7 @@ export async function handle_agent_provider(ctx: RouteContext): Promise<boolean>
     return true;
   }
 
-  // GET /api/agents/providers/:id/models — 인스턴스별 모델 목록
+  // GET /api/agents/providers/:id/models — TN-6d: scope 가시성 검사
   const inst_models_match = path.match(/^\/api\/agents\/providers\/([^/]+)\/models$/);
   if (inst_models_match && req.method === "GET") {
     const ops = agent_provider_ops_or_503(ctx);
@@ -181,9 +182,10 @@ export async function handle_agent_provider(ctx: RouteContext): Promise<boolean>
     return true;
   }
 
-  // POST /api/agents/connections/:id/test
+  // POST /api/agents/connections/:id/test — TN-6d: team_manager
   const conn_test_match = path.match(/^\/api\/agents\/connections\/([^/]+)\/test$/);
   if (conn_test_match && req.method === "POST") {
+    if (!require_team_manager(ctx)) return true;
     const ops = agent_provider_ops_or_503(ctx);
     if (!ops) return true;
     const id = decodeURIComponent(conn_test_match[1]);
@@ -192,9 +194,10 @@ export async function handle_agent_provider(ctx: RouteContext): Promise<boolean>
     return true;
   }
 
-  // GET /api/agents/connections/:id/models — connection별 모델 목록
+  // GET /api/agents/connections/:id/models — TN-6d: team_manager
   const conn_models_match = path.match(/^\/api\/agents\/connections\/([^/]+)\/models$/);
   if (conn_models_match && req.method === "GET") {
+    if (!require_team_manager(ctx)) return true;
     const ops = agent_provider_ops_or_503(ctx);
     if (!ops) return true;
     const id = decodeURIComponent(conn_models_match[1]);
@@ -209,9 +212,10 @@ export async function handle_agent_provider(ctx: RouteContext): Promise<boolean>
     return true;
   }
 
-  // GET /api/agents/connections/:id
+  // GET /api/agents/connections/:id — TN-6d: team_manager (일관성: list와 동일)
   const conn_id_match = path.match(/^\/api\/agents\/connections\/([^/]+)$/);
   if (conn_id_match && req.method === "GET") {
+    if (!require_team_manager(ctx)) return true;
     const ops = agent_provider_ops_or_503(ctx);
     if (!ops) return true;
     const id = decodeURIComponent(conn_id_match[1]);

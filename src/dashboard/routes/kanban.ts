@@ -1,7 +1,7 @@
 /** 칸반 보드 REST API 핸들러. */
 
 import type { RouteContext } from "../route-context.js";
-import { get_filter_team_id } from "../route-context.js";
+import { get_filter_team_id, require_superadmin } from "../route-context.js";
 import type { KanbanStoreLike, ScopeType, KanbanColumnDef, Priority, RelationType, KanbanRule, FilterCriteria, KanbanEvent } from "../../services/kanban-store.js";
 import type { KanbanRuleExecutor } from "../../services/kanban-rule-executor.js";
 import { error_message } from "../../utils/common.js";
@@ -480,8 +480,9 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // POST /api/kanban/templates
+  // POST /api/kanban/templates — TN-6d: superadmin only (글로벌 공유 자원)
   if (path === "/api/kanban/templates" && method === "POST") {
+    if (!require_superadmin(ctx)) return true;
     const store = store_or_503(ctx);
     if (!store) return true;
     const body = await read_body(req);
@@ -514,8 +515,9 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // DELETE /api/kanban/templates/:id
+  // DELETE /api/kanban/templates/:id — TN-6d: superadmin only
   if (template_match && method === "DELETE") {
+    if (!require_superadmin(ctx)) return true;
     const store = store_or_503(ctx);
     if (!store) return true;
     const template_id = decodeURIComponent(template_match[1]);
