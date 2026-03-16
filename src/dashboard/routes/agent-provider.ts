@@ -85,9 +85,10 @@ export async function handle_agent_provider(ctx: RouteContext): Promise<boolean>
     return true;
   }
 
-  // GET /api/agents/providers/:id/models — TN-6d: scope 가시성 검사
+  // GET /api/agents/providers/:id/models — TN-6d: team_manager
   const inst_models_match = path.match(/^\/api\/agents\/providers\/([^/]+)\/models$/);
   if (inst_models_match && req.method === "GET") {
+    if (!require_team_manager(ctx)) return true;
     const ops = agent_provider_ops_or_503(ctx);
     if (!ops) return true;
     const id = decodeURIComponent(inst_models_match[1]);

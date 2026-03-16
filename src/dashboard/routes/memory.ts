@@ -1,4 +1,5 @@
 import type { RouteContext } from "../route-context.js";
+import { require_team_manager_for_write } from "../route-context.js";
 
 function memory_ops_or_503(ctx: RouteContext) {
   const ops = ctx.get_scoped_memory_ops();
@@ -7,6 +8,7 @@ function memory_ops_or_503(ctx: RouteContext) {
 }
 
 export async function handle_memory(ctx: RouteContext): Promise<boolean> {
+  if (!require_team_manager_for_write(ctx)) return true;
   const { req, url, res, json, read_body } = ctx;
   const path = url.pathname;
 
