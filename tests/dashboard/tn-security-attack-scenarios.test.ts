@@ -683,6 +683,38 @@ describe("TN-6d: oauth presets 권한 매트릭스", () => {
     await handle_oauth(ctx);
     expect(sent[0].status).toBe(403);
   });
+
+  it("PUT /api/oauth/presets/:type — team_manager → 403 (superadmin 필요)", async () => {
+    const { handle_oauth } = await import("@src/dashboard/routes/oauth.js");
+    const sent: Array<{ status: number; body: unknown }> = [];
+    const ctx = {
+      req: { method: "PUT", headers: {} }, res: {},
+      url: new URL("/api/oauth/presets/github", "http://localhost"),
+      options: { auth_svc: {}, oauth_ops: { update_preset: async () => ({ ok: true }) } },
+      auth_user: { role: "user", sub: "u1", tid: "t1" },
+      team_context: { team_id: "t1", team_role: "manager" },
+      json: (_r: unknown, s: number, b: unknown) => { sent.push({ status: s, body: b }); },
+      read_body: async () => ({ client_id: "x" }),
+    } as never;
+    await handle_oauth(ctx);
+    expect(sent[0].status).toBe(403);
+  });
+
+  it("DELETE /api/oauth/presets/:type — team_manager → 403 (superadmin 필요)", async () => {
+    const { handle_oauth } = await import("@src/dashboard/routes/oauth.js");
+    const sent: Array<{ status: number; body: unknown }> = [];
+    const ctx = {
+      req: { method: "DELETE", headers: {} }, res: {},
+      url: new URL("/api/oauth/presets/github", "http://localhost"),
+      options: { auth_svc: {}, oauth_ops: { unregister_preset: async () => ({ ok: true }) } },
+      auth_user: { role: "user", sub: "u1", tid: "t1" },
+      team_context: { team_id: "t1", team_role: "manager" },
+      json: (_r: unknown, s: number, b: unknown) => { sent.push({ status: s, body: b }); },
+      read_body: async () => null,
+    } as never;
+    await handle_oauth(ctx);
+    expect(sent[0].status).toBe(403);
+  });
 });
 
 // ══════════════════════════════════════════
@@ -717,6 +749,22 @@ describe("TN-6d: kanban templates 권한 매트릭스", () => {
       team_context: { team_id: "t1", team_role: "member" },
       json: (_r: unknown, s: number, b: unknown) => { sent.push({ status: s, body: b }); },
       read_body: async () => ({ name: "test", cards: [] }),
+    } as never;
+    await handle_kanban(ctx);
+    expect(sent[0].status).toBe(403);
+  });
+
+  it("DELETE /api/kanban/templates/:id — member → 403 (superadmin 필요)", async () => {
+    const { handle_kanban } = await import("@src/dashboard/routes/kanban.js");
+    const sent: Array<{ status: number; body: unknown }> = [];
+    const ctx = {
+      req: { method: "DELETE", headers: {} }, res: {},
+      url: new URL("/api/kanban/templates/tpl_1", "http://localhost"),
+      options: { auth_svc: {}, kanban_store: { delete_template: async () => true } },
+      auth_user: { role: "user", sub: "u1", tid: "t1" },
+      team_context: { team_id: "t1", team_role: "member" },
+      json: (_r: unknown, s: number, b: unknown) => { sent.push({ status: s, body: b }); },
+      read_body: async () => null,
     } as never;
     await handle_kanban(ctx);
     expect(sent[0].status).toBe(403);
