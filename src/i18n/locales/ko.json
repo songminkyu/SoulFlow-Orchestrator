@@ -369,7 +369,7 @@
   "chat.model_loading": "로딩 중...",
   "chat.model_select": "모델 선택",
   "chat.msgs_fmt": "{count}개 메시지",
-  "chat.new_session": "+ 새 세션",
+  "chat.new_session": "새 세션",
   "chat.newline_hint": "줄바꿈",
   "chat.no_messages": "아직 메시지가 없습니다",
   "chat.no_sessions": "세션 없음",

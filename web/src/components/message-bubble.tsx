@@ -46,7 +46,7 @@ export function MessageBubble({
           className={`chat-msg__content${streaming ? " chat-msg__content--streaming" : ""}`}
         >
           {header}
-          {is_user ? text : <MarkdownContent content={text} />}
+          {is_user ? text : <MarkdownContent content={text} streaming={streaming} />}
           {streaming && <span className="chat-cursor" />}
           {children}
         </div>

@@ -369,7 +369,7 @@
   "chat.model_loading": "Loading...",
   "chat.model_select": "Select Model",
   "chat.msgs_fmt": "{count} msgs",
-  "chat.new_session": "+ New Session",
+  "chat.new_session": "New Session",
   "chat.newline_hint": "for newline",
   "chat.no_messages": "No messages yet",
   "chat.no_sessions": "No sessions",

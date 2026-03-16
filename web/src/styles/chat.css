@@ -136,10 +136,17 @@
   border-top-left-radius: var(--radius-sm);
   white-space: normal;
 }
-/* 스트리밍 중 어시스턴트 버블 — border 하이라이트 + 최소 높이 */
+/* 스트리밍 중 어시스턴트 버블 — border 하이라이트 + 부드러운 확장 */
 .chat-msg__content--streaming {
   border-color: color-mix(in srgb, var(--accent) 40%, transparent);
   min-height: 60px;
+  transition: min-height 0.15s ease-out;
+}
+/* 스트리밍 경량 렌더 — 줄바꿈만 유지, 자연스러운 텍스트 흐름 */
+.chat-md--streaming {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
 }
 
 /* ?? Typing indicator (thinking dots) ?? */

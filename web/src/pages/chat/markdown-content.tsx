@@ -88,7 +88,24 @@ const REHYPE_PLUGINS: Pluggable[] = [
   [rehypeSanitize, SANITIZE_SCHEMA],
 ];
 
-export function MarkdownContent({ content }: { content: string }) {
+/** 스트리밍 중 경량 렌더 — 줄바꿈만 처리, 풀 마크다운 파이프라인 건너뜀.
+ *  DOM 교체 대신 텍스트 노드만 업데이트되어 깜빡임 없이 부드럽게 확장. */
+function StreamingText({ content }: { content: string }) {
+  const lines = content.split("\n");
+  return (
+    <div className="chat-md chat-md--streaming">
+      {lines.map((line, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <br />}
+          {line}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+export function MarkdownContent({ content, streaming }: { content: string; streaming?: boolean }) {
+  if (streaming) return <StreamingText content={content} />;
   return (
     <div className="chat-md">
       <ReactMarkdown
