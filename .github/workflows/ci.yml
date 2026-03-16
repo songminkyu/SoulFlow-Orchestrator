@@ -95,6 +95,7 @@ jobs:
           SKIP_RECHUNK_TESTS: "1"
           SKIP_PTY_TESTS: "1"
           NO_JUST_BASH: "1"
+          VITEST_SHARD: "1"
         timeout-minutes: 25
 
       - name: Upload blob report

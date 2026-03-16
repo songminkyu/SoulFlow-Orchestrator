@@ -56,12 +56,16 @@ export default defineConfig({
       reporter: ["text", "html", "json-summary", "json"],
       reportsDirectory: "coverage",
       reportOnFailure: true,
-      thresholds: {
-        lines: 85,
-        statements: 85,
-        branches: 75,
-        functions: 85,
-      },
+      // shard 실행 시 개별 shard가 전체 커버리지를 채울 수 없으므로 threshold 비활성화
+      // threshold 체크는 merge job에서 수행
+      thresholds: process.env.VITEST_SHARD
+        ? undefined
+        : {
+            lines: 85,
+            statements: 85,
+            branches: 75,
+            functions: 85,
+          },
     },
   },
 });
