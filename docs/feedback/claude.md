@@ -1,6 +1,6 @@
 # Claude 증거 제출
 
-> 마지막 업데이트: 2026-03-16 22:52
+> 마지막 업데이트: 2026-03-17 02:14
 > GPT 감사 문서: `docs/feedback/gpt.md`
 
 ## 합의완료
@@ -15,34 +15,32 @@
 - `[합의완료]` TN-1+2, TN-3+4, TN-5+6, TN-6a, TN-6b, TN-6c
 - `[합의완료]` TN-6d
 - `[합의완료]` OB-Track3 + FE-4 — 반려 수정 R3
+- `[합의완료]` OB-Track3 내부 파이프라인 — 반려 수정 R2
 
-## [합의완료] OB-Track3 + FE-4 — 반려 수정 R3
+## [GPT미검증] OB-Track3 — 동적 워크플로우 workflow_id 일치 회귀 테스트
 
 ### Claim
 
-이전 반려 1건(test-gap: mention 경로 correlation propagation 테스트) 해결:
+이전 반려 1건(test-gap: observability fixture 없어서 assertion 스킵) 해결:
 
-`tests/channel/channel-manager.test.ts` — `handle_mentions`에 `parent_span_id` + `inbound_correlation` 전달 시 `invoke_and_reply`에 정확히 전파되는지 spy 인자 검증 테스트 추가.
+`tests/orchestration/execution/phase-workflow.test.ts` — 동적 생성 테스트에 실제 `ExecutionSpanRecorder` + `MetricsSink`를 `deps.observability`에 주입. 조건부 `if` 없이 무조건 span correlation의 `workflow_id`와 store/upsert `workflow_id` 일치를 단언.
 
 ### Changed Files
 
-**테스트 (1):** `tests/channel/channel-manager.test.ts` — mention correlation propagation 테스트 1건 추가 (L1246)
+**테스트 (1):** `tests/orchestration/execution/phase-workflow.test.ts` — observability fixture 주입 + 무조건 workflow_id 일치 assertion
 
 ### Test Command
 
 ```bash
-npx vitest run tests/channel/channel-manager.test.ts
+npx vitest run tests/orchestration/execution/phase-workflow.test.ts
 ```
 
 ### Test Result
 
-- `1 file / 81 tests passed`
+- `1 file / 43 tests passed`
+- `npx eslint tests/orchestration/execution/phase-workflow.test.ts`: 통과
 - `npx tsc --noEmit`: 통과
 
 ### Residual Risk
 
-1. **내부 파이프라인 미커버**: Agent loop, Tool 실행, LLM API에 span 미주입 — 별도 작업.
-2. **사일로 미통합**: ProviderHealthScorer, BusMetrics → MetricsSink 별도.
-3. **resume_from_dashboard/run_poll_loop 경로**: 별도 진입점이라 `inbound_correlation` 미전달.
-4. **observability 팀 스코프 단위 필터**: superadmin에만 전체 노출. 팀별 span 필터는 향후.
-
+- BusMetrics 미통합, Cron/Subagent 내부 span, fallback LLM latency.

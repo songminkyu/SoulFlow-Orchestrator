@@ -349,6 +349,7 @@ const SPAN_KIND_LABEL: Record<SpanKind, string> = {
   orchestration_run: "overview.span_kind_orchestration_run",
   workflow_run: "overview.span_kind_workflow_run",
   delivery: "overview.span_kind_delivery",
+  agent_loop: "overview.span_kind_agent_loop",
 };
 
 function ObservabilityPanel({ obs, active_runs }: { obs: ObservabilitySummary; active_runs?: number }) {
@@ -466,6 +467,45 @@ function ObservabilityPanel({ obs, active_runs }: { obs: ObservabilitySummary; a
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {/* Tool Usage */}
+      {(obs.tool_usage?.length ?? 0) > 0 && (
+        <section className="panel panel--flush">
+          <SectionHeader title="Tool Usage" />
+          <div className="grid-stack">
+            {obs.tool_usage?.map((t) => (
+              <div key={t.tool_name} className="kv mt-0 mb-0">
+                <span className="fw-600 text-sm">{t.tool_name}</span>
+                <span className="text-xs">{t.total} calls</span>
+                {t.errors > 0 && <Badge status={`${t.errors} errors`} variant="err" />}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* LLM Cost */}
+      {(obs.llm_cost?.total_calls ?? 0) > 0 && (
+        <section className="panel panel--flush">
+          <SectionHeader title="LLM Usage" />
+          <div className="grid-stack">
+            <div className="kv mt-0 mb-0">
+              <span className="text-xs text-muted">Calls</span>
+              <span className="fw-600 text-sm">{obs.llm_cost!.total_calls}</span>
+            </div>
+            <div className="kv mt-0 mb-0">
+              <span className="text-xs text-muted">Tokens</span>
+              <span className="text-xs">in: {obs.llm_cost!.total_input_tokens.toLocaleString()} / out: {obs.llm_cost!.total_output_tokens.toLocaleString()}</span>
+            </div>
+            {(obs.llm_cost?.total_cost_usd ?? 0) > 0 && (
+              <div className="kv mt-0 mb-0">
+                <span className="text-xs text-muted">Cost</span>
+                <span className="fw-600 text-sm">${obs.llm_cost!.total_cost_usd.toFixed(4)}</span>
+              </div>
+            )}
+          </div>
         </section>
       )}
     </div>

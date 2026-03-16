@@ -41,12 +41,27 @@ export type ProviderUsage = {
   errors: number;
 };
 
+export type ToolUsageEntry = {
+  tool_name: string;
+  total: number;
+  errors: number;
+};
+
+export type LlmCostSummary = {
+  total_cost_usd: number;
+  total_calls: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+};
+
 export type ObservabilitySummary = {
   failure_summary: FailureGroup[];
   error_rate: ErrorRate;
   latency_summary: LatencyPercentiles[];
   delivery_mismatch: DeliveryMismatchEntry[];
   provider_usage: ProviderUsage[];
+  tool_usage: ToolUsageEntry[];
+  llm_cost: LlmCostSummary;
 };
 
 /** 현재 spans + metrics에서 운영자 요약을 계산. */
@@ -60,6 +75,8 @@ export function project_summary(obs: ObservabilityLike): ObservabilitySummary {
     latency_summary: compute_latency_summary(spans),
     delivery_mismatch: compute_delivery_mismatch(spans),
     provider_usage: compute_provider_usage(snap.counters),
+    tool_usage: compute_tool_usage(snap.counters),
+    llm_cost: compute_llm_cost(snap.counters),
   };
 }
 
@@ -157,4 +174,35 @@ function compute_provider_usage(
     total: e.total,
     errors: e.errors,
   }));
+}
+
+function compute_tool_usage(
+  counters: ReadonlyArray<{ name: string; labels: Record<string, string>; value: number }>,
+): ToolUsageEntry[] {
+  const by_tool = new Map<string, { total: number; errors: number }>();
+  for (const c of counters) {
+    if (c.name !== "tool_execution_total") continue;
+    const tool_name = c.labels.tool_name || "unknown";
+    let entry = by_tool.get(tool_name);
+    if (!entry) { entry = { total: 0, errors: 0 }; by_tool.set(tool_name, entry); }
+    entry.total += c.value;
+    if (c.labels.status === "error") entry.errors += c.value;
+  }
+  return Array.from(by_tool.entries()).map(([tool_name, e]) => ({ tool_name, total: e.total, errors: e.errors }));
+}
+
+function compute_llm_cost(
+  counters: ReadonlyArray<{ name: string; labels: Record<string, string>; value: number }>,
+): LlmCostSummary {
+  let total_cost_usd = 0;
+  let total_calls = 0;
+  let total_input_tokens = 0;
+  let total_output_tokens = 0;
+  for (const c of counters) {
+    if (c.name === "llm_cost_usd_total") total_cost_usd += c.value;
+    if (c.name === "llm_calls_total") total_calls += c.value;
+    if (c.name === "llm_tokens_total" && c.labels.direction === "input") total_input_tokens += c.value;
+    if (c.name === "llm_tokens_total" && c.labels.direction === "output") total_output_tokens += c.value;
+  }
+  return { total_cost_usd, total_calls, total_input_tokens, total_output_tokens };
 }

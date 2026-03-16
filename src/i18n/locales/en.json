@@ -1449,6 +1449,7 @@
   "overview.span_kind_workflow_run": "Workflow",
   "overview.span_kind_delivery": "Delivery",
   "overview.span_kind_http_request": "HTTP",
+  "overview.span_kind_agent_loop": "Agent Loop",
   "palette.no_results": "No results found",
   "palette.open_tools_skills": "Add Tool / Skill",
   "palette.search_placeholder": "Search tools or skills...",

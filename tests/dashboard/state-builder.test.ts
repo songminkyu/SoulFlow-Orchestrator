@@ -463,7 +463,7 @@ describe("build_dashboard_state — observability (OB-7)", () => {
     expect(state.observability).toBeNull();
   });
 
-  it("observability 설정 → ObservabilitySummary 5개 키 포함", async () => {
+  it("observability 설정 → ObservabilitySummary 7개 키 포함", async () => {
     const obs = make_observability();
     const opts = make_full_options({ observability: obs });
     const state = await build_dashboard_state(opts, []);
@@ -474,6 +474,8 @@ describe("build_dashboard_state — observability (OB-7)", () => {
     expect(summary).toHaveProperty("latency_summary");
     expect(summary).toHaveProperty("delivery_mismatch");
     expect(summary).toHaveProperty("provider_usage");
+    expect(summary).toHaveProperty("tool_usage");
+    expect(summary).toHaveProperty("llm_cost");
   });
 
   it("spans에 에러가 있으면 failure_summary에 반영된다", async () => {

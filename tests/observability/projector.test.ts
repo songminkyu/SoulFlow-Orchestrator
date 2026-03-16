@@ -10,7 +10,7 @@
  *   6. provider_usage — counter 기반 프로바이더별 사용량
  */
 import { describe, it, expect } from "vitest";
-import { project_summary, type ObservabilitySummary } from "@src/observability/projector.js";
+import { project_summary } from "@src/observability/projector.js";
 import { ExecutionSpanRecorder, type SpanKind } from "@src/observability/span.js";
 import { MetricsSink } from "@src/observability/metrics.js";
 import { create_correlation } from "@src/observability/correlation.js";
@@ -157,5 +157,41 @@ describe("project_summary — 빈 데이터", () => {
     expect(summary.latency_summary).toEqual([]);
     expect(summary.delivery_mismatch).toEqual([]);
     expect(summary.provider_usage).toEqual([]);
+    expect(summary.tool_usage).toEqual([]);
+    expect(summary.llm_cost).toEqual({ total_cost_usd: 0, total_calls: 0, total_input_tokens: 0, total_output_tokens: 0 });
+  });
+});
+
+describe("project_summary — tool_usage", () => {
+  it("tool_execution_total counter에서 도구별 호출/에러를 집계한다", () => {
+    const obs = make_obs();
+    obs.metrics.counter("tool_execution_total", 5, { tool_name: "read_file" });
+    obs.metrics.counter("tool_execution_total", 2, { tool_name: "read_file", status: "error" });
+    obs.metrics.counter("tool_execution_total", 3, { tool_name: "unknown" });
+    const summary = project_summary(obs);
+    expect(summary.tool_usage).toHaveLength(2);
+    const read_file = summary.tool_usage.find(t => t.tool_name === "read_file");
+    expect(read_file).toMatchObject({ total: 7, errors: 2 });
+  });
+});
+
+describe("project_summary — llm_cost", () => {
+  it("llm 관련 counter에서 비용/토큰을 집계한다", () => {
+    const obs = make_obs();
+    obs.metrics.counter("llm_calls_total", 10, { provider: "claude" });
+    obs.metrics.counter("llm_tokens_total", 5000, { provider: "claude", direction: "input" });
+    obs.metrics.counter("llm_tokens_total", 1500, { provider: "claude", direction: "output" });
+    obs.metrics.counter("llm_cost_usd_total", 0.05, { provider: "claude" });
+    const summary = project_summary(obs);
+    expect(summary.llm_cost.total_calls).toBe(10);
+    expect(summary.llm_cost.total_input_tokens).toBe(5000);
+    expect(summary.llm_cost.total_output_tokens).toBe(1500);
+    expect(summary.llm_cost.total_cost_usd).toBeCloseTo(0.05);
+  });
+
+  it("llm counter 없으면 모두 0", () => {
+    const obs = make_obs();
+    const summary = project_summary(obs);
+    expect(summary.llm_cost).toEqual({ total_cost_usd: 0, total_calls: 0, total_input_tokens: 0, total_output_tokens: 0 });
   });
 });

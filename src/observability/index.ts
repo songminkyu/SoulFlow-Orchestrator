@@ -51,6 +51,8 @@ export {
   type LatencyPercentiles,
   type DeliveryMismatchEntry,
   type ProviderUsage,
+  type ToolUsageEntry,
+  type LlmCostSummary,
   project_summary,
 } from "./projector.js";
 

@@ -652,6 +652,28 @@ describe("run_phase_loop — phase 워크플로우 실행", () => {
       expect(deps.phase_workflow_store?.upsert).toHaveBeenCalled();
     });
 
+    it("동적 생성 — span correlation workflow_id와 store workflow_id 일치", async () => {
+      const { ExecutionSpanRecorder } = await import("@src/observability/span.js");
+      const { MetricsSink } = await import("@src/observability/metrics.js");
+      const deps = createMockPhaseWorkflowDeps() as PhaseWorkflowDeps;
+      const recorder = new ExecutionSpanRecorder();
+      deps.observability = { spans: recorder, metrics: new MetricsSink() };
+
+      const result = await run_phase_loop(deps, mockRequest, "completely new task", undefined);
+      expect(result.mode).toBe("phase");
+
+      const upsert_arg = (deps.phase_workflow_store!.upsert as any).mock.calls[0][0];
+      const stored_wf_id: string = upsert_arg.workflow_id;
+      expect(stored_wf_id).toMatch(/^wf-/);
+
+      // span correlation의 workflow_id가 store에 저장된 workflow_id와 동일
+      const spans = recorder.get_spans();
+      expect(spans.length).toBeGreaterThanOrEqual(1);
+      const wf_span = spans.find(s => s.kind === "workflow_run");
+      expect(wf_span).toBeDefined();
+      expect(wf_span!.correlation.workflow_id).toBe(stored_wf_id);
+    });
+
     it("동적 생성 후 LLM 에러 → null 반환", async () => {
       const deps = createMockPhaseWorkflowDeps() as PhaseWorkflowDeps;
       (deps.providers.run_orchestrator as any).mockRejectedValue(new Error("LLM error"));

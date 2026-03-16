@@ -335,6 +335,8 @@ function make_obs(overrides: Partial<ObservabilitySummary> = {}): ObservabilityS
     latency_summary: [],
     delivery_mismatch: [],
     provider_usage: [],
+    tool_usage: [],
+    llm_cost: { total_cost_usd: 0, total_calls: 0, total_input_tokens: 0, total_output_tokens: 0 },
     ...overrides,
   };
 }
@@ -410,5 +412,31 @@ describe("MonitoringPanel — ObservabilityPanel (OB-7)", () => {
     wrap(<MonitoringPanel />);
     expect(screen.getByText("slack")).toBeInTheDocument();
     expect(screen.getByText("telegram")).toBeInTheDocument();
+  });
+
+  it("tool_usage 있으면 도구별 호출 수 렌더", () => {
+    mockUseStatus.mockReturnValue({
+      data: make_base_state({
+        observability: make_obs({ tool_usage: [{ tool_name: "read_file", total: 10, errors: 1 }] }),
+      }),
+      isLoading: false,
+      refetch: vi.fn(),
+    });
+    wrap(<MonitoringPanel />);
+    expect(screen.getByText("read_file")).toBeInTheDocument();
+    expect(screen.getByText("10 calls")).toBeInTheDocument();
+  });
+
+  it("llm_cost.total_calls > 0이면 LLM Usage 렌더", () => {
+    mockUseStatus.mockReturnValue({
+      data: make_base_state({
+        observability: make_obs({ llm_cost: { total_cost_usd: 0.05, total_calls: 20, total_input_tokens: 5000, total_output_tokens: 1500 } }),
+      }),
+      isLoading: false,
+      refetch: vi.fn(),
+    });
+    wrap(<MonitoringPanel />);
+    expect(screen.getByText("20")).toBeInTheDocument();
+    expect(screen.getByText("$0.0500")).toBeInTheDocument();
   });
 });

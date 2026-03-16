@@ -21,8 +21,22 @@ import { error_result, reply_result, suppress_result } from "./helpers.js";
 import type { RunExecutionArgs, RunnerDeps } from "./runner-deps.js";
 import { streaming_cfg_for } from "./runner-deps.js";
 import type { OrchestrationResult } from "../types.js";
+import { NOOP_OBSERVABILITY } from "../../observability/context.js";
+import { instrument } from "../../observability/instrument.js";
 
 export async function run_once(deps: RunnerDeps, args: RunExecutionArgs): Promise<OrchestrationResult> {
+  const obs = deps.observability ?? NOOP_OBSERVABILITY;
+  return instrument(obs, {
+    kind: "agent_loop", name: "run_once",
+    correlation: args.req.correlation ?? {},
+    attributes: { mode: "once", executor: args.executor },
+    parent_span_id: args.req._parent_span_id,
+    counter: "agent_loop_runs_total", counter_labels: { mode: "once" },
+    histogram: "agent_loop_duration_ms", histogram_labels: { mode: "once" },
+  }, async () => _run_once_inner(deps, args));
+}
+
+async function _run_once_inner(deps: RunnerDeps, args: RunExecutionArgs): Promise<OrchestrationResult> {
   const stream = new StreamBuffer();
   emit_execution_info(stream, args.req.on_stream, "once", args.executor, deps.logger);
   const { system_base } = args;

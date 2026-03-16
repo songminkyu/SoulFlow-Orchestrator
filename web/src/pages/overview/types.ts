@@ -79,7 +79,7 @@ export interface ValidatorSummary {
 }
 
 /** OB-7: Observability 요약 — projector가 spans+metrics에서 실시간 계산. */
-export type SpanKind = "http_request" | "dashboard_route" | "channel_inbound" | "orchestration_run" | "workflow_run" | "delivery";
+export type SpanKind = "http_request" | "dashboard_route" | "channel_inbound" | "orchestration_run" | "workflow_run" | "delivery" | "agent_loop";
 
 export interface FailureGroup {
   kind: SpanKind;
@@ -115,12 +115,27 @@ export interface ProviderUsage {
   errors: number;
 }
 
+export interface ToolUsageEntry {
+  tool_name: string;
+  total: number;
+  errors: number;
+}
+
+export interface LlmCostSummary {
+  total_cost_usd: number;
+  total_calls: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+}
+
 export interface ObservabilitySummary {
   failure_summary: FailureGroup[];
   error_rate: ErrorRate;
   latency_summary: LatencyPercentiles[];
   delivery_mismatch: DeliveryMismatchEntry[];
   provider_usage: ProviderUsage[];
+  tool_usage: ToolUsageEntry[];
+  llm_cost: LlmCostSummary;
 }
 
 export interface DashboardState {

@@ -29,6 +29,10 @@ export type ToolCallHandlerDeps = {
   log_event: (input: AppendWorkflowEventInput) => void;
   /** 3-projection reducer. 미지정 시 기존 truncate_tool_result 동작으로 fallback. */
   reducer?: ToolOutputReducer;
+  /** OB: 도구 실행 메트릭 싱크. 미설정 시 스킵. */
+  metrics?: import("../observability/metrics.js").MetricsSinkLike | null;
+  /** OB: 등록된 도구 이름 목록. 미등록 이름은 "unknown"으로 정규화하여 cardinality 폭증 방지. */
+  known_tool_names?: ReadonlySet<string>;
 };
 
 export function create_tool_call_handler(
@@ -118,12 +122,17 @@ export function create_tool_call_handler(
         return prompt;
       };
 
+      const tool_start = Date.now();
+      // OB: cardinality 제한 — 미등록 도구 이름은 "unknown"으로 정규화
+      const safe_tool_name = deps.known_tool_names?.has(tc.name) ? tc.name : "unknown";
       try {
         deps.logger.debug("tool_call", { name: tc.name, args: tc.arguments });
         const result = await deps.execute_tool(tc.name, tc.arguments || {}, tool_ctx);
         state.tool_count += 1;
         if (budget) budget.used += 1;
         deps.logger.debug("tool_result", { name: tc.name, result: String(result).slice(0, 200) });
+        deps.metrics?.counter("tool_execution_total", 1, { tool_name: safe_tool_name });
+        deps.metrics?.histogram("tool_execution_duration_ms", Date.now() - tool_start, { tool_name: safe_tool_name });
         const truncated = emit_result(result, false);
         outputs.push(`[tool:${tc.name}] ${truncated}`);
       } catch (e) {
@@ -131,6 +140,8 @@ export function create_tool_call_handler(
         if (budget) budget.used += 1;
         const err_msg = error_message(e);
         deps.logger.debug("tool_error", { name: tc.name, error: err_msg });
+        deps.metrics?.counter("tool_execution_total", 1, { tool_name: safe_tool_name, status: "error" });
+        deps.metrics?.histogram("tool_execution_duration_ms", Date.now() - tool_start, { tool_name: safe_tool_name });
         emit_result(err_msg, true);
         outputs.push(`[tool:${tc.name}] error: ${err_msg}`);
       }

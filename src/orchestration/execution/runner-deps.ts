@@ -59,6 +59,8 @@ export function streaming_cfg_for(base: StreamingConfig, provider: string): Stre
 export type RunnerDeps = {
   providers: ProviderRegistry;
   runtime: AgentRuntimeLike;
+  /** OB: observability 주입. 미설정 시 no-op. */
+  observability?: import("../../observability/context.js").ObservabilityLike | null;
   config: {
     agent_loop_max_turns: number;
     task_loop_max_turns: number;

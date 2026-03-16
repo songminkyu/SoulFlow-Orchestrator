@@ -47,20 +47,22 @@ export async function run_phase_loop(
   node_categories?: string[],
 ): Promise<OrchestrationResult> {
   const obs = deps.observability ?? NOOP_OBSERVABILITY;
+  // workflow_id를 span 시작 전에 생성하여 correlation에 포함
+  const pre_workflow_id = `wf-${short_id(12)}`;
   const correlation = req.correlation
-    ? extend_correlation(req.correlation, { run_id: req.run_id, provider: req.provider, chat_id: req.message.chat_id })
-    : create_correlation({ run_id: req.run_id, provider: req.provider, chat_id: req.message.chat_id });
+    ? extend_correlation(req.correlation, { run_id: req.run_id, provider: req.provider, chat_id: req.message.chat_id, workflow_id: pre_workflow_id })
+    : create_correlation({ run_id: req.run_id, provider: req.provider, chat_id: req.message.chat_id, workflow_id: pre_workflow_id });
 
   return instrument(obs, {
     kind: "workflow_run",
     name: "run_phase_loop",
     correlation,
-    attributes: { workflow_hint: workflow_hint ?? "" },
+    attributes: { workflow_hint: workflow_hint ?? "", workflow_id: pre_workflow_id },
     parent_span_id: req._parent_span_id,
     counter: "workflow_runs_total",
     histogram: "workflow_run_duration_ms",
   }, async () => {
-    return _run_phase_loop_inner(deps, req, task_with_media, workflow_hint, node_categories);
+    return _run_phase_loop_inner(deps, req, task_with_media, workflow_hint, node_categories, pre_workflow_id);
   });
 }
 
@@ -70,6 +72,7 @@ async function _run_phase_loop_inner(
   task_with_media: string,
   workflow_hint?: string,
   node_categories?: string[],
+  pre_workflow_id?: string,
 ): Promise<OrchestrationResult> {
   const { run_phase_loop: exec } = await import("../../agent/phase-loop-runner.js");
   const { load_workflow_templates, load_workflow_template, substitute_variables } = await import("../workflow-loader.js");
@@ -103,7 +106,7 @@ async function _run_phase_loop_inner(
       return error_result("phase", null, "no_matching_workflow_template");
     }
     const preview = format_workflow_preview(dynamic);
-    const workflow_id = `wf-${short_id(12)}`;
+    const workflow_id = pre_workflow_id ?? `wf-${short_id(12)}`;
     if (store) {
       store.upsert({
         workflow_id, title: dynamic.title, objective: task_with_media,
@@ -126,7 +129,7 @@ async function _run_phase_loop_inner(
     origin_chat_id: origin.chat_id,
     origin_sender_id: origin.sender_id,
   });
-  const workflow_id = `wf-${short_id(12)}`;
+  const workflow_id = pre_workflow_id ?? `wf-${short_id(12)}`;
 
   if (req.run_id) {
     deps.process_tracker?.link_workflow(req.run_id, workflow_id);

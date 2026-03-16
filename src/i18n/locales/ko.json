@@ -1449,6 +1449,7 @@
   "overview.span_kind_workflow_run": "워크플로우",
   "overview.span_kind_delivery": "전달",
   "overview.span_kind_http_request": "HTTP",
+  "overview.span_kind_agent_loop": "에이전트 루프",
   "palette.no_results": "검색 결과가 없습니다",
   "palette.open_tools_skills": "도구 / 스킬 추가",
   "palette.search_placeholder": "도구 또는 스킬 검색...",

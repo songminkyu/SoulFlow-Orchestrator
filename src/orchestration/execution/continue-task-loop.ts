@@ -22,6 +22,8 @@ import { try_native_task_execute } from "./run-task-loop.js";
 import type { RunnerDeps } from "./runner-deps.js";
 import { streaming_cfg_for } from "./runner-deps.js";
 import type { OrchestrationRequest, OrchestrationResult } from "../types.js";
+import { NOOP_OBSERVABILITY } from "../../observability/context.js";
+import { instrument } from "../../observability/instrument.js";
 
 /** continue_task_loop 전용 추가 의존성. */
 export type ContinueTaskDeps = RunnerDeps & {
@@ -32,6 +34,24 @@ export type ContinueTaskDeps = RunnerDeps & {
 };
 
 export async function continue_task_loop(
+  deps: ContinueTaskDeps,
+  req: OrchestrationRequest,
+  task: import("../../contracts.js").TaskState,
+  task_with_media: string,
+  media: string[],
+): Promise<OrchestrationResult> {
+  const obs = deps.observability ?? NOOP_OBSERVABILITY;
+  return instrument(obs, {
+    kind: "agent_loop", name: "continue_task_loop",
+    correlation: req.correlation ?? {},
+    attributes: { mode: "task_continue" },
+    parent_span_id: req._parent_span_id,
+    counter: "agent_loop_runs_total", counter_labels: { mode: "task_continue" },
+    histogram: "agent_loop_duration_ms", histogram_labels: { mode: "task_continue" },
+  }, async () => _continue_task_loop_inner(deps, req, task, task_with_media, media));
+}
+
+async function _continue_task_loop_inner(
   deps: ContinueTaskDeps,
   req: OrchestrationRequest,
   task: import("../../contracts.js").TaskState,

@@ -53,6 +53,7 @@ export class AgentBackendRegistry {
   private readonly session_store: AgentSessionStore | null;
   private readonly _provider_store: AgentProviderStore | null;
   private readonly logger: Logger | null;
+  private readonly _metrics: import("../observability/metrics.js").MetricsSinkLike | null;
 
   constructor(deps: {
     provider_registry: ProviderRegistry;
@@ -61,12 +62,15 @@ export class AgentBackendRegistry {
     provider_store?: AgentProviderStore | null;
     session_store?: AgentSessionStore | null;
     logger?: Logger | null;
+    /** OB: LLM 호출 latency 메트릭. */
+    metrics?: import("../observability/metrics.js").MetricsSinkLike | null;
   }) {
     this.provider_registry = deps.provider_registry;
     this.config = deps.config || DEFAULT_CONFIG;
     this.session_store = deps.session_store || null;
     this._provider_store = deps.provider_store ?? null;
     this.logger = deps.logger || null;
+    this._metrics = deps.metrics ?? null;
     for (const backend of deps.backends ?? []) {
       this.backends.set(backend.id, backend);
       this.breakers.set(backend.id, new CircuitBreaker());
@@ -222,13 +226,17 @@ export class AgentBackendRegistry {
 
     try {
       const result = await backend.run(options);
+      const latency = Date.now() - start;
       const is_error = result.finish_reason === "error";
       if (is_error) breaker?.record_failure(); else breaker?.record_success();
-      scorer.record(backend_id, { ok: !is_error, latency_ms: Date.now() - start });
+      scorer.record(backend_id, { ok: !is_error, latency_ms: latency });
+      this._metrics?.histogram("llm_call_duration_ms", latency, { provider: backend_id });
       this._persist_session(result, options);
       return result;
     } catch (error) {
-      scorer.record(backend_id, { ok: false, latency_ms: Date.now() - start });
+      const latency = Date.now() - start;
+      scorer.record(backend_id, { ok: false, latency_ms: latency });
+      this._metrics?.histogram("llm_call_duration_ms", latency, { provider: backend_id, status: "error" });
 
       if (error instanceof FailoverError) {
         this._handle_failover_circuit(backend_id, breaker, error.meta);

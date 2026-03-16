@@ -14,7 +14,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   ExecutionSpanRecorder,
-  type ExecutionSpan,
   type SpanKind,
 } from "@src/observability/span.js";
 import { create_correlation } from "@src/observability/correlation.js";
@@ -185,7 +184,7 @@ describe("ExecutionSpanRecorder — 저장 + 콜백", () => {
 describe("ExecutionSpanRecorder — span 종류 커버리지", () => {
   const ALL_KINDS: SpanKind[] = [
     "http_request", "dashboard_route", "channel_inbound",
-    "orchestration_run", "workflow_run", "delivery",
+    "orchestration_run", "workflow_run", "delivery", "agent_loop",
   ];
 
   it.each(ALL_KINDS)("kind '%s'이 정상 생성된다", (kind) => {

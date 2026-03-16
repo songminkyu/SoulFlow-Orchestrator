@@ -22,6 +22,8 @@ import { error_result, reply_result, suppress_result, raw_message_id } from "./h
 import type { RunExecutionArgs, RunnerDeps } from "./runner-deps.js";
 import { streaming_cfg_for } from "./runner-deps.js";
 import type { OrchestrationResult } from "../types.js";
+import { NOOP_OBSERVABILITY } from "../../observability/context.js";
+import { instrument } from "../../observability/instrument.js";
 
 /** task execute 노드에서 네이티브 백엔드로 실행 시도. 성공 시 AgentRunResult, 불가 시 null. */
 export async function try_native_task_execute(
@@ -72,6 +74,21 @@ export async function try_native_task_execute(
 }
 
 export async function run_task_loop(
+  deps: RunnerDeps,
+  args: RunExecutionArgs & { media: string[] },
+): Promise<OrchestrationResult> {
+  const obs = deps.observability ?? NOOP_OBSERVABILITY;
+  return instrument(obs, {
+    kind: "agent_loop", name: "run_task_loop",
+    correlation: args.req.correlation ?? {},
+    attributes: { mode: "task", executor: args.executor },
+    parent_span_id: args.req._parent_span_id,
+    counter: "agent_loop_runs_total", counter_labels: { mode: "task" },
+    histogram: "agent_loop_duration_ms", histogram_labels: { mode: "task" },
+  }, async () => _run_task_loop_inner(deps, args));
+}
+
+async function _run_task_loop_inner(
   deps: RunnerDeps,
   args: RunExecutionArgs & { media: string[] },
 ): Promise<OrchestrationResult> {

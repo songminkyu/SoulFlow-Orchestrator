@@ -21,8 +21,25 @@ import { error_result, reply_result, suppress_result, append_no_tool_notice } fr
 import type { RunExecutionArgs, RunnerDeps } from "./runner-deps.js";
 import { streaming_cfg_for } from "./runner-deps.js";
 import type { OrchestrationResult } from "../types.js";
+import { NOOP_OBSERVABILITY } from "../../observability/context.js";
+import { instrument } from "../../observability/instrument.js";
 
 export async function run_agent_loop(
+  deps: RunnerDeps,
+  args: RunExecutionArgs & { media: string[] },
+): Promise<OrchestrationResult> {
+  const obs = deps.observability ?? NOOP_OBSERVABILITY;
+  return instrument(obs, {
+    kind: "agent_loop", name: "run_agent_loop",
+    correlation: args.req.correlation ?? {},
+    attributes: { mode: "agent", executor: args.executor },
+    parent_span_id: args.req._parent_span_id,
+    counter: "agent_loop_runs_total", counter_labels: { mode: "agent" },
+    histogram: "agent_loop_duration_ms", histogram_labels: { mode: "agent" },
+  }, async () => _run_agent_loop_inner(deps, args));
+}
+
+async function _run_agent_loop_inner(
   deps: RunnerDeps,
   args: RunExecutionArgs & { media: string[] },
 ): Promise<OrchestrationResult> {

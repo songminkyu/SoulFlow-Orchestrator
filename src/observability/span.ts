@@ -15,7 +15,8 @@ export type SpanKind =
   | "channel_inbound"
   | "orchestration_run"
   | "workflow_run"
-  | "delivery";
+  | "delivery"
+  | "agent_loop";
 
 /** span 종료 상태. */
 export type SpanStatus = "ok" | "error" | "timeout";

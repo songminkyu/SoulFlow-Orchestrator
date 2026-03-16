@@ -100,11 +100,15 @@ export async function createRuntime(): Promise<RuntimeApp> {
     chunk_queue,
   } = await create_runtime_data({ ctx, app_config, shared_vault, logger });
 
+  // OB: MetricsSink를 provider bundle보다 먼저 생성 — LLM latency 메트릭 수집에 필요
+  const metrics_sink = new MetricsSink();
+
   const {
     providers, cli_auth, mcp, agent_backend_registry, agent_backends,
     agent_session_store, provider_caps, resolve_instance_to_type,
   } = await create_provider_bundle({
     workspace, user_dir, data_dir, app_config, shared_vault, provider_store, logger,
+    metrics: metrics_sink,
   });
 
   const broadcaster = new MutableBroadcaster();
@@ -114,7 +118,6 @@ export async function createRuntime(): Promise<RuntimeApp> {
   const trace_exporter: TraceExporterLike = NOOP_TRACE_EXPORTER;
   const metrics_exporter: MetricsExporterLike = NOOP_METRICS_EXPORTER;
   const span_export_adapter = new SpanExportAdapter(trace_exporter);
-  const metrics_sink = new MetricsSink();
   const metrics_export_adapter = new MetricsExportAdapter(
     metrics_exporter, () => metrics_sink.snapshot(),
   );

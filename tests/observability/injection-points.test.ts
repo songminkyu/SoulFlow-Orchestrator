@@ -10,7 +10,7 @@
  *   6. ObservabilityLike 결합 — SpanRecorder + MetricsSink 실제 인스턴스
  *   7. 각 SpanKind 경로별 계측 검증
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { instrument, instrument_sync } from "@src/observability/instrument.js";
 import { NOOP_OBSERVABILITY, type ObservabilityLike } from "@src/observability/context.js";
 import { ExecutionSpanRecorder } from "@src/observability/span.js";
@@ -250,6 +250,7 @@ describe("SpanKind 경로별 계측", () => {
     { kind: "orchestration_run", name: "execute", counter: "orchestration_runs_total" },
     { kind: "workflow_run", name: "phase_1", counter: "workflow_runs_total" },
     { kind: "delivery", name: "send_slack", counter: "channel_outbound_total" },
+    { kind: "agent_loop", name: "run_once", counter: "agent_loop_runs_total" },
   ];
 
   it.each(KINDS)("kind '$kind' 경로가 정상 계측된다", async ({ kind, name, counter }) => {

@@ -36,6 +36,8 @@ export interface ProviderBundleDeps {
   shared_vault: SecretVaultLike;
   provider_store: AgentProviderStore;
   logger: ReturnType<typeof create_logger>;
+  /** OB: LLM 호출 latency 메트릭. */
+  metrics?: import("../observability/metrics.js").MetricsSinkLike | null;
 }
 
 export async function create_provider_bundle(deps: ProviderBundleDeps): Promise<ProviderBundle> {
@@ -148,6 +150,7 @@ export async function create_provider_bundle(deps: ProviderBundleDeps): Promise<
     provider_store,
     session_store: agent_session_store,
     logger: logger.child("agent-registry"),
+    metrics: deps.metrics,
   });
   // provider_configs 동기화: store → registry
   for (const config of provider_store.list()) {

@@ -182,3 +182,40 @@ describe("MetricsSink — 설계 문서 대상 메트릭", () => {
     expect(snap.histograms).toHaveLength(3);
   });
 });
+
+describe("MetricsSink — 내부 파이프라인 메트릭 (OB-Track3)", () => {
+  it("agent_loop + tool_execution + llm_call 메트릭이 정상 기록된다", () => {
+    const sink = new MetricsSink();
+    sink.counter("agent_loop_runs_total", 1, { mode: "once" });
+    sink.counter("agent_loop_runs_total", 1, { mode: "agent" });
+    sink.histogram("agent_loop_duration_ms", 5000, { mode: "once" });
+    sink.counter("tool_execution_total", 1, { tool_name: "read_file" });
+    sink.counter("tool_execution_total", 1, { tool_name: "unknown", status: "error" });
+    sink.histogram("tool_execution_duration_ms", 200, { tool_name: "read_file" });
+    sink.histogram("llm_call_duration_ms", 3000, { provider: "claude" });
+    sink.counter("llm_calls_total", 1, { provider: "claude" });
+    sink.counter("llm_tokens_total", 500, { provider: "claude", direction: "input" });
+    sink.counter("llm_tokens_total", 200, { provider: "claude", direction: "output" });
+
+    const snap = sink.snapshot();
+    const agent_counters = snap.counters.filter(c => c.name === "agent_loop_runs_total");
+    expect(agent_counters).toHaveLength(2);
+    const tool_counters = snap.counters.filter(c => c.name === "tool_execution_total");
+    expect(tool_counters).toHaveLength(2);
+    const llm_hist = snap.histograms.filter(h => h.name === "llm_call_duration_ms");
+    expect(llm_hist).toHaveLength(1);
+  });
+
+  it("tool_name 라벨이 allowlist 외 → unknown으로 기록되면 cardinality 폭증 방지", () => {
+    const sink = new MetricsSink();
+    // 100개 다른 "unknown" 도구 → 모두 같은 라벨에 누적
+    for (let i = 0; i < 100; i++) {
+      sink.counter("tool_execution_total", 1, { tool_name: "unknown" });
+    }
+    const snap = sink.snapshot();
+    const tool_counters = snap.counters.filter(c => c.name === "tool_execution_total");
+    // 라벨 조합이 1개뿐 (cardinality = 1)
+    expect(tool_counters).toHaveLength(1);
+    expect(tool_counters[0].value).toBe(100);
+  });
+});

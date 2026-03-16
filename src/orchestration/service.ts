@@ -216,12 +216,22 @@ export class OrchestrationService implements OrchestrationServiceLike {
       usage_recorder: deps.usage_store ?? null,
       metrics: this._obs.metrics,
     };
+    // known_tool_names: lazy getter — 생성자에서 runtime.get_tool_definitions()를 호출하면 mock 비호환
+    let _known_tools: ReadonlySet<string> | undefined;
+    const get_known_tools = (): ReadonlySet<string> => {
+      if (!_known_tools) {
+        _known_tools = new Set(this.runtime.get_tool_definitions().map((t) => String((t as Record<string, unknown>).name || "")).filter(Boolean));
+      }
+      return _known_tools;
+    };
     this.tool_deps = {
       max_tool_result_chars: this.config.max_tool_result_chars,
       logger: this.logger,
       execute_tool: (name: string, params: Record<string, unknown>, ctx?: ToolExecutionContext) =>
         this.runtime.execute_tool(name, params, ctx),
       log_event: (e: AppendWorkflowEventInput) => this.log_event(e),
+      metrics: this._obs.metrics,
+      get known_tool_names() { return get_known_tools(); },
     };
   }
 
@@ -333,6 +343,7 @@ export class OrchestrationService implements OrchestrationServiceLike {
       hooks_deps: this.hooks_deps,
       tool_deps: { ...this.tool_deps, log_event: (e: AppendWorkflowEventInput) => this.log_event(e, req?.message?.metadata?.team_id as string | undefined, req?.message?.sender_id) },
       session_cd: this.session_cd,
+      observability: this._obs,
       workspace: req?.workspace_override ?? this.deps.workspace,
       build_overlay: (mode: "once" | "agent") => this._build_overlay(mode),
       hooks_for: (stream: StreamBuffer, args: { req: OrchestrationRequest; runtime_policy: RuntimeExecutionPolicy }, backend_id: string, task_id?: string, tools_accumulator?: string[]) => this._hooks_for(stream, args, backend_id, task_id, tools_accumulator),
