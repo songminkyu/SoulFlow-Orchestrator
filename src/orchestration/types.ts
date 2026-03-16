@@ -50,6 +50,8 @@ export type OrchestrationRequest = {
   user_dir_override?: string;
   /** OB-1: 실행 경로 correlation context. 채널/대시보드 진입점에서 생성. */
   correlation?: CorrelationContext;
+  /** OB-3: 부모 span ID. trace tree 구성용. */
+  _parent_span_id?: string;
 };
 
 /** 결과에 포함되는 토큰/비용 요약. */

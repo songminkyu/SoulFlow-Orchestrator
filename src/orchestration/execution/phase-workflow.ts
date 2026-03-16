@@ -7,6 +7,8 @@ import type { ProviderRegistry } from "../../providers/service.js";
 import type { AgentRuntimeLike } from "../../agent/runtime.types.js";
 import type { HitlPendingStore } from "../hitl-pending-store.js";
 import { NOOP_OBSERVABILITY, type ObservabilityLike } from "../../observability/context.js";
+import { create_correlation, extend_correlation } from "../../observability/correlation.js";
+import { instrument } from "../../observability/instrument.js";
 import { error_result } from "./helpers.js";
 import { now_iso, error_message, short_id } from "../../utils/common.js";
 import { normalize_json_text } from "../output-contracts.js";
@@ -45,24 +47,21 @@ export async function run_phase_loop(
   node_categories?: string[],
 ): Promise<OrchestrationResult> {
   const obs = deps.observability ?? NOOP_OBSERVABILITY;
-  const correlation = { run_id: req.run_id, provider: req.provider, chat_id: req.message.chat_id };
-  const span = obs.spans.start("workflow_run", "run_phase_loop", correlation, { workflow_hint: workflow_hint ?? "" });
-  const start = Date.now();
+  const correlation = req.correlation
+    ? extend_correlation(req.correlation, { run_id: req.run_id, provider: req.provider, chat_id: req.message.chat_id })
+    : create_correlation({ run_id: req.run_id, provider: req.provider, chat_id: req.message.chat_id });
 
-  try {
-    const result = await _run_phase_loop_inner(deps, req, task_with_media, workflow_hint, node_categories);
-    const status = result.error ? "error" : "ok";
-    span.end(status);
-    obs.metrics.counter("workflow_runs_total", 1, { status });
-    obs.metrics.histogram("workflow_run_duration_ms", Date.now() - start, {});
-    return result;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    span.fail(message);
-    obs.metrics.counter("workflow_runs_total", 1, { status: "error" });
-    obs.metrics.histogram("workflow_run_duration_ms", Date.now() - start, {});
-    throw err;
-  }
+  return instrument(obs, {
+    kind: "workflow_run",
+    name: "run_phase_loop",
+    correlation,
+    attributes: { workflow_hint: workflow_hint ?? "" },
+    parent_span_id: req._parent_span_id,
+    counter: "workflow_runs_total",
+    histogram: "workflow_run_duration_ms",
+  }, async () => {
+    return _run_phase_loop_inner(deps, req, task_with_media, workflow_hint, node_categories);
+  });
 }
 
 async function _run_phase_loop_inner(

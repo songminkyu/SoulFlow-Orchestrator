@@ -519,6 +519,34 @@ describe("build_dashboard_state — observability (OB-7)", () => {
   });
 });
 
+describe("build_dashboard_state — observability superadmin gating (OB-7 + TN)", () => {
+  function make_observability() {
+    return {
+      spans: { start: vi.fn(), get_spans: vi.fn(() => []) },
+      metrics: {
+        counter: vi.fn(), gauge: vi.fn(), histogram: vi.fn(),
+        snapshot: vi.fn(() => ({ counters: [], gauges: [], histograms: [] })),
+      },
+    };
+  }
+
+  it("team_id=undefined (superadmin) → observability + active_runs 노출", async () => {
+    const obs = make_observability();
+    const opts = make_full_options({ observability: obs });
+    const state = await build_dashboard_state(opts, []);
+    expect(state.observability).not.toBeNull();
+    expect((state.channels as Record<string, unknown>).active_runs).toBeDefined();
+  });
+
+  it("team_id 지정 (일반 사용자) → observability null + active_runs 미노출", async () => {
+    const obs = make_observability();
+    const opts = make_full_options({ observability: obs });
+    const state = await build_dashboard_state(opts, [], "team-123");
+    expect(state.observability).toBeNull();
+    expect((state.channels as Record<string, unknown>).active_runs).toBeUndefined();
+  });
+});
+
 describe("build_dashboard_state — recent_messages sender lookup", () => {
   it("subagent sender → agents.last_message", async () => {
     const opts = make_full_options({

@@ -52,6 +52,7 @@ export interface SpanRecorderLike {
     name: string,
     correlation: Partial<CorrelationContext>,
     attributes?: Record<string, unknown>,
+    parent_span_id?: string,
   ): SpanHandle;
   get_spans(): ReadonlyArray<ExecutionSpan>;
 }
@@ -75,11 +76,13 @@ export class ExecutionSpanRecorder implements SpanRecorderLike {
     name: string,
     correlation: Partial<CorrelationContext>,
     attributes: Record<string, unknown> = {},
+    parent_span_id?: string,
   ): SpanHandle {
     const start_time = Date.now();
     const span: ExecutionSpan = {
       span_id: randomUUID(),
       trace_id: correlation.trace_id ?? randomUUID(),
+      ...(parent_span_id ? { parent_span_id } : {}),
       kind,
       name,
       started_at: now_iso(),

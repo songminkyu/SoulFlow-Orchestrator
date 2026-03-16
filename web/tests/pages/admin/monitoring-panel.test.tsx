@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import type { ValidatorSummary } from "@/pages/overview/types";
+import type { ValidatorSummary, ObservabilitySummary } from "@/pages/overview/types";
 
 // ── 모듈 모킹 ──────────────────────────────────────────────────────────────────
 
@@ -323,5 +323,92 @@ describe("MonitoringPanel — Guardrail 통계 (FE-4)", () => {
     expect(screen.getByTestId("request-class-panel")).toBeInTheDocument();
     expect(screen.getByTestId("guardrail-stats")).toBeInTheDocument();
     expect(screen.getByText("builtin")).toBeInTheDocument();
+  });
+});
+
+// ── OB-7: ObservabilityPanel ────────────────────────────────────────────────
+
+function make_obs(overrides: Partial<ObservabilitySummary> = {}): ObservabilitySummary {
+  return {
+    failure_summary: [],
+    error_rate: { total: 100, errors: 5, rate: 0.05 },
+    latency_summary: [],
+    delivery_mismatch: [],
+    provider_usage: [],
+    ...overrides,
+  };
+}
+
+describe("MonitoringPanel — ObservabilityPanel (OB-7)", () => {
+  it("observability 없으면 패널 미렌더", () => {
+    mockUseStatus.mockReturnValue({
+      data: make_base_state(),
+      isLoading: false,
+      refetch: vi.fn(),
+    });
+    wrap(<MonitoringPanel />);
+    expect(screen.queryByTestId("observability-panel")).toBeNull();
+  });
+
+  it("observability 있으면 error rate 렌더", () => {
+    mockUseStatus.mockReturnValue({
+      data: make_base_state({ observability: make_obs() }),
+      isLoading: false,
+      refetch: vi.fn(),
+    });
+    wrap(<MonitoringPanel />);
+    expect(screen.getByTestId("observability-panel")).toBeInTheDocument();
+    expect(screen.getByText("5.0%")).toBeInTheDocument();
+    expect(screen.getByText(/overview\.error_rate/)).toBeInTheDocument();
+  });
+
+  it("failure_summary 있으면 실패 섹션 렌더", () => {
+    mockUseStatus.mockReturnValue({
+      data: make_base_state({
+        observability: make_obs({
+          failure_summary: [
+            { kind: "orchestration_run", count: 3, recent_errors: [{ name: "execute", error: "timeout", at: "2026-01-01" }] },
+          ],
+        }),
+      }),
+      isLoading: false,
+      refetch: vi.fn(),
+    });
+    wrap(<MonitoringPanel />);
+    expect(screen.getByText("overview.failures")).toBeInTheDocument();
+    expect(screen.getByText("overview.span_kind_orchestration_run")).toBeInTheDocument();
+  });
+
+  it("provider_usage 있으면 프로바이더 사용량 렌더", () => {
+    mockUseStatus.mockReturnValue({
+      data: make_base_state({
+        observability: make_obs({
+          provider_usage: [{ provider: "anthropic", total: 50, errors: 2 }],
+        }),
+      }),
+      isLoading: false,
+      refetch: vi.fn(),
+    });
+    wrap(<MonitoringPanel />);
+    expect(screen.getByText("anthropic")).toBeInTheDocument();
+    expect(screen.getByText("50 runs")).toBeInTheDocument();
+  });
+
+  it("delivery_mismatch 있으면 불일치 섹션 렌더", () => {
+    mockUseStatus.mockReturnValue({
+      data: make_base_state({
+        observability: make_obs({
+          delivery_mismatch: [{
+            span_id: "s1", requested_channel: "slack", delivered_channel: "telegram",
+            delivery_status: "sent", at: "2026-01-01",
+          }],
+        }),
+      }),
+      isLoading: false,
+      refetch: vi.fn(),
+    });
+    wrap(<MonitoringPanel />);
+    expect(screen.getByText("slack")).toBeInTheDocument();
+    expect(screen.getByText("telegram")).toBeInTheDocument();
   });
 });

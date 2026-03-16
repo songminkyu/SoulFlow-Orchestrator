@@ -78,6 +78,51 @@ export interface ValidatorSummary {
   eval_score?: number;
 }
 
+/** OB-7: Observability 요약 — projector가 spans+metrics에서 실시간 계산. */
+export type SpanKind = "http_request" | "dashboard_route" | "channel_inbound" | "orchestration_run" | "workflow_run" | "delivery";
+
+export interface FailureGroup {
+  kind: SpanKind;
+  count: number;
+  recent_errors: Array<{ name: string; error: string; at: string }>;
+}
+
+export interface ErrorRate {
+  total: number;
+  errors: number;
+  rate: number;
+}
+
+export interface LatencyPercentiles {
+  kind: SpanKind;
+  count: number;
+  p50: number;
+  p95: number;
+  p99: number;
+}
+
+export interface DeliveryMismatchEntry {
+  span_id: string;
+  requested_channel: string;
+  delivered_channel: string;
+  delivery_status: string;
+  at: string;
+}
+
+export interface ProviderUsage {
+  provider: string;
+  total: number;
+  errors: number;
+}
+
+export interface ObservabilitySummary {
+  failure_summary: FailureGroup[];
+  error_rate: ErrorRate;
+  latency_summary: LatencyPercentiles[];
+  delivery_mismatch: DeliveryMismatchEntry[];
+  provider_usage: ProviderUsage[];
+}
+
 export interface DashboardState {
   now: string;
   queue: { inbound: number; outbound: number };
@@ -85,6 +130,7 @@ export interface DashboardState {
     enabled: string[];
     mention_loop_running: boolean;
     health?: Record<string, { healthy: boolean; running: boolean }>;
+    active_runs?: number;
   };
   agents: AgentInfo[];
   processes: { active: ProcessInfo[]; recent: ProcessInfo[] };
@@ -100,6 +146,8 @@ export interface DashboardState {
   request_class_summary?: Record<string, number>;
   /** FE-4: guardrail 통계 (차단/전체). */
   guardrail_stats?: { blocked: number; total: number };
+  /** OB-7: Observability 요약 (failure/error_rate/latency/delivery_mismatch/provider_usage). */
+  observability?: ObservabilitySummary | null;
 }
 
 export const ACTIVE_TASK_STATUSES = new Set(["running", "waiting_approval", "waiting_user_input"]);

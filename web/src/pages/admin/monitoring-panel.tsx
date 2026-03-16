@@ -9,7 +9,7 @@ import { PROVIDER_COLORS } from "../../utils/constants";
 import { fmt_time } from "../../utils/format";
 import { MetricBar, StatusDot, fmt_uptime, fmt_kbps } from "../overview/helpers";
 import { ProcessesSection } from "../overview/processes-section";
-import type { DashboardState, SystemMetrics, ValidatorSummary } from "../overview/types";
+import type { DashboardState, SystemMetrics, ValidatorSummary, ObservabilitySummary, SpanKind } from "../overview/types";
 import { PHASE_VARIANT } from "../overview/types";
 import { SkeletonGrid } from "../../components/skeleton-grid";
 
@@ -133,6 +133,9 @@ export function MonitoringPanel() {
         summary={s.request_class_summary}
         guardrail_stats={s.guardrail_stats}
       />
+
+      {/* OB-7: Observability Summary */}
+      {s.observability && <ObservabilityPanel obs={s.observability} active_runs={s.channels?.active_runs} />}
 
       {/* Processes */}
       <ProcessesSection
@@ -333,6 +336,136 @@ function RequestClassPanel({
               </span>
             </div>
           </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+const SPAN_KIND_LABEL: Record<SpanKind, string> = {
+  http_request: "overview.span_kind_http_request",
+  dashboard_route: "overview.span_kind_dashboard_route",
+  channel_inbound: "overview.span_kind_channel_inbound",
+  orchestration_run: "overview.span_kind_orchestration_run",
+  workflow_run: "overview.span_kind_workflow_run",
+  delivery: "overview.span_kind_delivery",
+};
+
+function ObservabilityPanel({ obs, active_runs }: { obs: ObservabilitySummary; active_runs?: number }) {
+  const t = useT();
+  const err_variant = obs.error_rate.rate === 0 ? "ok" : obs.error_rate.rate < 0.1 ? "warn" : "err";
+
+  return (
+    <div className="panel-grid panel-grid--wider" data-testid="observability-panel">
+      {/* Error Rate + Active Runs */}
+      <section className="panel panel--flush">
+        <SectionHeader title={t("overview.observability") || "Observability"} />
+        <div className="grid-stack">
+          <div className="kv mt-0 mb-0">
+            <Badge
+              status={obs.error_rate.total === 0
+                ? (t("overview.no_data") || "No data")
+                : `${(obs.error_rate.rate * 100).toFixed(1)}%`
+              }
+              variant={obs.error_rate.total === 0 ? "off" : err_variant}
+            />
+            <span className="text-xs text-muted">
+              {t("overview.error_rate") || "Error Rate"} ({t("overview.error_rate_fmt", { errors: obs.error_rate.errors, total: obs.error_rate.total })})
+            </span>
+          </div>
+          {active_runs !== undefined && (
+            <div className="kv mt-0 mb-0">
+              <Badge
+                status={String(active_runs)}
+                variant={active_runs > 0 ? "ok" : "off"}
+              />
+              <span className="text-xs text-muted">{t("overview.active_runs") || "Active Runs"}</span>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Latency Summary */}
+      {obs.latency_summary.length > 0 && (
+        <section className="panel panel--flush">
+          <SectionHeader title={t("overview.latency") || "Latency"} />
+          <div className="grid-stack">
+            {obs.latency_summary.map((l) => (
+              <div key={l.kind} className="kv mt-0 mb-0">
+                <span className="fw-600 text-sm">{t(SPAN_KIND_LABEL[l.kind]) || l.kind}</span>
+                <span className="text-xs">
+                  {t("overview.latency_p50")}: <b>{l.p50}ms</b>
+                </span>
+                <span className="text-xs">
+                  {t("overview.latency_p95")}: <b>{l.p95}ms</b>
+                </span>
+                <span className="text-xs text-muted">
+                  {t("overview.latency_p99")}: {l.p99}ms
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Failures */}
+      {obs.failure_summary.length > 0 && (
+        <section className="panel panel--flush">
+          <SectionHeader title={t("overview.failures") || "Failures"} />
+          <div className="grid-stack">
+            {obs.failure_summary.map((f) => (
+              <div key={f.kind}>
+                <div className="kv mt-0 mb-0">
+                  <Badge status={`${f.count}`} variant="err" />
+                  <span className="fw-600 text-sm">{t(SPAN_KIND_LABEL[f.kind]) || f.kind}</span>
+                </div>
+                <ul className="list list--compact">
+                  {f.recent_errors.slice(-3).map((e, i) => (
+                    <li key={`${f.kind}-${i}`}>
+                      <span className="li-text text-xs text-muted truncate">{e.name}: {e.error}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Provider Usage */}
+      {obs.provider_usage.length > 0 && (
+        <section className="panel panel--flush">
+          <SectionHeader title={t("overview.provider_usage") || "Provider Usage"} />
+          <div className="grid-stack">
+            {obs.provider_usage.map((p) => (
+              <div key={p.provider} className="kv mt-0 mb-0">
+                <span className="fw-600 text-sm">{p.provider}</span>
+                <span className="text-xs">{p.total} runs</span>
+                {p.errors > 0 && <Badge status={`${p.errors} errors`} variant="err" />}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Delivery Mismatch */}
+      {obs.delivery_mismatch.length > 0 && (
+        <section className="panel panel--flush">
+          <SectionHeader title={t("overview.delivery_mismatch") || "Delivery Mismatch"}>
+            <Badge status={t("overview.delivery_mismatch_fmt", { count: obs.delivery_mismatch.length })} variant="warn" />
+          </SectionHeader>
+          <ul className="list list--compact">
+            {obs.delivery_mismatch.slice(-5).map((d) => (
+              <li key={d.span_id}>
+                <span className="li-text li-flex">
+                  <span className="text-xs">{d.requested_channel}</span>
+                  <span className="text-xs text-muted">&rarr;</span>
+                  <span className="text-xs">{d.delivered_channel}</span>
+                  <Badge status={d.delivery_status} variant={d.delivery_status === "sent" ? "ok" : "err"} />
+                </span>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </div>

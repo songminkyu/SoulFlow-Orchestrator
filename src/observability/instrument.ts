@@ -14,6 +14,8 @@ export type InstrumentOptions = {
   name: string;
   correlation: Partial<CorrelationContext>;
   attributes?: Record<string, unknown>;
+  /** 부모 span ID. trace tree 구성용. */
+  parent_span_id?: string;
   /** counter 이름. 완료 시 +1. */
   counter?: string;
   /** counter 라벨. */
@@ -42,7 +44,7 @@ export async function instrument<T>(
   fn: (handle: SpanHandle) => Promise<T>,
 ): Promise<T> {
   const start = Date.now();
-  const handle = obs.spans.start(opts.kind, opts.name, opts.correlation, opts.attributes);
+  const handle = obs.spans.start(opts.kind, opts.name, opts.correlation, opts.attributes, opts.parent_span_id);
 
   try {
     const value = await fn(handle);
@@ -74,7 +76,7 @@ export function instrument_sync<T>(
   fn: (handle: SpanHandle) => T,
 ): T {
   const start = Date.now();
-  const handle = obs.spans.start(opts.kind, opts.name, opts.correlation, opts.attributes);
+  const handle = obs.spans.start(opts.kind, opts.name, opts.correlation, opts.attributes, opts.parent_span_id);
 
   try {
     const value = fn(handle);

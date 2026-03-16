@@ -14,6 +14,18 @@ import { hook_runner_to_pre_tool_hook, hook_runner_to_post_tool_hook, type HookR
 import { format_tool_result_brief } from "./prompts.js";
 import { safe_stringify, now_iso } from "../utils/common.js";
 
+/** LLM 사용량을 기록하는 최소 포트. UsageStore와 구조적으로 호환. */
+export type UsageRecorderLike = {
+  record(input: {
+    provider_id: string; model: string;
+    input_tokens: number; output_tokens: number;
+    cache_read_tokens: number; cache_write_tokens: number;
+    total_tokens: number; cost_usd: number;
+    latency_ms: number; finish_reason: string;
+    chat_id: string | null;
+  }): void;
+};
+
 export type AgentHooksBuilderDeps = {
   session_cd: CDObserver;
   logger: Logger;
@@ -21,6 +33,10 @@ export type AgentHooksBuilderDeps = {
   runtime: Pick<AgentRuntimeLike, "register_approval_with_callback">;
   log_event: (input: AppendWorkflowEventInput) => void;
   streaming_config: { enabled: boolean; interval_ms: number; min_chars: number; max_chars?: number };
+  /** OB: LLM 사용량 기록. 미설정 시 스킵. */
+  usage_recorder?: UsageRecorderLike | null;
+  /** OB: 메트릭 싱크. 미설정 시 스킵. */
+  metrics?: import("../observability/metrics.js").MetricsSinkLike | null;
 };
 
 type AgentHooksOptions = {
@@ -103,15 +119,28 @@ export function build_agent_hooks(
       return;
     }
 
-    // usage 이벤트는 로깅만 (스트림 주입 불필요)
+    // OB: usage 이벤트 → 로깅 + UsageStore 기록 + metrics 방출
     if (event.type === "usage") {
+      const backend = event.source.backend ?? "unknown";
+      const model = event.source.task_id ?? "unknown";
       deps.logger.info("agent_usage", {
-        backend: event.source.backend,
-        input: event.tokens.input,
-        output: event.tokens.output,
-        cache_read: event.tokens.cache_read,
-        cost_usd: event.cost_usd,
+        backend, input: event.tokens.input, output: event.tokens.output,
+        cache_read: event.tokens.cache_read, cost_usd: event.cost_usd,
       });
+      deps.usage_recorder?.record({
+        provider_id: backend, model,
+        input_tokens: event.tokens.input, output_tokens: event.tokens.output,
+        cache_read_tokens: event.tokens.cache_read ?? 0,
+        cache_write_tokens: event.tokens.cache_creation ?? 0,
+        total_tokens: event.tokens.input + event.tokens.output,
+        cost_usd: event.cost_usd ?? 0, latency_ms: 0,
+        finish_reason: "ok",
+        chat_id: channel_context?.chat_id ?? null,
+      });
+      deps.metrics?.counter("llm_calls_total", 1, { provider: backend });
+      deps.metrics?.counter("llm_tokens_total", event.tokens.input, { provider: backend, direction: "input" });
+      deps.metrics?.counter("llm_tokens_total", event.tokens.output, { provider: backend, direction: "output" });
+      if (event.cost_usd) deps.metrics?.counter("llm_cost_usd_total", event.cost_usd, { provider: backend });
       return;
     }
 

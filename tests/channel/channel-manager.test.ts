@@ -1243,6 +1243,22 @@ describe("ChannelManager — handle_mentions", () => {
       expect(invoke_spy).toHaveBeenCalled();
     } finally { await rm(ws, { recursive: true, force: true }); }
   });
+
+  it("parent_span_id + inbound_correlation 전달 시 invoke_and_reply에 전파", async () => {
+    const ws = await mkdtemp(join(tmpdir(), "mgr-"));
+    try {
+      const { manager } = await make_manager({ workspace: ws });
+      const invoke_spy = vi.fn().mockResolvedValue(undefined);
+      (manager as any).invoke_and_reply = invoke_spy;
+      const msg = inbound("hello soul", { provider: "slack" });
+      (msg as any).sender_id = "U001";
+      const fake_corr = { trace_id: "test-trace-123", request_id: "test-req-456" };
+      await (manager as any).handle_mentions("slack", msg, ["soul"], "parent-span-abc", fake_corr);
+      expect(invoke_spy).toHaveBeenCalledWith(
+        "slack", msg, "soul", undefined, "parent-span-abc", fake_corr,
+      );
+    } finally { await rm(ws, { recursive: true, force: true }); }
+  });
 });
 
 // ══════════════════════════════════════════════════

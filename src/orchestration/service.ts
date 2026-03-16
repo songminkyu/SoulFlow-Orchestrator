@@ -9,6 +9,7 @@ import type { CompactionFlushConfig } from "../agent/loop.js";
 import type { Logger } from "../logger.js";
 import { correlation_to_log_context } from "../logger.js";
 import { NOOP_OBSERVABILITY as NOOP_OBS } from "../observability/context.js";
+import { extend_correlation } from "../observability/correlation.js";
 import type { ToolExecutionContext } from "../agent/tools/types.js";
 import type { ExecutionMode, OrchestrationRequest, OrchestrationResult, OrchestrationServiceLike } from "./types.js";
 import { StreamBuffer } from "../channels/stream-buffer.js";
@@ -136,6 +137,8 @@ export type OrchestrationServiceDeps = {
   hook_runner?: import("../hooks/runner.js").HookRunner | null;
   /** OB-5: observability 주입. 미설정 시 no-op. */
   observability?: import("../observability/context.js").ObservabilityLike | null;
+  /** OB: LLM 사용량 기록 (UsageStore). 미설정 시 스킵. */
+  usage_store?: import("./agent-hooks-builder.js").UsageRecorderLike | null;
 };
 
 
@@ -210,6 +213,8 @@ export class OrchestrationService implements OrchestrationServiceLike {
       runtime: this.runtime,
       log_event: (e: AppendWorkflowEventInput) => this.log_event(e),
       streaming_config: this.streaming_cfg,
+      usage_recorder: deps.usage_store ?? null,
+      metrics: this._obs.metrics,
     };
     this.tool_deps = {
       max_tool_result_chars: this.config.max_tool_result_chars,
@@ -419,15 +424,18 @@ export class OrchestrationService implements OrchestrationServiceLike {
   }
 
   async execute(req: OrchestrationRequest): Promise<OrchestrationResult> {
-    // OB-1: correlation-bound 로그 — 이후 모든 로그에 trace_id/team_id 등이 포함됨
+    // OB-1: correlation 확장 — run_id/provider를 추가하여 하위 경로에 전파
     if (req.correlation) {
+      req.correlation = extend_correlation(req.correlation, { run_id: req.run_id, provider: req.provider });
       const corr_log = this.logger.child("orchestration:execute", correlation_to_log_context(req.correlation));
       corr_log.info("execute_start", { mode: "pending", provider: req.message.instance_id });
     }
 
     // OB-5: orchestration span + metrics
     const exec_start = Date.now();
-    const exec_span = this._obs.spans.start("orchestration_run", "execute", req.correlation ?? {}, { provider: req.provider });
+    const exec_span = this._obs.spans.start("orchestration_run", "execute", req.correlation ?? {}, { provider: req.provider }, req._parent_span_id);
+    // OB-3: parent_span_id 체인 — 하위 경로(workflow 등)가 이 span을 부모로 참조
+    req._parent_span_id = exec_span.span.span_id;
 
     try {
     // Phase 4.4: Request Preflight — seal, skill 검색, secret 검증, context 조립을 한 경로로 수렴

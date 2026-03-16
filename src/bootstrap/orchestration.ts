@@ -71,6 +71,7 @@ export interface OrchestrationBundleDeps {
   default_chat_id: string;
   logger: ReturnType<typeof create_logger>;
   observability?: ObservabilityLike | null;
+  usage_store?: import("../orchestration/agent-hooks-builder.js").UsageRecorderLike | null;
 }
 
 export interface OrchestrationBundleResult {
@@ -249,6 +250,7 @@ export async function create_orchestration_bundle(deps: OrchestrationBundleDeps)
     create_task: create_task_fn,
     hook_runner,
     observability: deps.observability,
+    usage_store: deps.usage_store,
   });
 
   // 팀 스코프: 크론 잡은 팀 멤버 간 공유

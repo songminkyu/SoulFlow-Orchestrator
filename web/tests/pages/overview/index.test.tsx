@@ -108,3 +108,50 @@ describe("OverviewPage — validator 실패 섹션 조건부 렌더", () => {
     expect(screen.queryByText("overview.validator_summary")).toBeNull();
   });
 });
+
+// ── OB-7: Observability 배지 ────────────────────────────────────────────────
+
+describe("OverviewPage — Observability 배지 (OB-7)", () => {
+  it("observability 없으면 배지 미렌더", () => {
+    mockUseStatus.mockReturnValue({ data: make_base_state(), isLoading: false });
+    wrap(<OverviewPage />);
+    expect(screen.queryByTestId("observability-badges")).toBeNull();
+  });
+
+  it("observability.error_rate.total=0이면 배지 미렌더", () => {
+    mockUseStatus.mockReturnValue({
+      data: make_base_state({
+        observability: { error_rate: { total: 0, errors: 0, rate: 0 }, failure_summary: [], latency_summary: [], delivery_mismatch: [], provider_usage: [] },
+      }),
+      isLoading: false,
+    });
+    wrap(<OverviewPage />);
+    expect(screen.queryByTestId("observability-badges")).toBeNull();
+  });
+
+  it("observability 있으면 error rate 배지 렌더", () => {
+    mockUseStatus.mockReturnValue({
+      data: make_base_state({
+        observability: { error_rate: { total: 50, errors: 3, rate: 0.06 }, failure_summary: [], latency_summary: [], delivery_mismatch: [], provider_usage: [] },
+      }),
+      isLoading: false,
+    });
+    wrap(<OverviewPage />);
+    expect(screen.getByTestId("observability-badges")).toBeInTheDocument();
+    expect(screen.getByText("6.0%")).toBeInTheDocument();
+    expect(screen.getByText("overview.error_rate")).toBeInTheDocument();
+  });
+
+  it("active_runs > 0이면 active runs 카드 렌더", () => {
+    mockUseStatus.mockReturnValue({
+      data: make_base_state({
+        channels: { active_runs: 2 },
+        observability: { error_rate: { total: 10, errors: 0, rate: 0 }, failure_summary: [], latency_summary: [], delivery_mismatch: [], provider_usage: [] },
+      }),
+      isLoading: false,
+    });
+    wrap(<OverviewPage />);
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("overview.active_runs")).toBeInTheDocument();
+  });
+});

@@ -12,7 +12,6 @@ import {
   create_correlation,
   extend_correlation,
   correlation_fields,
-  type CorrelationContext,
 } from "@src/observability/correlation.js";
 import { extract_correlation } from "@src/dashboard/route-context.js";
 import type { RouteContext } from "@src/dashboard/route-context.js";
@@ -43,11 +42,24 @@ describe("create_correlation", () => {
     expect(ctx.trace_id).toBe("custom-trace");
   });
 
-  it("seed 없이 호출하면 trace_id만 채워진다", () => {
+  it("seed 없이 호출하면 trace_id + request_id가 자동 생성된다", () => {
     const ctx = create_correlation();
     expect(ctx.trace_id).toBeTruthy();
+    expect(ctx.request_id).toBeTruthy();
+    expect(ctx.request_id).toMatch(/^[0-9a-f]{8}-/);
     expect(ctx.team_id).toBeUndefined();
     expect(ctx.run_id).toBeUndefined();
+  });
+
+  it("request_id가 매번 다르게 생성된다", () => {
+    const a = create_correlation();
+    const b = create_correlation();
+    expect(a.request_id).not.toBe(b.request_id);
+  });
+
+  it("seed의 request_id가 자동 생성 값을 덮어쓴다", () => {
+    const ctx = create_correlation({ request_id: "custom-req" });
+    expect(ctx.request_id).toBe("custom-req");
   });
 });
 

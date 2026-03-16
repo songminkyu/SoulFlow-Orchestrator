@@ -74,6 +74,41 @@ export default function OverviewPage() {
         </ul>
       </section>
 
+      {/* OB-7: Observability 요약 배지 — error rate + active runs */}
+      {s.observability && s.observability.error_rate.total > 0 && (
+        <div className="stat-grid" data-testid="observability-badges">
+          <div className="stat-card">
+            <div className="stat-card__header">
+              <div className={`stat-card__icon stat-card__icon--${s.observability.error_rate.rate === 0 ? "ok" : s.observability.error_rate.rate < 0.1 ? "warn" : "accent"}`}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+              </div>
+              {s.observability.error_rate.errors > 0 && (
+                <Badge status={`${s.observability.error_rate.errors} errors`} variant="err" />
+              )}
+            </div>
+            <div className="stat-card__value">{(s.observability.error_rate.rate * 100).toFixed(1)}%</div>
+            <div className="stat-card__label">{t("overview.error_rate") || "Error Rate"}</div>
+            <div className="stat-card__extra">{s.observability.error_rate.errors}/{s.observability.error_rate.total}</div>
+          </div>
+
+          {(s.channels?.active_runs ?? 0) > 0 && (
+            <div className="stat-card">
+              <div className="stat-card__header">
+                <div className="stat-card__icon stat-card__icon--ok">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </div>
+              </div>
+              <div className="stat-card__value">{s.channels.active_runs}</div>
+              <div className="stat-card__label">{t("overview.active_runs") || "Active Runs"}</div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Validator Summary — 실패가 있을 때만 노출 */}
       {s.validator_summary && s.validator_summary.failed_validators.length > 0 && (
         <section className="panel panel--flush">

@@ -159,6 +159,8 @@ export async function createRuntime(): Promise<RuntimeApp> {
     broadcast_callback: (chat_id, spec) => { dashboard.current?.sse.broadcast_canvas(chat_id, spec); },
   }));
 
+  const usage_store = new UsageStore(user_dir);
+
   const { orchestration, cron, create_task_fn, oauth_fetch_service } = await create_orchestration_bundle({
     ctx, workspace, user_dir, data_dir, app_config,
     providers, agent, agent_runtime, agent_backend_registry, provider_caps,
@@ -168,10 +170,8 @@ export async function createRuntime(): Promise<RuntimeApp> {
     embed_service, vector_store_service, webhook_store, kanban_store, query_db_service,
     persona_renderer, hitl_pending_store, tool_index,
     resolve_instance_to_type, primary_provider, default_chat_id, logger,
-    observability,
+    observability, usage_store,
   });
-
-  const usage_store = new UsageStore(user_dir);
 
   // 인증은 항상 활성 — admin.db 부재 시 자동 생성 (미초기화 상태로 시작)
   const admin_db_path = join(workspace, "admin", "admin.db");

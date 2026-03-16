@@ -28,9 +28,9 @@ export type CorrelationContext = {
   workspace_dir?: string;
 };
 
-/** 새 trace_id를 가진 빈 correlation context 생성. */
+/** 새 trace_id + request_id를 가진 빈 correlation context 생성. */
 export function create_correlation(seed?: Partial<CorrelationContext>): CorrelationContext {
-  return { trace_id: randomUUID(), ...seed };
+  return { trace_id: randomUUID(), request_id: randomUUID(), ...seed };
 }
 
 /** 기존 context에 추가 필드를 병합. undefined 값은 기존 값을 덮어쓰지 않는다. */

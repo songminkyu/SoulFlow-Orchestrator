@@ -4,7 +4,7 @@ import type { ProviderRegistry } from "../providers/service.js";
 import type { ServiceLike } from "../runtime/service.types.js";
 import type { AppConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
-import { create_correlation } from "../observability/correlation.js";
+import { create_correlation, extend_correlation } from "../observability/correlation.js";
 import { NOOP_OBSERVABILITY, type ObservabilityLike } from "../observability/context.js";
 import { start_delivery, finish_delivery } from "../observability/delivery-trace.js";
 import { correlation_to_log_context } from "../logger.js";
@@ -391,7 +391,7 @@ export class ChannelManager implements ServiceLike {
         if (resumed) {
           this.logger.info("task resumed after approval", { task_id: approval.task_id });
           await this.send_outbound(provider, message, this.config.defaultAlias, this.render_msg({ kind: "approval_resumed" }, ck), { kind: "approval_resume_ack" });
-          await this.invoke_and_reply(provider, message, this.config.defaultAlias, approval.task_id);
+          await this.invoke_and_reply(provider, message, this.config.defaultAlias, approval.task_id, inbound_span.span.span_id, inbound_corr);
         } else {
           this.logger.warn("approval_resume_failed", { task_id: approval.task_id });
           await this.send_outbound(provider, message, this.config.defaultAlias, this.render_msg({ kind: "approval_resume_failed" }, ck), { kind: "approval_resume_failed" });
@@ -424,7 +424,7 @@ export class ChannelManager implements ServiceLike {
         }
         this.logger.info("guard_confirmed", { provider, chat_id: message.chat_id });
         const original: InboundMessage = { ...message, content: guard_result.original_text };
-        await this.invoke_and_reply(provider, original, this.config.defaultAlias);
+        await this.invoke_and_reply(provider, original, this.config.defaultAlias, undefined, inbound_span.span.span_id, inbound_corr);
         return;
       }
       // null → pending 만료 또는 무관한 텍스트 → 정상 플로우로 계속
@@ -437,7 +437,7 @@ export class ChannelManager implements ServiceLike {
     const resume = await this.task_resume.try_resume(provider, message);
     if (resume?.resumed) {
       this.logger.info("task resumed from referenced message", { task_id: resume.task_id, previous_status: resume.previous_status });
-      await this.invoke_and_reply(provider, message, this.config.defaultAlias, resume.task_id);
+      await this.invoke_and_reply(provider, message, this.config.defaultAlias, resume.task_id, inbound_span.span.span_id, inbound_corr);
       return;
     }
     if (resume?.referenced_context) {
@@ -447,7 +447,7 @@ export class ChannelManager implements ServiceLike {
         ...message,
         content: `${resume.referenced_context}\n\n[현재 요청]\n${String(message.content || "").trim()}`,
       };
-      await this.invoke_and_reply(provider, enriched, this.config.defaultAlias);
+      await this.invoke_and_reply(provider, enriched, this.config.defaultAlias, undefined, inbound_span.span.span_id, inbound_corr);
       return;
     }
 
@@ -476,7 +476,7 @@ export class ChannelManager implements ServiceLike {
     try {
       const mentions = this.extract_mentions(provider, message);
       if (mentions.length > 0) {
-        await this.handle_mentions(provider, message, mentions);
+        await this.handle_mentions(provider, message, mentions, inbound_span.span.span_id, inbound_corr);
         return;
       }
 
@@ -491,7 +491,7 @@ export class ChannelManager implements ServiceLike {
         if (owner && owner.toLowerCase() !== this.config.defaultAlias.toLowerCase()) return;
       }
 
-      await this.invoke_and_reply(provider, message, this.config.defaultAlias);
+      await this.invoke_and_reply(provider, message, this.config.defaultAlias, undefined, inbound_span.span.span_id, inbound_corr);
     } finally {
       await this.registry.set_typing(channel_id, message.chat_id, false, anchor_ts);
     }
@@ -640,7 +640,7 @@ export class ChannelManager implements ServiceLike {
     return false;
   }
 
-  private async handle_mentions(provider: ChannelProvider, message: InboundMessage, aliases: string[]): Promise<void> {
+  private async handle_mentions(provider: ChannelProvider, message: InboundMessage, aliases: string[], parent_span_id?: string, inbound_correlation?: import("../observability/correlation.js").CorrelationContext): Promise<void> {
     for (const alias of aliases) {
       if (message.sender_id.toLowerCase() === alias.toLowerCase()) continue;
       // 명시적 @멘션 → 소유권 바이패스 (멘션된 에이전트는 항상 응답 허용)
@@ -648,11 +648,11 @@ export class ChannelManager implements ServiceLike {
       const now = Date.now();
       if (now - (this.mention_cooldowns.get(cooldown_key) || 0) < 5_000) continue;
       this.mention_cooldowns.set(cooldown_key, now);
-      await this.invoke_and_reply(provider, message, alias);
+      await this.invoke_and_reply(provider, message, alias, undefined, parent_span_id, inbound_correlation);
     }
   }
 
-  private async invoke_and_reply(provider: ChannelProvider, message: InboundMessage, alias: string, resumed_task_id?: string): Promise<void> {
+  private async invoke_and_reply(provider: ChannelProvider, message: InboundMessage, alias: string, resumed_task_id?: string, parent_span_id?: string, inbound_correlation?: import("../observability/correlation.js").CorrelationContext): Promise<void> {
     const tid = String(message.thread_id || "").trim();
     if (tid && this.thread_ownership) {
       this.thread_ownership.claim(provider, message.chat_id, tid, alias);
@@ -670,6 +670,7 @@ export class ChannelManager implements ServiceLike {
     const abort = new AbortController();
     const active_run: ActiveRun = { abort, provider, chat_id: message.chat_id, alias, done };
     this.active_runs.register(run_key, active_run);
+    this._obs.metrics.gauge("active_runs_count", this.active_runs.size);
     if (this.config.staleRunTimeoutMs > 0) this.run_start_times.set(run_key, Date.now());
 
     const run_id = this.tracker?.start({ provider, chat_id: message.chat_id, alias, sender_id: message.sender_id });
@@ -725,13 +726,9 @@ export class ChannelManager implements ServiceLike {
       const system_prompt_override = typeof msg_meta.system_prompt_override === "string" ? msg_meta.system_prompt_override : undefined;
       const workspace_override = typeof msg_meta.workspace_dir === "string" ? msg_meta.workspace_dir : undefined;
 
-      const correlation = create_correlation({
-        team_id: msg_team_id,
-        user_id: message.sender_id,
-        chat_id: message.chat_id,
-        provider,
-        run_id,
-      });
+      const correlation = inbound_correlation
+        ? extend_correlation(inbound_correlation, { team_id: msg_team_id, user_id: message.sender_id, chat_id: message.chat_id, provider, run_id })
+        : create_correlation({ team_id: msg_team_id, user_id: message.sender_id, chat_id: message.chat_id, provider, run_id });
       const corr_log = this.logger.child("orchestration", correlation_to_log_context(correlation));
       corr_log.info("orchestration_start", { alias });
 
@@ -741,6 +738,7 @@ export class ChannelManager implements ServiceLike {
         resumed_task_id,
         run_id,
         correlation,
+        _parent_span_id: parent_span_id,
         preferred_provider_id,
         preferred_model,
         system_prompt_override,
@@ -794,6 +792,7 @@ export class ChannelManager implements ServiceLike {
       clearInterval(typing_ticker);
       resolve_done();
       this.active_runs.unregister(run_key, abort);
+      this._obs.metrics.gauge("active_runs_count", this.active_runs.size);
       this.run_start_times.delete(run_key);
     }
   }
