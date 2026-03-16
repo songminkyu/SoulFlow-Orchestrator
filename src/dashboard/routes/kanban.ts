@@ -438,11 +438,13 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // PUT /api/kanban/rules/:id
+  // PUT /api/kanban/rules/:id — TN-6d: rule→board 접근 검사 불가 → 비superadmin 차단
   const rule_match = path.match(/^\/api\/kanban\/rules\/([^/]+)$/);
   if (rule_match && method === "PUT") {
     const store = store_or_503(ctx);
     if (!store) return true;
+    const rule_team = get_filter_team_id(ctx);
+    if (rule_team !== undefined) { json(res, 403, { error: "forbidden" }); return true; }
     const rule_id = decodeURIComponent(rule_match[1]);
     const body = await read_body(req);
     const rule = await store.update_rule(rule_id, {
@@ -455,10 +457,12 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // DELETE /api/kanban/rules/:id
+  // DELETE /api/kanban/rules/:id — TN-6d: 비superadmin 차단
   if (rule_match && method === "DELETE") {
     const store = store_or_503(ctx);
     if (!store) return true;
+    const rule_team = get_filter_team_id(ctx);
+    if (rule_team !== undefined) { json(res, 403, { error: "forbidden" }); return true; }
     const rule_id = decodeURIComponent(rule_match[1]);
     const ok = await store.remove_rule(rule_id);
     json(res, ok ? 200 : 404, ok ? { ok: true } : { error: "not_found" });
@@ -614,11 +618,13 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // DELETE /api/kanban/filters/:id
+  // DELETE /api/kanban/filters/:id — TN-6d: 비superadmin 차단
   const filter_match = path.match(/^\/api\/kanban\/filters\/([^/]+)$/);
   if (filter_match && method === "DELETE") {
     const store = store_or_503(ctx);
     if (!store) return true;
+    const filter_team = get_filter_team_id(ctx);
+    if (filter_team !== undefined) { json(res, 403, { error: "forbidden" }); return true; }
     const filter_id = decodeURIComponent(filter_match[1]);
     const ok = await store.delete_filter(filter_id);
     json(res, ok ? 200 : 404, ok ? { ok: true } : { error: "not_found" });

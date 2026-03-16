@@ -2,7 +2,7 @@
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { sanitize_rel_path } from "./shared.js";
+import { sanitize_rel_path, is_inside } from "./shared.js";
 import type { DashboardWorkspaceOps } from "../service.js";
 
 export function create_workspace_ops(workspace_dir: string): DashboardWorkspaceOps {
@@ -10,6 +10,8 @@ export function create_workspace_ops(workspace_dir: string): DashboardWorkspaceO
     async list_files(rel_path = "") {
       const safe = sanitize_rel_path(rel_path);
       const abs = join(workspace_dir, safe);
+      // TN-6d: is_inside 방어 심층 — sanitize_rel_path 우회 시 2차 차단
+      if (!is_inside(workspace_dir, abs)) return [];
       try {
         const entries = readdirSync(abs, { withFileTypes: true });
         return entries.map((e) => {
@@ -23,6 +25,7 @@ export function create_workspace_ops(workspace_dir: string): DashboardWorkspaceO
     async read_file(rel_path) {
       const safe = sanitize_rel_path(rel_path);
       const abs = join(workspace_dir, safe);
+      if (!is_inside(workspace_dir, abs)) return null;
       try { return readFileSync(abs, "utf-8"); } catch { return null; }
     },
   };

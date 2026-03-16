@@ -1,5 +1,5 @@
 import type { RouteContext } from "../route-context.js";
-import { get_filter_team_id } from "../route-context.js";
+import { get_filter_team_id, require_superadmin } from "../route-context.js";
 
 function cron_or_503(ctx: RouteContext) {
   const cron = ctx.options.cron ?? null;
@@ -28,8 +28,9 @@ export async function handle_cron(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // PUT /api/cron/status { paused } — 스케줄러 일시정지/재개
+  // PUT /api/cron/status { paused } — TN-6d: superadmin only (글로벌 스케줄러 제어)
   if (path === "/api/cron/status" && req.method === "PUT") {
+    if (!require_superadmin(ctx)) return true;
     const cron = cron_or_503(ctx);
     if (!cron) return true;
     const body = await read_body(req);
