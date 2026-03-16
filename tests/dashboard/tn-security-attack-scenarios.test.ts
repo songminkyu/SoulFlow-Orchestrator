@@ -630,3 +630,95 @@ describe("TN-6c: resolve_request_origin — X-Forwarded-Host 하이재킹 방지
     expect(result).toBe("https://app.com");
   });
 });
+
+// ══════════════════════════════════════════
+// TN-6d: oauth presets — 읽기 team_manager, 쓰기 superadmin
+// ══════════════════════════════════════════
+
+describe("TN-6d: oauth presets 권한 매트릭스", () => {
+  it("GET /api/oauth/presets — team_manager → 200 허용", async () => {
+    const { handle_oauth } = await import("@src/dashboard/routes/oauth.js");
+    const sent: Array<{ status: number; body: unknown }> = [];
+    const ctx = {
+      req: { method: "GET", headers: {} }, res: {},
+      url: new URL("/api/oauth/presets", "http://localhost"),
+      options: { auth_svc: {}, oauth_ops: { list_presets: () => [] } },
+      auth_user: { role: "user", sub: "u1", tid: "t1" },
+      team_context: { team_id: "t1", team_role: "manager" },
+      json: (_r: unknown, s: number, b: unknown) => { sent.push({ status: s, body: b }); },
+      read_body: async () => null,
+    } as never;
+    await handle_oauth(ctx);
+    expect(sent[0].status).toBe(200);
+  });
+
+  it("GET /api/oauth/presets — member → 403 (team_manager 전체 게이트)", async () => {
+    const { handle_oauth } = await import("@src/dashboard/routes/oauth.js");
+    const sent: Array<{ status: number; body: unknown }> = [];
+    const ctx = {
+      req: { method: "GET", headers: {} }, res: {},
+      url: new URL("/api/oauth/presets", "http://localhost"),
+      options: { auth_svc: {}, oauth_ops: { list_presets: () => [] } },
+      auth_user: { role: "user", sub: "u1", tid: "t1" },
+      team_context: { team_id: "t1", team_role: "member" },
+      json: (_r: unknown, s: number, b: unknown) => { sent.push({ status: s, body: b }); },
+      read_body: async () => null,
+    } as never;
+    await handle_oauth(ctx);
+    expect(sent[0].status).toBe(403);
+  });
+
+  it("POST /api/oauth/presets — team_manager → 403 (superadmin 필요)", async () => {
+    const { handle_oauth } = await import("@src/dashboard/routes/oauth.js");
+    const sent: Array<{ status: number; body: unknown }> = [];
+    const ctx = {
+      req: { method: "POST", headers: {} }, res: {},
+      url: new URL("/api/oauth/presets", "http://localhost"),
+      options: { auth_svc: {}, oauth_ops: { register_preset: async () => ({ ok: true }) } },
+      auth_user: { role: "user", sub: "u1", tid: "t1" },
+      team_context: { team_id: "t1", team_role: "manager" },
+      json: (_r: unknown, s: number, b: unknown) => { sent.push({ status: s, body: b }); },
+      read_body: async () => ({ service_type: "github" }),
+    } as never;
+    await handle_oauth(ctx);
+    expect(sent[0].status).toBe(403);
+  });
+});
+
+// ══════════════════════════════════════════
+// TN-6d: kanban templates — GET 인증만, POST/DELETE superadmin
+// ══════════════════════════════════════════
+
+describe("TN-6d: kanban templates 권한 매트릭스", () => {
+  it("GET /api/kanban/templates — member → 허용 (읽기 전용)", async () => {
+    const { handle_kanban } = await import("@src/dashboard/routes/kanban.js");
+    const sent: Array<{ status: number; body: unknown }> = [];
+    const ctx = {
+      req: { method: "GET", headers: {} }, res: {},
+      url: new URL("/api/kanban/templates", "http://localhost"),
+      options: { auth_svc: {}, kanban_store: { list_templates: async () => [] } },
+      auth_user: { role: "user", sub: "u1", tid: "t1" },
+      team_context: { team_id: "t1", team_role: "member" },
+      json: (_r: unknown, s: number, b: unknown) => { sent.push({ status: s, body: b }); },
+      read_body: async () => null,
+    } as never;
+    await handle_kanban(ctx);
+    expect(sent[0].status).toBe(200);
+  });
+
+  it("POST /api/kanban/templates — member → 403 (superadmin 필요)", async () => {
+    const { handle_kanban } = await import("@src/dashboard/routes/kanban.js");
+    const sent: Array<{ status: number; body: unknown }> = [];
+    const ctx = {
+      req: { method: "POST", headers: {} }, res: {},
+      url: new URL("/api/kanban/templates", "http://localhost"),
+      options: { auth_svc: {}, kanban_store: { create_template: async () => ({}) } },
+      auth_user: { role: "user", sub: "u1", tid: "t1" },
+      team_context: { team_id: "t1", team_role: "member" },
+      json: (_r: unknown, s: number, b: unknown) => { sent.push({ status: s, body: b }); },
+      read_body: async () => ({ name: "test", cards: [] }),
+    } as never;
+    await handle_kanban(ctx);
+    expect(sent[0].status).toBe(403);
+  });
+});
