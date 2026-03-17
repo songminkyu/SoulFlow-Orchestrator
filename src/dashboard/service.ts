@@ -535,11 +535,17 @@ export class DashboardService implements ServiceLike {
         const chat_id = parts[3];
         if (!chat_id || this._chat_sessions.has(chat_id)) continue;
         const session = await store.get_or_create(entry.key);
-        const messages: ChatSession["messages"] = session.messages.map((m) => ({
-          direction: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
-          content: String(m.content || ""),
-          at: String(m.timestamp || session.created_at),
-        }));
+        const messages: ChatSession["messages"] = session.messages.map((m) => {
+          const msg: ChatSessionMessage = {
+            direction: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
+            content: String(m.content || ""),
+            at: String(m.timestamp || session.created_at),
+          };
+          if (typeof m.requested_channel === "string") msg.requested_channel = m.requested_channel;
+          if (typeof m.delivered_channel === "string") msg.delivered_channel = m.delivered_channel;
+          if (typeof m.execution_route === "string") msg.execution_route = m.execution_route;
+          return msg;
+        });
         this._chat_sessions.set(chat_id, { id: chat_id, user_id, team_id, created_at: session.created_at, messages });
       }
       if (this._chat_sessions.size > 0) {
@@ -551,10 +557,13 @@ export class DashboardService implements ServiceLike {
   }
 
   /** 아웃바운드 메시지를 chat 세션에 추가 (provider=web인 메시지 캡처용). */
-  capture_web_outbound(chat_id: string, content: string, media?: ChatMediaItem[]): void {
+  capture_web_outbound(chat_id: string, content: string, media?: ChatMediaItem[], routing?: { requested_channel?: string; delivered_channel?: string; execution_route?: string }): void {
     const session = this._chat_sessions.get(chat_id);
     if (session) {
       const msg: ChatSessionMessage = { direction: "assistant", content, at: now_iso() };
+      if (routing?.requested_channel) msg.requested_channel = routing.requested_channel;
+      if (routing?.delivered_channel) msg.delivered_channel = routing.delivered_channel;
+      if (routing?.execution_route) msg.execution_route = routing.execution_route;
       if (media && media.length > 0) {
         msg.media = media.map((m) => {
           if (!m.url || m.url.startsWith("http://") || m.url.startsWith("https://")) return m;
@@ -568,7 +577,11 @@ export class DashboardService implements ServiceLike {
         session.messages.splice(0, session.messages.length - MAX_MESSAGES_PER_SESSION);
       }
       const store_key = this._session_store_key(session.team_id, session.user_id, chat_id);
-      this.session_store?.append_message(store_key, { role: "assistant", content, timestamp: now_iso() }).catch(() => {});
+      const store_msg: import("../session/types.js").SessionMessage = { role: "assistant", content, timestamp: now_iso() };
+      if (routing?.requested_channel) store_msg.requested_channel = routing.requested_channel;
+      if (routing?.delivered_channel) store_msg.delivered_channel = routing.delivered_channel;
+      if (routing?.execution_route) store_msg.execution_route = routing.execution_route;
+      this.session_store?.append_message(store_key, store_msg).catch(() => {});
     }
   }
 }

@@ -79,7 +79,7 @@ export class FakeChannelRegistry {
   async set_typing(): Promise<void> {}
   get_typing_state() { return null; }
   get_health() { return []; }
-  get_channels_by_provider(_provider: ChannelProvider): unknown[] { return []; }
+  get_channels_by_provider(): unknown[] { return []; }
 }
 
 // --- Fake Dispatch Service ---
@@ -223,6 +223,8 @@ export type HarnessOptions = {
   config_patch?: Partial<AppConfig["channel"]>;
   bot_identity?: BotIdentitySource;
   renderer?: import("@src/channels/persona-message-renderer.js").PersonaMessageRendererLike | null;
+  on_web_stream?: (chat_id: string, content: string, done: boolean, team_id?: string) => void;
+  on_web_rich_event?: (chat_id: string, event: import("@src/channels/stream-event.js").StreamEvent) => void;
 };
 
 export type Harness = {
@@ -265,7 +267,7 @@ export async function create_harness(options: HarnessOptions = {}): Promise<Harn
       const key = `${provider.toUpperCase()}_BOT_USER_ID`;
       return process.env[key] || "";
     },
-    get_default_target(_provider: string): string { return ""; },
+    get_default_target(): string { return ""; },
   };
   const bot_identity = options.bot_identity || env_bot_identity;
 
@@ -286,6 +288,8 @@ export async function create_harness(options: HarnessOptions = {}): Promise<Harn
     logger,
     bot_identity,
     renderer: options.renderer ?? null,
+    on_web_stream: options.on_web_stream ?? null,
+    on_web_rich_event: options.on_web_rich_event ?? null,
   });
 
   const cleanup = async (): Promise<void> => {

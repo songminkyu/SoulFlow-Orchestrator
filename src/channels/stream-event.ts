@@ -13,6 +13,7 @@ export type StreamEvent =
   | { type: "usage";       input: number; output: number; cache_read?: number; cache_creation?: number; cost_usd?: number | null }
   | { type: "rate_limit";  status: "allowed_warning" | "rejected" }
   | { type: "compact";     pre_tokens: number }
+  | { type: "routing";    requested_channel?: string; delivered_channel?: string; session_reuse?: boolean; execution_route?: string }
   | { type: "done" };
 
 /** AgentEvent → StreamEvent. 파이프라인 무관 이벤트는 null 반환. */

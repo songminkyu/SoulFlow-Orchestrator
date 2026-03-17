@@ -94,6 +94,14 @@ export interface ArtifactBundleEntry {
   failed_kinds: string[];
 }
 
+interface RoutePreviewEntry {
+  plan_kind: string;
+  cost_tier: "no_token" | "model_direct" | "agent_required";
+  direct_node_count: number;
+  agent_node_count: number;
+  total_node_count: number;
+}
+
 interface PhaseLoopState {
   workflow_id: string;
   title: string;
@@ -107,6 +115,8 @@ interface PhaseLoopState {
   definition?: { phases: PhaseDefinitionBrief[] };
   auto_approve?: boolean;
   auto_resume?: boolean;
+  /** GW-5: 실행 경로 미리보기. */
+  route_preview?: RoutePreviewEntry;
   artifact_bundle?: ArtifactBundleEntry;
 }
 
@@ -212,6 +222,12 @@ export default function WorkflowDetailPage() {
                 <Badge status={`${done_agents}/${total_agents} agents`} variant="info" />
                 <Badge status={`Phase ${wf.current_phase + 1}/${wf.phases.length}`} variant="off" />
                 <Badge status="workflow" variant="info" />
+                {wf.route_preview && (
+                  <Badge
+                    status={`${wf.route_preview.plan_kind} · ${wf.route_preview.cost_tier}`}
+                    variant={wf.route_preview.cost_tier === "no_token" ? "off" : wf.route_preview.cost_tier === "model_direct" ? "info" : "warn"}
+                  />
+                )}
                 <span className="wf-detail__time" title={new Date(wf.updated_at).toLocaleString()}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   {time_ago(wf.updated_at)}

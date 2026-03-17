@@ -93,4 +93,6 @@ export type OrchestrationResult = {
   tools_used?: string[];
   /** EG-4: 정상적 조기 종료 사유. error와 구분 — error는 실패, stop_reason은 정책 기반 종료. */
   stop_reason?: string;
+  /** GW-5: gateway 분류 경로 (identity/builtin/inquiry/direct_tool/once/agent/task/workflow). */
+  execution_route?: string;
 };

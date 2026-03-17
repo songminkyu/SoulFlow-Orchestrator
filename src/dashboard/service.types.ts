@@ -380,7 +380,20 @@ export const MAX_MESSAGES_PER_SESSION = 500;
 export type RecentMessage = { direction: "inbound" | "outbound"; sender_id: string; content: string; chat_id: string; team_id: string; user_id: string; at: string };
 
 export type ChatMediaItem = { type: string; url: string; mime?: string; name?: string };
-export type ChatSessionMessage = { direction: "user" | "assistant"; content: string; at: string; media?: ChatMediaItem[]; model?: string; provider_instance_id?: string };
+export type ChatSessionMessage = {
+  direction: "user" | "assistant";
+  content: string;
+  at: string;
+  media?: ChatMediaItem[];
+  model?: string;
+  provider_instance_id?: string;
+  /** GW-6: delivery trace — 요청 채널. */
+  requested_channel?: string;
+  /** GW-6: delivery trace — 실제 전달 채널. */
+  delivered_channel?: string;
+  /** GW-6: 실행 경로 (identity/builtin/inquiry/direct_tool/once/agent/task/workflow). */
+  execution_route?: string;
+};
 
 export type ChatSession = {
   id: string;

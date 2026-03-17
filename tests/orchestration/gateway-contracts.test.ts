@@ -17,6 +17,7 @@ import {
   plan_cost_tier,
   result_cost_tier,
   build_delivery_envelope,
+  build_route_preview,
 } from "@src/orchestration/gateway-contracts.js";
 import type { GatewayDecision } from "@src/orchestration/gateway.js";
 import type { OrchestrationResult } from "@src/orchestration/types.js";
@@ -99,6 +100,13 @@ describe("result_cost_tier — ExecutionMode → CostTier", () => {
   it("agent → agent_required", () => expect(result_cost_tier("agent")).toBe("agent_required"));
   it("task → agent_required", () => expect(result_cost_tier("task")).toBe("agent_required"));
   it("phase → agent_required", () => expect(result_cost_tier("phase")).toBe("agent_required"));
+
+  it("execution_route=identity + once → no_token", () => expect(result_cost_tier("once", "identity")).toBe("no_token"));
+  it("execution_route=builtin + once → no_token", () => expect(result_cost_tier("once", "builtin")).toBe("no_token"));
+  it("execution_route=inquiry + once → no_token", () => expect(result_cost_tier("once", "inquiry")).toBe("no_token"));
+  it("execution_route=direct_tool + once → no_token", () => expect(result_cost_tier("once", "direct_tool")).toBe("no_token"));
+  it("execution_route=once + once → model_direct (LLM 사용)", () => expect(result_cost_tier("once", "once")).toBe("model_direct"));
+  it("execution_route=agent + agent → agent_required", () => expect(result_cost_tier("agent", "agent")).toBe("agent_required"));
 });
 
 describe("build_reply_ref — ReplyChannelRef 생성", () => {
@@ -203,6 +211,12 @@ describe("GW-6: build_delivery_envelope — channel affinity regression", () => 
     expect(env.content).toBeNull();
   });
 
+  it("direct_tool execution_route → cost_tier=no_token", () => {
+    const result: OrchestrationResult = { reply: "tool output", mode: "once", tool_calls_count: 1, streamed: false, execution_route: "direct_tool" };
+    const env = build_delivery_envelope(result, "web", "W1");
+    expect(env.cost_tier).toBe("no_token");
+  });
+
   it("usage + tools_used 전파", () => {
     const result: OrchestrationResult = {
       reply: "done", mode: "once", tool_calls_count: 2, streamed: false,
@@ -212,5 +226,57 @@ describe("GW-6: build_delivery_envelope — channel affinity regression", () => 
     const env = build_delivery_envelope(result, "slack", "C123");
     expect(env.usage).toEqual({ prompt_tokens: 100, completion_tokens: 50 });
     expect(env.tools_used).toEqual(["bash", "read_file"]);
+  });
+});
+
+describe("GW-5: build_route_preview — RequestPlan → RoutePreview", () => {
+  it("no_token/identity + node_stats 미제공 → 기본값 0", () => {
+    const preview = build_route_preview({ route: "no_token", kind: "identity" });
+    expect(preview).toEqual({
+      plan_kind: "identity",
+      cost_tier: "no_token",
+      direct_node_count: 0,
+      agent_node_count: 0,
+      total_node_count: 0,
+    });
+  });
+
+  it("model_direct/once + node_stats → 통계 반영", () => {
+    const preview = build_route_preview(
+      { route: "model_direct", kind: "once", executor: "chatgpt" },
+      { direct: 3, agent: 0, total: 3 },
+    );
+    expect(preview.plan_kind).toBe("once");
+    expect(preview.cost_tier).toBe("model_direct");
+    expect(preview.direct_node_count).toBe(3);
+    expect(preview.agent_node_count).toBe(0);
+    expect(preview.total_node_count).toBe(3);
+  });
+
+  it("agent_required/workflow + node_stats → 노드 통계 전달", () => {
+    const preview = build_route_preview(
+      { route: "agent_required", kind: "workflow", executor: "chatgpt", workflow_id: "wf-1" },
+      { direct: 5, agent: 2, total: 7 },
+    );
+    expect(preview).toEqual({
+      plan_kind: "workflow",
+      cost_tier: "agent_required",
+      direct_node_count: 5,
+      agent_node_count: 2,
+      total_node_count: 7,
+    });
+  });
+
+  it("plan_kind가 RequestPlan.kind를 정확히 보존", () => {
+    const kinds = [
+      { route: "no_token" as const, kind: "builtin" as const, command: "help" },
+      { route: "no_token" as const, kind: "inquiry" as const, summary: "s" },
+      { route: "no_token" as const, kind: "direct_tool" as const, plan: { tool_name: "t" } },
+      { route: "agent_required" as const, kind: "agent" as const, executor: "chatgpt" as const },
+      { route: "agent_required" as const, kind: "task" as const, executor: "chatgpt" as const },
+    ];
+    for (const plan of kinds) {
+      expect(build_route_preview(plan).plan_kind).toBe(plan.kind);
+    }
   });
 });

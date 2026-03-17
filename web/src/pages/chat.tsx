@@ -270,6 +270,9 @@ export default function ChatPage() {
       direction: "assistant",
       content: active_stream!.content,
       at: new Date().toISOString(),
+      ...(ndjson_routing?.requested_channel ? { requested_channel: ndjson_routing.requested_channel } : {}),
+      ...(ndjson_routing?.delivered_channel ? { delivered_channel: ndjson_routing.delivered_channel } : {}),
+      ...(ndjson_routing?.execution_route ? { execution_route: ndjson_routing.execution_route } : {}),
     };
     return [...raw_messages, virtual_msg];
   })();

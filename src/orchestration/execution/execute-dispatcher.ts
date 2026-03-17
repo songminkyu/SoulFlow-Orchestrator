@@ -100,23 +100,27 @@ export async function execute_dispatch(
     },
   );
 
+  // GW-5: routing 이벤트 발행 — gateway 결정 직후, 실행 전
+  const plan = to_request_plan(decision);
+  req.on_stream_event?.({ type: "routing", execution_route: plan.kind });
+
   // Short-circuit: identity
   if (decision.action === "identity") {
     const identity_reply = deps.build_identity_reply();
     deps.log_event({ ...evt_base, phase: "done", summary: "identity shortcircuit", payload: { mode: "identity" } });
-    return { reply: identity_reply, mode: "once", tool_calls_count: 0, streamed: false };
+    return { reply: identity_reply, mode: "once", tool_calls_count: 0, streamed: false, execution_route: plan.kind };
   }
 
   // Short-circuit: builtin
   if (decision.action === "builtin") {
     deps.log_event({ ...evt_base, phase: "done", summary: `builtin: ${decision.command}`, payload: { mode: "builtin", command: decision.command } });
-    return { reply: null, mode: "once", tool_calls_count: 0, streamed: false, builtin_command: decision.command, builtin_args: decision.args };
+    return { reply: null, mode: "once", tool_calls_count: 0, streamed: false, builtin_command: decision.command, builtin_args: decision.args, execution_route: plan.kind };
   }
 
   // Short-circuit: inquiry
   if (decision.action === "inquiry") {
     deps.log_event({ ...evt_base, phase: "done", summary: "inquiry shortcircuit", payload: { mode: "inquiry", active_count: active_tasks_in_chat.length } });
-    return { reply: decision.summary, mode: "once", tool_calls_count: 0, streamed: false };
+    return { reply: decision.summary, mode: "once", tool_calls_count: 0, streamed: false, execution_route: plan.kind };
   }
 
   // GW-4: Short-circuit: direct_tool — LLM 없이 결정론적 도구 실행
@@ -129,7 +133,7 @@ export async function execute_dispatch(
       );
       if (!dr.error) {
         deps.log_event({ ...evt_base, phase: "done", summary: `direct_tool: ${dr.tool_name}`, payload: { mode: "once", tool: dr.tool_name } });
-        return { reply: dr.output, mode: "once", tool_calls_count: 1, streamed: false, tools_used: [dr.tool_name] };
+        return { reply: dr.output, mode: "once", tool_calls_count: 1, streamed: false, tools_used: [dr.tool_name], execution_route: plan.kind };
       }
       deps.logger.warn("direct_tool failed, falling back to once", { tool: dr.tool_name, error: dr.error });
     }
@@ -148,7 +152,7 @@ export async function execute_dispatch(
       const reuse = evaluate_reuse(task_with_media, evidence, now_ms(), { freshness_window_ms: fw, similarity_threshold: 0.85 });
       if (reuse.kind === "reuse_summary" || reuse.kind === "same_topic") {
         deps.log_event({ ...evt_base, phase: "done", summary: `session_reuse: ${reuse.kind}`, payload: { kind: reuse.kind, matched: reuse.matched_query } });
-        return { reply: format_reuse_reply(reuse), mode: "once", tool_calls_count: 0, streamed: false, stop_reason: `session_reuse:${reuse.kind}` };
+        return { reply: format_reuse_reply(reuse), mode: "once", tool_calls_count: 0, streamed: false, stop_reason: `session_reuse:${reuse.kind}`, execution_route: plan.kind };
       }
     }
   }
@@ -161,6 +165,7 @@ export async function execute_dispatch(
 
   // finalize: done/blocked 이벤트 기록 + process tracker 종료 + completion check 추가 (검증 역할 전용)
   const finalize = (result: OrchestrationResult): OrchestrationResult => {
+    if (!result.execution_route) result.execution_route = plan.kind;
     const phase = result.error ? "blocked" : "done";
     deps.log_event({
       ...evt_base,
@@ -208,7 +213,7 @@ export async function execute_dispatch(
     const summary = await deps.generate_guard_summary(task_with_media);
     deps.guard.store(req.provider, req.message.chat_id, task_with_media, summary, mode, categories);
     deps.logger.info("guard_confirmation_pending", { mode, categories, provider: req.provider, chat_id: req.message.chat_id });
-    return { reply: format_guard_prompt(summary, mode, categories), mode: "once", tool_calls_count: 0, streamed: false };
+    return { reply: format_guard_prompt(summary, mode, categories), mode: "once", tool_calls_count: 0, streamed: false, execution_route: plan.kind };
   }
 
   if (req.run_id) {
@@ -282,7 +287,6 @@ export async function execute_dispatch(
 
     // GW-3: gateway 기반 fallback chain — 없으면 기존 하드코딩 로직
     if (deps.execution_gateway) {
-      const plan = to_request_plan(decision);
       const route = deps.execution_gateway.resolve(plan, deps.caps(), deps.config.executor_provider);
       for (const fb of route.fallbacks) {
         if (fb === executor) continue;

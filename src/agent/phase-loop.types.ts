@@ -1,6 +1,7 @@
 /** Phase Loop — Multi-Agent Phase-Based Workflow 타입 정의. */
 
 import type { OrcheNodeState, OrcheNodeType, TriggerType, WorkflowNodeDefinition } from "./workflow-node.types.js";
+import type { RoutePreview } from "../orchestration/gateway-contracts.js";
 
 // ── State ────────────────────────────────────────────
 
@@ -95,6 +96,8 @@ export interface PhaseLoopState {
   auto_resume?: boolean;
   /** 멀티테넌트: 워크플로우를 생성한 팀. SSE 스코프 브로드캐스트에 사용. */
   team_id?: string;
+  /** GW-5: 실행 경로 미리보기 (plan_kind, cost_tier, 노드 통계). */
+  route_preview?: RoutePreview;
   /** RPF-4F: 이 실행에 연결된 ArtifactBundle 요약. 대시보드 표면 렌더링용. */
   artifact_bundle?: {
     repo_id: string;

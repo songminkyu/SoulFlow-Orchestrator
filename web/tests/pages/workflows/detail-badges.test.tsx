@@ -151,3 +151,36 @@ describe("PhaseCard — reconcile_conflicts 배지", () => {
     expect(screen.getByText(/reconcile_conflicts/)).toBeInTheDocument();
   });
 });
+
+// ── GW-5: route_preview hero 배지 ────────────────────────────────────────────
+
+describe("Hero — route_preview 배지", () => {
+  it("route_preview 있으면 plan_kind · cost_tier 배지 렌더", () => {
+    const wf = make_wf({
+      status: "running",
+      phases: [{ phase_id: "p1", title: "P1", status: "running", agents: [make_agent()], mode: "parallel" }],
+      route_preview: { plan_kind: "workflow", cost_tier: "agent_required", direct_node_count: 3, agent_node_count: 2, total_node_count: 5 },
+    });
+    render_detail(wf);
+    expect(screen.getByText("workflow · agent_required")).toBeInTheDocument();
+  });
+
+  it("route_preview 없으면 plan_kind 배지 미렌더", () => {
+    const wf = make_wf({
+      status: "running",
+      phases: [{ phase_id: "p1", title: "P1", status: "running", agents: [make_agent()], mode: "parallel" }],
+    });
+    render_detail(wf);
+    expect(screen.queryByText(/plan_kind|cost_tier|agent_required|model_direct|no_token/)).toBeNull();
+  });
+
+  it("cost_tier=no_token → 배지 variant off", () => {
+    const wf = make_wf({
+      status: "running",
+      phases: [{ phase_id: "p1", title: "P1", status: "running", agents: [make_agent()], mode: "parallel" }],
+      route_preview: { plan_kind: "identity", cost_tier: "no_token", direct_node_count: 0, agent_node_count: 0, total_node_count: 0 },
+    });
+    render_detail(wf);
+    expect(screen.getByText("identity · no_token")).toBeInTheDocument();
+  });
+});

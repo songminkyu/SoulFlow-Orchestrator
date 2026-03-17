@@ -777,7 +777,11 @@ export class ChannelManager implements ServiceLike {
             text: synthetic_text,
             send_reply: (content) => this.send_command_reply(provider, message, content),
           };
-          if (await this.commands.try_handle(cmd_ctx)) return;
+          if (await this.commands.try_handle(cmd_ctx)) {
+            // GW-7: builtin 성공 시에도 web NDJSON 스트림 종료 보장
+            await renderer.flush();
+            return;
+          }
         }
       }
 
@@ -832,6 +836,7 @@ export class ChannelManager implements ServiceLike {
       if (result.parsed_output !== undefined) m.parsed_output = result.parsed_output;
       if (result.run_id) m.run_id = result.run_id;
       if (result.usage) m.usage = result.usage;
+      if (result.execution_route) m.execution_route = result.execution_route;
       return m;
     };
 

@@ -255,3 +255,48 @@ describe("재시작 시나리오", () => {
     expect(c2.messages).toHaveLength(1); // user만
   });
 });
+
+// ══════════════════════════════════════════
+// GW-6: delivery trace 영속/복원
+// ══════════════════════════════════════════
+
+describe("delivery trace 영속/복원", () => {
+  it("capture_web_outbound routing → SessionStore에 delivery trace 3필드 영속", async () => {
+    const s = new Session({ key: "web:t1:u1:trace_test:default:main" });
+    s.add_message("user", "q");
+    await store.save(s);
+    await restore(svc);
+
+    svc.capture_web_outbound("trace_test", "reply", undefined, {
+      requested_channel: "slack",
+      delivered_channel: "web",
+      execution_route: "agent",
+    });
+    await new Promise((r) => setTimeout(r, 50));
+
+    const loaded = await store.get_or_create("web:t1:u1:trace_test:default:main");
+    const last = loaded.messages[loaded.messages.length - 1];
+    expect(last.role).toBe("assistant");
+    expect(last.requested_channel).toBe("slack");
+    expect(last.delivered_channel).toBe("web");
+    expect(last.execution_route).toBe("agent");
+  });
+
+  it("재시작 후 delivery trace 3필드 복원", async () => {
+    const s = new Session({ key: "web:t1:u1:trace_restore:default:main" });
+    s.add_message("user", "q");
+    s.add_message("assistant", "a", { requested_channel: "telegram", delivered_channel: "web", execution_route: "workflow" });
+    await store.save(s);
+
+    const svc2 = new DashboardService(make_options(store, tmp_dir));
+    await restore(svc2);
+
+    const restored = chat_sessions(svc2).get("trace_restore");
+    expect(restored).toBeDefined();
+    const assistant_msg = restored!.messages.find((m) => m.direction === "assistant");
+    expect(assistant_msg).toBeDefined();
+    expect(assistant_msg!.requested_channel).toBe("telegram");
+    expect(assistant_msg!.delivered_channel).toBe("web");
+    expect(assistant_msg!.execution_route).toBe("workflow");
+  });
+});

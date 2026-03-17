@@ -11,7 +11,7 @@ type NdjsonLine =
   | { type: "usage"; input: number; output: number; cache_read?: number; cache_creation?: number; cost_usd?: number | null }
   | { type: "rate_limit"; status: string }
   | { type: "compact"; pre_tokens: number }
-  | { type: "routing"; requested_channel?: string; delivered_channel?: string; session_reuse?: boolean }
+  | { type: "routing"; requested_channel?: string; delivered_channel?: string; session_reuse?: boolean; execution_route?: string }
   | { type: "heartbeat" }
   | { type: "done" }
   | { type: "error"; error: string };
@@ -45,6 +45,8 @@ export type RoutingInfo = {
   requested_channel?: string | null;
   delivered_channel?: string | null;
   session_reuse?: boolean;
+  /** GW-5: 실행 경로 (identity/builtin/inquiry/direct_tool/once/agent/task/workflow). */
+  execution_route?: string | null;
 };
 
 export function useNdjsonStream() {
@@ -159,7 +161,7 @@ export function useNdjsonStream() {
             } else if (msg.type === "compact") {
               setCompacted(true);
             } else if (msg.type === "routing") {
-              setRouting({ requested_channel: msg.requested_channel, delivered_channel: msg.delivered_channel, session_reuse: msg.session_reuse });
+              setRouting({ requested_channel: msg.requested_channel, delivered_channel: msg.delivered_channel, session_reuse: msg.session_reuse, execution_route: msg.execution_route });
             } else if (msg.type === "done") {
               // done 시 동기 플러시 — rAF 대기 없이 최종 상태 즉시 반영
               flush();

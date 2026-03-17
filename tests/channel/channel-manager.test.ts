@@ -743,6 +743,25 @@ describe("ChannelManager — builtin_command 분기", () => {
       expect(h.registry.sent.length).toBeGreaterThanOrEqual(0);
     } finally { await h.cleanup(); }
   });
+
+  it("GW-7: builtin web 경로 → flush(done=true) 호출되어 NDJSON 스트림 정상 종료", async () => {
+    const stream_calls: Array<{ chat_id: string; done: boolean }> = [];
+    const h = await create_harness({
+      orchestration_handler: async () => ({
+        reply: null,
+        builtin_command: "help",
+        mode: "once", tool_calls_count: 0, streamed: false,
+      }),
+      command_handlers: [{ name: "help", can_handle: (ctx) => ctx.command?.command === "help", handle: async (ctx) => { await ctx.send_reply("ok"); return true; } }],
+      on_web_stream: (chat_id, _content, done) => { stream_calls.push({ chat_id, done }); },
+    });
+    try {
+      await h.manager.handle_inbound_message(inbound("도움말", { provider: "web", channel: "web", chat_id: "web-1" }));
+      const done_call = stream_calls.find((c) => c.done);
+      expect(done_call).toBeDefined();
+      expect(done_call!.chat_id).toBe("web-1");
+    } finally { await h.cleanup(); }
+  });
 });
 
 // ══════════════════════════════════════════════════

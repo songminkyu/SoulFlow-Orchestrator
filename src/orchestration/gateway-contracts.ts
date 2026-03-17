@@ -96,7 +96,7 @@ export function to_result_envelope(
   result: OrchestrationResult,
   reply_to: ReplyChannelRef,
 ): ResultEnvelope {
-  const cost_tier = result_cost_tier(result.mode);
+  const cost_tier = result_cost_tier(result.mode, result.execution_route);
   return {
     reply_to,
     content: result.reply,
@@ -130,8 +130,12 @@ export function build_route_preview(plan: RequestPlan, node_stats?: { direct: nu
   };
 }
 
-/** ExecutionMode → CostTier 매핑. */
-export function result_cost_tier(mode: ExecutionMode): CostTier {
+/** ExecutionMode → CostTier 매핑. execution_route가 있으면 no_token 경로를 정확히 분류. */
+export function result_cost_tier(mode: ExecutionMode, execution_route?: string): CostTier {
+  if (execution_route) {
+    const NO_TOKEN_ROUTES = new Set(["identity", "builtin", "inquiry", "direct_tool"]);
+    if (NO_TOKEN_ROUTES.has(execution_route)) return "no_token";
+  }
   if (mode === "once") return "model_direct";
   return "agent_required";
 }

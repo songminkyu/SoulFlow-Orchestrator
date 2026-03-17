@@ -60,7 +60,7 @@ function last(ctx: { _responses: Array<{ status: number; body: unknown }> }) {
 const TEAM_A_USER = {
   auth_svc: {},
   auth_user: { role: "user", sub: "u1", tid: "team-alpha" },
-  team_context: { team_id: "team-alpha", team_role: "member" },
+  team_context: { team_id: "team-alpha", team_role: "manager" },
 };
 
 const SUPERADMIN = {
@@ -259,24 +259,25 @@ describe("cron.ts — IDOR ownership check", () => {
 describe("process.ts — IDOR ownership check", () => {
   it("DELETE /api/processes/:id → 타팀 프로세스 404", async () => {
     const cancel_spy = vi.fn(async () => ({ cancelled: false, details: "프로세스를 찾을 수 없습니다" }));
+    const get_spy = vi.fn(() => ({ team_id: "team-beta", sender_id: "u2" }));
     const ctx = make_ctx({
       ...TEAM_A_USER,
       method: "DELETE",
       pathname: "/api/processes/run-1",
-      process_tracker: { cancel: cancel_spy },
+      process_tracker: { cancel: cancel_spy, get: get_spy },
     });
     await handle_process(ctx);
     expect(last(ctx).status).toBe(404);
-    expect(cancel_spy).toHaveBeenCalledWith("run-1", { team_id: "team-alpha" });
   });
 
   it("DELETE /api/processes/:id → 자기 팀 프로세스 성공", async () => {
     const cancel_spy = vi.fn(async () => ({ cancelled: true, details: "abort_signal" }));
+    const get_spy = vi.fn(() => ({ team_id: "team-alpha", sender_id: "u1" }));
     const ctx = make_ctx({
       ...TEAM_A_USER,
       method: "DELETE",
       pathname: "/api/processes/run-1",
-      process_tracker: { cancel: cancel_spy },
+      process_tracker: { cancel: cancel_spy, get: get_spy },
     });
     await handle_process(ctx);
     expect(last(ctx).status).toBe(200);

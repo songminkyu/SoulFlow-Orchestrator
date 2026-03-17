@@ -282,6 +282,7 @@ describe("Phase 4.5: Execute Dispatcher 분리", () => {
         mode: "once",
         tool_calls_count: 0,
         streamed: false,
+        execution_route: "identity",
       });
       expect(deps.build_identity_reply).toHaveBeenCalled();
       expect(logEventSpy).toHaveBeenCalledWith(expect.objectContaining({
@@ -310,6 +311,7 @@ describe("Phase 4.5: Execute Dispatcher 분리", () => {
         streamed: false,
         builtin_command: "help",
         builtin_args: "--all",
+        execution_route: "builtin",
       });
       expect(logEventSpy).toHaveBeenCalledWith(expect.objectContaining({
         phase: "done",
@@ -334,6 +336,7 @@ describe("Phase 4.5: Execute Dispatcher 분리", () => {
         mode: "once",
         tool_calls_count: 0,
         streamed: false,
+        execution_route: "inquiry",
       });
       expect(logEventSpy).toHaveBeenCalledWith(expect.objectContaining({
         phase: "done",
@@ -368,6 +371,7 @@ describe("Phase 4.5: Execute Dispatcher 분리", () => {
         mode: "phase",
         tool_calls_count: 3,
         streamed: true,
+        execution_route: "workflow",
       });
       expect(runPhaseLoopSpy).toHaveBeenCalled();
       expect(logEventSpy).toHaveBeenCalledWith(expect.objectContaining({
@@ -401,6 +405,7 @@ describe("Phase 4.5: Execute Dispatcher 분리", () => {
         mode: "once",
         tool_calls_count: 1,
         streamed: false,
+        execution_route: "once",
       });
       expect(runOnceSpy).toHaveBeenCalled();
       expect(logEventSpy).toHaveBeenCalledWith(expect.objectContaining({
@@ -434,6 +439,7 @@ describe("Phase 4.5: Execute Dispatcher 분리", () => {
         mode: "task",
         tool_calls_count: 5,
         streamed: true,
+        execution_route: "task",
       });
       expect(runTaskLoopSpy).toHaveBeenCalled();
     });
@@ -463,6 +469,7 @@ describe("Phase 4.5: Execute Dispatcher 분리", () => {
         mode: "agent",
         tool_calls_count: 7,
         streamed: true,
+        execution_route: "agent",
       });
       expect(runAgentLoopSpy).toHaveBeenCalled();
     });
@@ -499,6 +506,7 @@ describe("Phase 4.5: Execute Dispatcher 분리", () => {
         mode: "task",
         tool_calls_count: 3,
         streamed: true,
+        execution_route: "once",
       });
       expect(runOnceSpy).toHaveBeenCalled();
       expect(runTaskLoopSpy).toHaveBeenCalled();
@@ -528,6 +536,7 @@ describe("Phase 4.5: Execute Dispatcher 분리", () => {
         mode: "once",
         tool_calls_count: 0,
         streamed: false,
+        execution_route: "once",
       });
       expect(guardMock.needs_confirmation).toHaveBeenCalled();
       expect(guardMock.store).toHaveBeenCalled();
@@ -583,6 +592,7 @@ describe("Phase 4.5: Execute Dispatcher 분리", () => {
         mode: "once",
         tool_calls_count: 2,
         streamed: false,
+        execution_route: "once",
       });
       expect(logEventSpy).toHaveBeenCalledWith(expect.objectContaining({
         phase: "done",

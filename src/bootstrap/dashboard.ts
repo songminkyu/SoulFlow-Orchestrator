@@ -259,7 +259,13 @@ Description: ${prompt}`,
     broadcaster.broadcast_message_event(dir, msg.sender_id, msg.content, msg.chat_id, msg_team_id, msg_user_id);
     if (dir === "outbound" && msg.provider === "web" && msg.chat_id) {
       const media = msg.media?.map((m) => ({ type: m.type as string, url: m.url, mime: m.mime, name: m.name }));
-      dash.capture_web_outbound(msg.chat_id, msg.content, media);
+      const msg_meta = (msg.metadata ?? {}) as Record<string, unknown>;
+      const routing = {
+        requested_channel: typeof msg_meta.origin_channel === "string" ? msg_meta.origin_channel : msg.provider,
+        delivered_channel: msg.provider,
+        execution_route: typeof msg_meta.execution_route === "string" ? msg_meta.execution_route : undefined,
+      };
+      dash.capture_web_outbound(msg.chat_id, msg.content, media, routing);
       broadcaster.broadcast_web_message(msg.chat_id, msg_team_id);
     }
   });

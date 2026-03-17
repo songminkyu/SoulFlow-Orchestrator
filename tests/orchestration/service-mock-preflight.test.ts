@@ -57,6 +57,7 @@ function make_service(cb = make_cb_mock()) {
       get_context_builder: vi.fn().mockReturnValue(cb),
       execute_tool: vi.fn().mockResolvedValue({}),
       get_tool_executors: vi.fn().mockReturnValue({}),
+      get_tool_definitions: vi.fn().mockReturnValue([]),
     } as any,
     secret_vault: { list_references: vi.fn().mockResolvedValue([]) } as any,
     runtime_policy_resolver: { resolve: vi.fn().mockResolvedValue({}) } as any,
