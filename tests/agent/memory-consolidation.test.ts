@@ -15,6 +15,11 @@ const noop_logger = {
   child: () => noop_logger,
 } as any;
 
+/** window_days 내에 들어오도록 n일 전 날짜 문자열 반환 */
+function days_ago(n: number): string {
+  return new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
+}
+
 function make_config(overrides?: Record<string, unknown>) {
   return {
     enabled: true,
@@ -80,8 +85,8 @@ describe("MemoryConsolidationService", () => {
   });
 
   it("daily memory를 장기 메모리로 압축한다", async () => {
-    await store.append_daily("사용자가 A를 요청함", "2026-03-06");
-    await store.append_daily("B 작업 완료", "2026-03-07");
+    await store.append_daily("사용자가 A를 요청함", days_ago(2));
+    await store.append_daily("B 작업 완료", days_ago(1));
 
     const svc = new MemoryConsolidationService({
       memory_store: store,
@@ -102,7 +107,7 @@ describe("MemoryConsolidationService", () => {
   });
 
   it("archive_used가 true면 사용된 daily를 삭제한다", async () => {
-    await store.append_daily("정리 대상", "2026-03-06");
+    await store.append_daily("정리 대상", days_ago(2));
 
     const svc = new MemoryConsolidationService({
       memory_store: store,
@@ -147,7 +152,7 @@ describe("MemoryConsolidationService", () => {
       });
       await svc.start();
 
-      await store.append_daily("cron 대상", "2026-03-07");
+      await store.append_daily("cron 대상", days_ago(1));
 
       // interval 경과 전에는 실행되지 않음
       const before = await store.read_longterm();
@@ -168,7 +173,7 @@ describe("MemoryConsolidationService", () => {
   it("idle trigger: touch() 후 idle_after_ms 경과 시 consolidation 실행", async () => {
     vi.useFakeTimers();
     try {
-      await store.append_daily("idle 대상", "2026-03-07");
+      await store.append_daily("idle 대상", days_ago(1));
 
       const svc = new MemoryConsolidationService({
         memory_store: store,
@@ -196,7 +201,7 @@ describe("MemoryConsolidationService", () => {
   it("touch() 재호출 시 idle timer가 리셋된다", async () => {
     vi.useFakeTimers();
     try {
-      await store.append_daily("리셋 테스트", "2026-03-07");
+      await store.append_daily("리셋 테스트", days_ago(1));
 
       const svc = new MemoryConsolidationService({
         memory_store: store,
@@ -240,7 +245,7 @@ describe("touch_start/touch_end long-turn 보호", () => {
   it("touch_start 중에는 idle timer가 시작되지 않는다", async () => {
     vi.useFakeTimers();
     try {
-      await store.append_daily("busy 테스트", "2026-03-07");
+      await store.append_daily("busy 테스트", days_ago(1));
 
       const svc = new MemoryConsolidationService({
         memory_store: store,
@@ -271,7 +276,7 @@ describe("touch_start/touch_end long-turn 보호", () => {
   it("여러 turn이 겹치면 마지막 touch_end 후에만 idle timer 시작", async () => {
     vi.useFakeTimers();
     try {
-      await store.append_daily("multi-turn", "2026-03-07");
+      await store.append_daily("multi-turn", days_ago(1));
 
       const svc = new MemoryConsolidationService({
         memory_store: store,

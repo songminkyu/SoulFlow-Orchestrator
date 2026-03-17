@@ -68,8 +68,10 @@ export class ImageTool extends Tool {
   private q(s: string): string { return `"${s.replace(/"/g, '\\"')}"`; }
 
   private async get_info(input: string): Promise<string> {
-    const out = await this.exec(`identify -verbose ${this.q(input)} 2>&1 | head -30`);
-    return out || "Error: failed to get image info (is ImageMagick installed?)";
+    const raw = await this.exec(`identify -verbose ${this.q(input)}`);
+    if (!raw) return "Error: failed to get image info (is ImageMagick installed?)";
+    const lines = raw.split("\n");
+    return lines.length > 30 ? lines.slice(0, 30).join("\n") + "\n..." : raw;
   }
 
   private async resize(input: string, output: string, params: Record<string, unknown>): Promise<string> {

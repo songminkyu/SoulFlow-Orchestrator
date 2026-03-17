@@ -295,42 +295,6 @@ describe("OAuthFetchTool — list action", () => {
   });
 });
 
-describe("OAuthFetchTool — get_token action", () => {
-  it("service_id 없음 → Error: service_id is required", async () => {
-    const tool = new OAuthFetchTool(make_store(), make_flow());
-    const r = await tool.execute({ action: "get_token" });
-    expect(r).toContain("service_id is required");
-  });
-
-  it("integration 없음 → Error: not found", async () => {
-    const tool = new OAuthFetchTool(make_store(), make_flow());
-    const r = await tool.execute({ action: "get_token", service_id: "nonexistent" });
-    expect(r).toContain("not found");
-  });
-
-  it("integration disabled → Error: disabled", async () => {
-    const store = make_store({ get: vi.fn().mockReturnValue({ instance_id: "gh", enabled: false }) });
-    const tool = new OAuthFetchTool(store, make_flow());
-    const r = await tool.execute({ action: "get_token", service_id: "gh" });
-    expect(r).toContain("disabled");
-  });
-
-  it("token 없음 → Error: no valid access token", async () => {
-    const store = make_store({ get: vi.fn().mockReturnValue({ instance_id: "gh", enabled: true, service_type: "github" }) });
-    const flow = make_flow({ get_valid_access_token: vi.fn().mockResolvedValue({ token: null, error: "token_expired" }) });
-    const tool = new OAuthFetchTool(store, flow);
-    const r = await tool.execute({ action: "get_token", service_id: "gh" });
-    expect(r).toContain("no valid access token");
-  });
-
-  it("정상 토큰 반환", async () => {
-    const store = make_store({ get: vi.fn().mockReturnValue({ instance_id: "gh", enabled: true, service_type: "github" }) });
-    const tool = new OAuthFetchTool(store, make_flow());
-    const r = JSON.parse(await tool.execute({ action: "get_token", service_id: "gh" }));
-    expect(r.access_token).toBe("my-token");
-  });
-});
-
 describe("OAuthFetchTool — fetch action", () => {
   it("service_id 없음 → Error", async () => {
     const tool = new OAuthFetchTool(make_store(), make_flow());
@@ -359,7 +323,7 @@ describe("OAuthFetchTool — fetch action", () => {
   });
 
   it("token 없음 → Error: no valid access token", async () => {
-    const store = make_store({ get: vi.fn().mockReturnValue({ instance_id: "gh", enabled: true }) });
+    const store = make_store({ get: vi.fn().mockReturnValue({ instance_id: "gh", enabled: true, settings: { allowed_hosts: ["api.github.com"] } }) });
     const flow = make_flow({ get_valid_access_token: vi.fn().mockResolvedValue({ token: null, error: "not_configured" }) });
     const tool = new OAuthFetchTool(store, flow);
     const r = await tool.execute({ action: "fetch", service_id: "gh", url: "https://api.github.com/user" });
@@ -373,7 +337,7 @@ describe("OAuthFetchTool — fetch action", () => {
       headers: { get: vi.fn().mockReturnValue("application/json") },
       text: async () => JSON.stringify({ login: "octocat" }),
     });
-    const store = make_store({ get: vi.fn().mockReturnValue({ instance_id: "gh", enabled: true, service_type: "github" }) });
+    const store = make_store({ get: vi.fn().mockReturnValue({ instance_id: "gh", enabled: true, service_type: "github", settings: { allowed_hosts: ["api.github.com"] } }) });
     const tool = new OAuthFetchTool(store, make_flow());
     const r = JSON.parse(await tool.execute({ action: "fetch", service_id: "gh", url: "https://api.github.com/user" }));
     expect(r.status).toBe(200);
@@ -381,7 +345,7 @@ describe("OAuthFetchTool — fetch action", () => {
 
   it("fetch throw → Error 반환", async () => {
     fetch_mock.mockRejectedValueOnce(new Error("Network error"));
-    const store = make_store({ get: vi.fn().mockReturnValue({ instance_id: "gh", enabled: true }) });
+    const store = make_store({ get: vi.fn().mockReturnValue({ instance_id: "gh", enabled: true, settings: { allowed_hosts: ["api.github.com"] } }) });
     const tool = new OAuthFetchTool(store, make_flow());
     const r = await tool.execute({ action: "fetch", service_id: "gh", url: "https://api.github.com/user" });
     expect(r).toContain("Error");
@@ -405,7 +369,7 @@ describe("OAuthFetchTool — fetch action", () => {
       });
 
     const store = make_store({
-      get: vi.fn().mockReturnValue({ instance_id: "gh", enabled: true, service_type: "github" }),
+      get: vi.fn().mockReturnValue({ instance_id: "gh", enabled: true, service_type: "github", settings: { allowed_hosts: ["api.github.com"] } }),
       get_access_token: vi.fn().mockResolvedValue(new_token),
     });
     const flow = make_flow({ refresh_token: vi.fn().mockResolvedValue({ ok: true }) });

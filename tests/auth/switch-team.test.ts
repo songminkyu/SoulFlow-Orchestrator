@@ -88,6 +88,8 @@ function make_ctx(
     bus: null as unknown as RouteContext["bus"],
     add_rich_stream_listener: vi.fn(),
     get_scoped_memory_ops: vi.fn().mockReturnValue(null),
+    correlation: { trace_id: "test-trace", request_id: "test-request" },
+    create_team_store: (tid: string) => new TeamStore(join(workspace!, "tenants", tid, "team.db"), tid),
   };
 
   return { ctx, sent };
