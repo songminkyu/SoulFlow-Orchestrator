@@ -16,8 +16,9 @@ import { VideoPanel } from "./video-panel";
 import { AgentPanel } from "./agent-panel";
 import { GalleryPanel } from "./gallery-panel";
 import { ComparePanel } from "./compare-panel";
+import { EvalPanel } from "./eval-panel";
 
-type Tab = "text" | "image" | "video" | "agent" | "gallery" | "compare";
+type Tab = "text" | "image" | "video" | "agent" | "gallery" | "compare" | "eval";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "text",    label: "Text",    icon: "T"  },
@@ -26,6 +27,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "agent",   label: "Agent",   icon: "🤖" },
   { id: "gallery", label: "Gallery", icon: "◈"  },
   { id: "compare", label: "Compare", icon: "⚖"  },
+  { id: "eval",    label: "Eval",    icon: "✓"  },
 ];
 
 export default function PromptingPage() {
@@ -61,6 +63,7 @@ export default function PromptingPage() {
         {tab === "agent"   && <AgentPanel initial_id={agent_initial_id} />}
         {tab === "gallery" && <GalleryPanel onGoToAgent={go_to_agent} />}
         {tab === "compare" && <ComparePanel />}
+        {tab === "eval"    && <EvalPanel />}
       </div>
     </div>
   );

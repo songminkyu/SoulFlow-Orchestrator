@@ -31,6 +31,26 @@ jobs:
       - name: Lint
         run: npm run lint
 
+  # ── Eval Smoke Gate ──────────────────────────────────────────────────────
+  eval-smoke:
+    name: Eval Smoke
+    runs-on: ubuntu-latest
+    needs: static
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Eval Smoke Gate
+        run: npm run eval:smoke
+        timeout-minutes: 5
+
   # ── PR 증분 테스트 (변경 파일 관련 테스트만) ──────────────────────────────
   test-pr:
     name: Test Changed (PR)

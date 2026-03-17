@@ -1,6 +1,7 @@
 /** EV-2: 로컬 EvalRunner — 데이터셋 케이스를 순차 실행 + 채점. */
 
 import type { EvalCase, EvalDataset, EvalResult, EvalRunSummary, EvalExecutorLike, EvalScorerLike } from "./contracts.js";
+import type { EvalJudgeLike } from "./judges.js";
 import { CONTAINS_SCORER } from "./scorers.js";
 
 export interface EvalRunnerOptions {
@@ -8,19 +9,27 @@ export interface EvalRunnerOptions {
   timeout_ms?: number;
   /** 태그 필터 — 지정 시 해당 태그를 가진 케이스만 실행. */
   filter_tags?: string[];
+  /** 다차원 judge. 지정 시 scorer 대신 judge가 scorecard를 생성. */
+  judge?: EvalJudgeLike;
+  /** fail-fast: 첫 실패 시 나머지 케이스 스킵. */
+  fail_fast?: boolean;
 }
 
 export class EvalRunner {
   private readonly executor: EvalExecutorLike;
   private readonly scorer: EvalScorerLike;
+  private readonly judge: EvalJudgeLike | undefined;
   private readonly timeout_ms: number;
   private readonly filter_tags: string[] | undefined;
+  private readonly fail_fast: boolean;
 
   constructor(executor: EvalExecutorLike, scorer?: EvalScorerLike, options?: EvalRunnerOptions) {
     this.executor = executor;
     this.scorer = scorer ?? CONTAINS_SCORER;
+    this.judge = options?.judge;
     this.timeout_ms = options?.timeout_ms ?? 30_000;
     this.filter_tags = options?.filter_tags;
+    this.fail_fast = options?.fail_fast ?? false;
   }
 
   /** 데이터셋 전체 실행 → EvalRunSummary 반환. */
@@ -30,7 +39,9 @@ export class EvalRunner {
     const results: EvalResult[] = [];
 
     for (const c of cases) {
-      results.push(await this.run_case(c, dataset.name));
+      const result = await this.run_case(c, dataset.name);
+      results.push(result);
+      if (this.fail_fast && !result.passed) break;
     }
 
     const passed = results.filter((r) => r.passed).length;
@@ -46,23 +57,35 @@ export class EvalRunner {
     };
   }
 
-  /** 단일 케이스 실행 → EvalResult. */
+  /** 단일 케이스 실행 → EvalResult. judge가 있으면 다차원 scorecard 생성. */
   async run_case(eval_case: EvalCase, dataset_name: string): Promise<EvalResult> {
     const start = Date.now();
     try {
-      const { output, error } = await this.execute_with_timeout(eval_case.input);
-      if (error) {
+      const exec_result = await this.execute_with_timeout(eval_case.input);
+      if (exec_result.error) {
         return {
           case_id: eval_case.id, dataset: dataset_name,
-          passed: false, actual: output, score: 0,
-          duration_ms: Date.now() - start, error,
+          passed: false, actual: exec_result.output, score: 0,
+          duration_ms: Date.now() - start, error: exec_result.error,
+          mode: exec_result.mode, tool_calls_count: exec_result.tool_calls_count, trace_id: exec_result.trace_id,
         };
       }
-      const { passed, score } = this.scorer.score(eval_case.input, eval_case.expected, output);
+      // judge가 있으면 다차원 채점, 없으면 단일 scorer
+      if (this.judge) {
+        const scorecard = this.judge.judge(eval_case, exec_result.output);
+        return {
+          case_id: eval_case.id, dataset: dataset_name,
+          passed: scorecard.overall_passed, actual: exec_result.output,
+          score: scorecard.overall_score, duration_ms: Date.now() - start,
+          mode: exec_result.mode, tool_calls_count: exec_result.tool_calls_count, trace_id: exec_result.trace_id,
+        };
+      }
+      const { passed, score } = this.scorer.score(eval_case.input, eval_case.expected, exec_result.output);
       return {
         case_id: eval_case.id, dataset: dataset_name,
-        passed, actual: output, score,
+        passed, actual: exec_result.output, score,
         duration_ms: Date.now() - start,
+        mode: exec_result.mode, tool_calls_count: exec_result.tool_calls_count, trace_id: exec_result.trace_id,
       };
     } catch (e) {
       return {
@@ -79,7 +102,22 @@ export class EvalRunner {
     return cases.filter((c) => c.tags?.some((t) => this.filter_tags!.includes(t)));
   }
 
-  private async execute_with_timeout(input: string): Promise<{ output: string; error?: string }> {
+  /** 같은 데이터셋을 여러 executor로 실행하여 경로별 비교. */
+  static async run_compare(
+    dataset: EvalDataset,
+    executors: Record<string, EvalExecutorLike>,
+    scorer?: EvalScorerLike,
+    options?: EvalRunnerOptions,
+  ): Promise<Record<string, EvalRunSummary>> {
+    const results: Record<string, EvalRunSummary> = {};
+    for (const [mode, executor] of Object.entries(executors)) {
+      const runner = new EvalRunner(executor, scorer, options);
+      results[mode] = await runner.run_dataset(dataset);
+    }
+    return results;
+  }
+
+  private async execute_with_timeout(input: string): Promise<{ output: string; error?: string; mode?: import("./contracts.js").EvalTargetMode; tool_calls_count?: number; trace_id?: string }> {
     return Promise.race([
       this.executor.execute(input),
       new Promise<never>((_, reject) =>

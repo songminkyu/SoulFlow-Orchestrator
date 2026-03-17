@@ -73,6 +73,12 @@ export function save_baseline(file_path: string, report: EvaluationReport): void
   writeFileSync(file_path, JSON.stringify(report, null, 2), "utf-8");
 }
 
+/** JSONL 형식으로 scorecard를 출력. 한 줄 = 하나의 scorecard. */
+export function save_jsonl(file_path: string, report: EvaluationReport): void {
+  const lines = report.scorecards.map(sc => JSON.stringify(sc));
+  writeFileSync(file_path, lines.join("\n") + "\n", "utf-8");
+}
+
 export function load_baseline(file_path: string): EvaluationReport | null {
   if (!existsSync(file_path)) return null;
   return JSON.parse(readFileSync(file_path, "utf-8")) as EvaluationReport;

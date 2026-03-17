@@ -26,12 +26,16 @@ import { writeFileSync } from "node:fs";
 import { load_eval_datasets } from "../src/evals/loader.js";
 import { EvalRunner } from "../src/evals/runner.js";
 import { EXACT_MATCH_SCORER, CONTAINS_SCORER, REGEX_SCORER } from "../src/evals/scorers.js";
-import { create_report, save_baseline, load_baseline, compute_diff, render_markdown_summary } from "../src/evals/report.js";
+import { create_report, save_baseline, save_jsonl, load_baseline, compute_diff, render_markdown_summary } from "../src/evals/report.js";
 import { get_bundle, get_smoke_bundles, list_bundles, load_bundle_datasets } from "../src/evals/bundles.js";
 import { create_guardrail_executor } from "../src/evals/guardrail-executor.js";
 import { create_tokenizer_executor } from "../src/evals/tokenizer-executor.js";
 import { create_gateway_executor } from "../src/evals/gateway-executor.js";
 import { create_output_reduction_executor, create_output_reduction_scorer } from "../src/evals/output-reduction-executor.js";
+import { create_routing_executor } from "../src/evals/routing-executor.js";
+import { create_safety_executor } from "../src/evals/safety-executor.js";
+import { create_compiler_executor } from "../src/evals/compiler-executor.js";
+import { create_memory_executor } from "../src/evals/memory-executor.js";
 import type { EvalExecutorLike, EvalScorerLike, EvalDataset } from "../src/evals/contracts.js";
 
 interface CliArgs {
@@ -43,9 +47,11 @@ interface CliArgs {
   baseline: string | null;
   saveBaseline: boolean;
   output: string | null;
+  jsonl: string | null;
   markdown: boolean;
   tags: string[] | null;
   scorer: string;
+  fail_fast: boolean;
   help: boolean;
 }
 
@@ -82,6 +88,7 @@ async function main() {
     const bundle_scorer = resolve_bundle_scorer(dataset.name, scorer);
     const runner = new EvalRunner(executor, bundle_scorer, {
       filter_tags: tags?.length ? tags : undefined,
+      fail_fast: args.fail_fast,
     });
     const summary = await runner.run_dataset(dataset);
     const scorecards = summary.results.map((r) => ({
@@ -101,6 +108,12 @@ async function main() {
       const outPath = resolve(args.output);
       writeFileSync(outPath, JSON.stringify(report, null, 2), "utf-8");
       console.log(`  Report saved: ${outPath}`);
+    }
+
+    if (args.jsonl) {
+      const jsonlPath = resolve(args.jsonl);
+      save_jsonl(jsonlPath, report);
+      console.log(`  JSONL saved: ${jsonlPath}`);
     }
 
     if (args.saveBaseline && args.baseline) {
@@ -188,7 +201,8 @@ function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
     datasetDir: null, bundle: null, smoke: false, full: false,
     threshold: null, baseline: null, saveBaseline: false,
-    output: null, markdown: false, tags: null, scorer: "contains", help: false,
+    output: null, jsonl: null, markdown: false, tags: null, scorer: "contains",
+    fail_fast: false, help: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -199,6 +213,8 @@ function parseArgs(argv: string[]): CliArgs {
     if (arg === "--baseline") { args.baseline = argv[++i]; continue; }
     if (arg === "--save-baseline") { args.saveBaseline = true; continue; }
     if (arg === "--output") { args.output = argv[++i]; continue; }
+    if (arg === "--jsonl") { args.jsonl = argv[++i]; continue; }
+    if (arg === "--fail-fast") { args.fail_fast = true; continue; }
     if (arg === "--markdown") { args.markdown = true; continue; }
     if (arg === "--tags") { args.tags = (argv[++i] ?? "").split(",").filter(Boolean); continue; }
     if (arg === "--scorer") { args.scorer = argv[++i]; continue; }
@@ -217,6 +233,11 @@ const EXECUTOR_MAP: Record<string, () => EvalExecutorLike> = {
   tokenizer: create_tokenizer_executor,
   gateway: create_gateway_executor,
   "output-reduction": create_output_reduction_executor,
+  routing: create_routing_executor,
+  "direct-vs-agent": create_routing_executor,
+  safety: create_safety_executor,
+  compiler: create_compiler_executor,
+  memory: create_memory_executor,
 };
 
 /** 번들 전용 커스텀 scorer — CLI --scorer 플래그보다 우선. */

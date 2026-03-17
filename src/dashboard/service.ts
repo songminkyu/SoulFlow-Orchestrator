@@ -56,6 +56,7 @@ import { handle_references } from "./routes/references.js";
 import { handle_agent_definition } from "./routes/agent-definition.js";
 import { handle_prompt } from "./routes/prompt.js";
 import { handle_usage } from "./routes/usage.js";
+import { handle_eval } from "./routes/eval.js";
 import { dispatch_webhook } from "./routes/webhook.js";
 import { handle_auth } from "./routes/auth.js";
 import { handle_admin } from "./routes/admin.js";
@@ -272,6 +273,7 @@ export class DashboardService implements ServiceLike {
     this.route_map.set("/api/agent-definitions", handle_agent_definition);
     this.route_map.set("/api/prompt", handle_prompt);
     this.route_map.set("/api/usage", handle_usage);
+    this.route_map.set("/api/eval", handle_eval);
     this.route_map.set("/api/stats", handle_health);
     this.route_map.set("/api/dlq", handle_health);
     this.route_map.set("/api/workflow/events", handle_health);

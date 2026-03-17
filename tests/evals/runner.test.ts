@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { EvalRunner } from "../../src/evals/runner.js";
 import { EXACT_MATCH_SCORER, CONTAINS_SCORER, REGEX_SCORER } from "../../src/evals/scorers.js";
+import { RouteMatchJudge, CompositeJudge, StructuredDiffJudge } from "../../src/evals/judges.js";
 import type { EvalDataset, EvalExecutorLike, EvalScorerLike } from "../../src/evals/contracts.js";
 
 /* ── mock executor ─────────────────────────── */
@@ -189,5 +190,84 @@ describe("EvalRunner", () => {
     const runner = new EvalRunner(executor);
     const result = await runner.run_case({ id: "d1", input: "test" }, "test");
     expect(result.duration_ms).toBeGreaterThanOrEqual(15);
+  });
+
+  it("judge가 있으면 scorer 대신 judge로 채점", async () => {
+    const executor = make_executor({ "hello": "world" });
+    const judge = new CompositeJudge([new RouteMatchJudge()]);
+    const runner = new EvalRunner(executor, undefined, { judge });
+    const result = await runner.run_case(
+      { id: "j1", input: "hello", metadata: { expected_route: "direct", actual_route: "direct" } },
+      "test",
+    );
+    expect(result.passed).toBe(true);
+    expect(result.score).toBe(1);
+  });
+
+  it("judge가 route 불일치 감지", async () => {
+    const executor = make_executor({ "hello": "world" });
+    const judge = new CompositeJudge([new RouteMatchJudge()]);
+    const runner = new EvalRunner(executor, undefined, { judge });
+    const result = await runner.run_case(
+      { id: "j2", input: "hello", metadata: { expected_route: "agent", actual_route: "direct" } },
+      "test",
+    );
+    expect(result.passed).toBe(false);
+    expect(result.score).toBe(0);
+  });
+
+  it("executor가 mode/tool_calls_count/trace_id 반환 시 result에 capture", async () => {
+    const executor: EvalExecutorLike = {
+      async execute() { return { output: "ok", mode: "agent" as const, tool_calls_count: 3, trace_id: "tr-123" }; },
+    };
+    const runner = new EvalRunner(executor);
+    const result = await runner.run_case({ id: "c1", input: "test", expected: "ok" }, "test");
+    expect(result.mode).toBe("agent");
+    expect(result.tool_calls_count).toBe(3);
+    expect(result.trace_id).toBe("tr-123");
+  });
+
+  it("fail_fast=true → 첫 실패 후 나머지 스킵", async () => {
+    const executor = make_executor({ "a": "wrong", "b": "correct" });
+    const dataset: EvalDataset = {
+      name: "ff",
+      cases: [
+        { id: "1", input: "a", expected: "correct" },
+        { id: "2", input: "b", expected: "correct" },
+      ],
+    };
+    const runner = new EvalRunner(executor, EXACT_MATCH_SCORER, { fail_fast: true });
+    const summary = await runner.run_dataset(dataset);
+    // 첫 케이스 실패 → 두 번째 실행 안 됨
+    expect(summary.results).toHaveLength(1);
+    expect(summary.results[0].passed).toBe(false);
+  });
+});
+
+describe("StructuredDiffJudge", () => {
+  it("JSON 키 값 일치 → passed", () => {
+    const judge = new StructuredDiffJudge();
+    const sc = judge.judge(
+      { id: "sd1", input: "test", expected: '{"a":1,"b":2}' },
+      '{"a":1,"b":2}',
+    );
+    expect(sc.overall_passed).toBe(true);
+    expect(sc.overall_score).toBe(1);
+  });
+
+  it("JSON 키 값 불일치 → failed + diff keys", () => {
+    const judge = new StructuredDiffJudge();
+    const sc = judge.judge(
+      { id: "sd2", input: "test", expected: '{"a":1,"b":2}' },
+      '{"a":1,"b":99}',
+    );
+    expect(sc.overall_passed).toBe(false);
+    expect(sc.entries[0].detail).toContain("b");
+  });
+
+  it("expected 없으면 자동 통과", () => {
+    const judge = new StructuredDiffJudge();
+    const sc = judge.judge({ id: "sd3", input: "test" }, '{"a":1}');
+    expect(sc.overall_passed).toBe(true);
   });
 });

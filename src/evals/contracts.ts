@@ -7,6 +7,9 @@
 
 /* ── 데이터 모델 ─────────────────────────────── */
 
+/** 실행 경로 타겟. */
+export type EvalTargetMode = "direct" | "model" | "workflow" | "agent";
+
 export interface EvalCase {
   /** 케이스 고유 식별자. */
   id: string;
@@ -14,8 +17,18 @@ export interface EvalCase {
   input: string;
   /** 기대 결과 (scorer가 비교 기준으로 사용). */
   expected?: string;
+  /** 기대 실행 경로. */
+  expected_route?: string;
+  /** 기대 출력 형태 (JSON 키 목록 등). */
+  expected_output_shape?: string[];
+  /** 사용할 judge 프리셋 이름. */
+  judge_profile?: string;
   /** 필터링/그룹핑용 태그. */
   tags?: string[];
+  /** 소속 번들 이름. */
+  bundle?: string;
+  /** 베이스라인 비교 기준 버전. */
+  baseline_version?: string;
   /** 케이스별 추가 메타데이터. */
   metadata?: Record<string, unknown>;
 }
@@ -44,6 +57,12 @@ export interface EvalResult {
   duration_ms: number;
   /** 에러 메시지 (실행 실패 시). */
   error?: string;
+  /** 실행 경로 (direct/model/workflow/agent). */
+  mode?: EvalTargetMode;
+  /** 도구 호출 수. */
+  tool_calls_count?: number;
+  /** observability trace_id. */
+  trace_id?: string;
 }
 
 export interface EvalRunSummary {
@@ -67,7 +86,13 @@ export interface EvalRunSummary {
 
 /** 에이전트/오케스트레이터 실행 추상화. */
 export interface EvalExecutorLike {
-  execute(input: string): Promise<{ output: string; error?: string }>;
+  execute(input: string): Promise<{
+    output: string;
+    error?: string;
+    mode?: EvalTargetMode;
+    tool_calls_count?: number;
+    trace_id?: string;
+  }>;
 }
 
 /** 결과 채점 추상화. */
