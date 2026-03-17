@@ -1,5 +1,5 @@
 import type { MessageBusLike } from "../bus/index.js";
-import type { ProviderRegistry } from "../providers/index.js";
+import type { ProviderRegistryLike } from "../providers/index.js";
 import type { ProviderCapabilities } from "../providers/executor.js";
 import type { ServiceLike } from "../runtime/service.types.js";
 import { ContextBuilder } from "./context.js";
@@ -18,7 +18,7 @@ import {
   create_default_tool_registry,
 } from "./tools/index.js";
 export { PollTool, CanvasTool };
-import type { WorkflowEventService } from "../events/index.js";
+import type { WorkflowEventServiceLike } from "../events/index.js";
 import type { AgentBackendRegistry } from "./agent-registry.js";
 import { seal_inbound_sensitive_text } from "../security/inbound-seal.js";
 import { redact_sensitive_text } from "../security/sensitive.js";
@@ -39,10 +39,10 @@ export class AgentDomain implements ServiceLike {
   constructor(
     workspace: string,
     args?: {
-      providers?: ProviderRegistry | null;
+      providers?: ProviderRegistryLike | null;
       bus?: MessageBusLike | null;
       data_dir?: string;
-      events?: WorkflowEventService | null;
+      events?: WorkflowEventServiceLike | null;
       agent_backends?: AgentBackendRegistry | null;
       secret_vault?: SecretVaultLike | null;
       logger?: Logger | null;

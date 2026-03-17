@@ -50,7 +50,74 @@ function parse_provider_id(raw: string): ProviderId | null {
   return null;
 }
 
-export class ProviderRegistry {
+/** PA-5: ProviderRegistry의 소비자 경계 포트. concrete class를 bootstrap 외부에서 참조하지 않도록 분리. */
+export interface ProviderRegistryLike {
+  list_providers(): ProviderId[];
+  get_active_provider_id(): ProviderId;
+  set_active_provider(provider_id: string): void;
+  get_orchestrator_provider_id(): ProviderId;
+  set_orchestrator_provider(provider_id: string): void;
+  get_provider_instance(provider_id: ProviderId): LlmProvider;
+  get_circuit_breaker(provider_id: ProviderId): CircuitBreaker | undefined;
+  is_provider_available(provider_id: ProviderId): boolean;
+  get_health_scorer(): ProviderHealthScorer;
+  get_secret_vault(): SecretVaultLike;
+  supports_tool_loop(provider_id?: ProviderId): boolean;
+  run_headless(args: {
+    provider_id?: ProviderId;
+    messages: ChatMessage[];
+    tools?: Record<string, unknown>[];
+    runtime_policy?: ChatOptions["runtime_policy"];
+    model?: string;
+    max_tokens?: number;
+    temperature?: number;
+    on_stream?: (chunk: string) => void | Promise<void>;
+    on_stream_event?: ChatOptions["on_stream_event"];
+    abort_signal?: AbortSignal;
+  }): Promise<LlmResponse>;
+  run_headless_prompt(args: {
+    provider_id?: ProviderId;
+    prompt: string;
+    system?: string;
+    runtime_policy?: ChatOptions["runtime_policy"];
+    model?: string;
+    max_tokens?: number;
+    temperature?: number;
+    on_stream?: (chunk: string) => void | Promise<void>;
+    abort_signal?: AbortSignal;
+  }): Promise<LlmResponse>;
+  run_headless_with_context(args: {
+    context_builder: ContextBuilder;
+    provider_id?: ProviderId;
+    history_days: string[];
+    current_message: string;
+    skill_names?: string[] | null;
+    media?: string[] | null;
+    channel?: string | null;
+    chat_id?: string | null;
+    tools?: Record<string, unknown>[];
+    runtime_policy?: ChatOptions["runtime_policy"];
+    model?: string;
+    max_tokens?: number;
+    temperature?: number;
+    on_stream?: (chunk: string) => void | Promise<void>;
+    on_stream_event?: ChatOptions["on_stream_event"];
+    abort_signal?: AbortSignal;
+  }): Promise<LlmResponse>;
+  run_orchestrator(args: {
+    messages: ChatMessage[];
+    tools?: Record<string, unknown>[];
+    provider_id?: ProviderId;
+    model?: string;
+    max_tokens?: number;
+    temperature?: number;
+    on_stream?: (chunk: string) => void | Promise<void>;
+    runtime_policy?: ChatOptions["runtime_policy"];
+    abort_signal?: AbortSignal;
+  }): Promise<LlmResponse>;
+}
+
+export class ProviderRegistry implements ProviderRegistryLike {
   private readonly providers = new Map<ProviderId, LlmProvider>();
   private readonly breakers = new Map<ProviderId, CircuitBreaker>();
   private readonly health_scorer: ProviderHealthScorer;

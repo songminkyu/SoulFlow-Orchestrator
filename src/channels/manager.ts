@@ -1,6 +1,6 @@
 import type { InboundMessage, MediaItem, MessageBusLike, ReliableMessageBus } from "../bus/types.js";
 import { resolve_provider, resolve_reply_to, type ChannelProvider, type ChannelRegistryLike } from "./types.js";
-import type { ProviderRegistry } from "../providers/service.js";
+import type { ProviderRegistryLike } from "../providers/index.js";
 import type { ServiceLike } from "../runtime/service.types.js";
 import type { AppConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
@@ -88,7 +88,7 @@ export type ChannelManagerDeps = {
   session_store?: import("../session/service.js").SessionStoreLike | null;
   media_collector: MediaCollector;
   process_tracker: ProcessTrackerLike | null;
-  providers: ProviderRegistry | null;
+  providers: ProviderRegistryLike | null;
   config: AppConfig["channel"];
   workspace_dir: string;
   logger: Logger;
@@ -137,7 +137,7 @@ export class ChannelManager implements ServiceLike {
   private readonly recorder: SessionRecorder;
   private readonly media: MediaCollector;
   private readonly tracker: ProcessTrackerLike | null;
-  private readonly providers: ProviderRegistry | null;
+  private readonly providers: ProviderRegistryLike | null;
   private readonly config: AppConfig["channel"];
   private readonly workspace_dir: string;
   private readonly logger: Logger;

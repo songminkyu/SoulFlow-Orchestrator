@@ -1,4 +1,5 @@
 export { WorkflowEventService } from "./service.js";
+export type { WorkflowEventServiceLike } from "./service.js";
 export type {
   WorkflowPhase,
   WorkflowEventSource,

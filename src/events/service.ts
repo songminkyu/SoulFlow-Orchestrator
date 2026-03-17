@@ -42,7 +42,15 @@ type DbEventRow = {
   user_id: string;
 };
 
-export class WorkflowEventService {
+/** PA-5: WorkflowEventService의 소비자 경계 포트. concrete class를 bootstrap 외부에서 참조하지 않도록 분리. */
+export interface WorkflowEventServiceLike {
+  append(input: AppendWorkflowEventInput): Promise<AppendWorkflowEventResult>;
+  list(filter?: ListWorkflowEventsFilter): Promise<WorkflowEvent[]>;
+  read_task_detail(task_id: string): Promise<string>;
+  bind_task_store(store: TaskStoreLike | null): void;
+}
+
+export class WorkflowEventService implements WorkflowEventServiceLike {
   readonly root: string;
   readonly events_dir: string;
   readonly sqlite_path: string;

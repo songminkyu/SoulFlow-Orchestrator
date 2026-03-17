@@ -3,7 +3,7 @@
 import { resolve } from "node:path";
 import type { AgentProviderStore } from "../../agent/provider-store.js";
 import type { AgentBackendRegistry } from "../../agent/agent-registry.js";
-import type { ProviderRegistry } from "../../providers/index.js";
+import type { ProviderRegistryLike } from "../../providers/index.js";
 import { create_agent_provider } from "../../agent/provider-factory.js";
 
 /** connection의 api_base를 settings에 머지한 config를 반환. */
@@ -36,7 +36,7 @@ export function is_inside(base: string, target: string): boolean {
 export async function activate_provider(
   store: AgentProviderStore,
   backends: AgentBackendRegistry,
-  registry: ProviderRegistry,
+  registry: ProviderRegistryLike,
   workspace: string,
   instance_id: string,
   token?: string | null,

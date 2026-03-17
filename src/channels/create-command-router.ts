@@ -27,7 +27,7 @@ import type { CronService } from "../cron/index.js";
 import type { DecisionService } from "../decision/index.js";
 import type { ProcessTracker } from "../orchestration/process-tracker.js";
 import type { OrchestrationServiceLike } from "../orchestration/types.js";
-import type { ProviderRegistry } from "../providers/index.js";
+import type { ProviderRegistryLike } from "../providers/index.js";
 import type { AgentBackendRegistry } from "../agent/agent-registry.js";
 import type { McpClientManager } from "../mcp/index.js";
 import type { Logger } from "../logger.js";
@@ -46,7 +46,7 @@ export type CommandRouterDeps = {
   agent_runtime: ReturnType<typeof import("../agent/runtime.service.js").create_agent_runtime>;
   process_tracker: ProcessTracker;
   orchestration: OrchestrationServiceLike;
-  providers: ProviderRegistry;
+  providers: ProviderRegistryLike;
   agent_backend_registry: AgentBackendRegistry;
   mcp: McpClientManager;
   session_recorder: { get_last_assistant_content: (provider: ChannelProvider, chat_id: string, alias: string) => string | Promise<string | null> | null };

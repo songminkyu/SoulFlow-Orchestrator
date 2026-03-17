@@ -8,7 +8,7 @@ import type { MessageBusLike } from "../bus/index.js";
 import type { ChannelManager } from "../channels/index.js";
 import type { DecisionService } from "../decision/index.js";
 import type { PromiseService } from "../decision/promise.service.js";
-import type { WorkflowEventService } from "../events/index.js";
+import type { WorkflowEventServiceLike } from "../events/index.js";
 import type { HeartbeatService } from "../heartbeat/index.js";
 import type { OpsRuntimeService } from "../ops/index.js";
 import type { Logger } from "../logger.js";
@@ -325,7 +325,7 @@ export type DashboardOptions = {
   ops: OpsRuntimeService;
   decisions: DecisionService;
   promises: PromiseService;
-  events: WorkflowEventService;
+  events: WorkflowEventServiceLike;
   process_tracker?: ProcessTrackerLike | null;
   cron?: CronScheduler | null;
   task_ops?: DashboardTaskOps | null;

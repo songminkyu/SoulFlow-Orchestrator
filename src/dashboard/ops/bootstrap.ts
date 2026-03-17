@@ -7,14 +7,14 @@ import { activate_provider } from "./shared.js";
 import type { BootstrapOps } from "../service.js";
 import type { AgentBackendRegistry } from "../../agent/agent-registry.js";
 import type { AgentProviderStore } from "../../agent/provider-store.js";
-import type { ProviderRegistry } from "../../providers/index.js";
+import type { ProviderRegistryLike } from "../../providers/index.js";
 import type { ConfigStore } from "../../config/config-store.js";
 import { list_registered_provider_types } from "../../agent/provider-factory.js";
 
 export function create_bootstrap_ops(deps: {
   provider_store: AgentProviderStore;
   config_store: ConfigStore;
-  provider_registry: ProviderRegistry;
+  provider_registry: ProviderRegistryLike;
   agent_backends: AgentBackendRegistry;
   workspace: string;
 }): BootstrapOps {

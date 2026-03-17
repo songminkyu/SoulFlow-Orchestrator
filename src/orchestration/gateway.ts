@@ -9,7 +9,7 @@ import type { ClassifierContext } from "./classifier.js";
 import { classify_execution_mode } from "./classifier.js";
 import { format_active_task_summary } from "./prompts.js";
 import { resolve_executor_provider, type ExecutorProvider, type ProviderCapabilities } from "../providers/executor.js";
-import type { ProviderRegistry } from "../providers/service.js";
+import type { ProviderRegistryLike } from "../providers/index.js";
 import type { Logger } from "../logger.js";
 import type { TaskState } from "../contracts.js";
 import type { AgentSession } from "../agent/agent.types.js";
@@ -22,7 +22,7 @@ export type GatewayDecision =
   | { action: "execute"; mode: ExecutionMode; executor: ExecutorProvider; workflow_id?: string; tool_categories?: string[]; node_categories?: string[] };
 
 export type GatewayDeps = {
-  providers: ProviderRegistry;
+  providers: ProviderRegistryLike;
   provider_caps: ProviderCapabilities;
   executor_preference: ExecutorProvider;
   session_lookup: (task_id: string) => AgentSession | null;

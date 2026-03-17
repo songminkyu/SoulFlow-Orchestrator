@@ -3,7 +3,7 @@
 import type { OrchestrationRequest, OrchestrationResult } from "../types.js";
 import type { Logger } from "../../logger.js";
 import type { ProcessTrackerLike } from "../process-tracker.js";
-import type { ProviderRegistry } from "../../providers/service.js";
+import type { ProviderRegistryLike } from "../../providers/index.js";
 import type { AgentRuntimeLike } from "../../agent/runtime.types.js";
 import type { HitlPendingStore } from "../hitl-pending-store.js";
 import { NOOP_OBSERVABILITY, type ObservabilityLike } from "../../observability/context.js";
@@ -14,7 +14,7 @@ import { now_iso, error_message, short_id } from "../../utils/common.js";
 import { normalize_json_text } from "../output-contracts.js";
 
 export type PhaseWorkflowDeps = {
-  providers: ProviderRegistry;
+  providers: ProviderRegistryLike;
   runtime: AgentRuntimeLike;
   logger: Logger;
   process_tracker: ProcessTrackerLike | null;

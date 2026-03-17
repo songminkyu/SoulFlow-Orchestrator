@@ -1,6 +1,6 @@
 import type { AgentLoopState, TaskState } from "../contracts.js";
 import type { ContextBuilder } from "./context.js";
-import type { LlmResponse, ProviderId, ProviderRegistry, RuntimeExecutionPolicy, ToolCallRequest } from "../providers/index.js";
+import type { LlmResponse, ProviderId, ProviderRegistryLike, RuntimeExecutionPolicy, ToolCallRequest } from "../providers/index.js";
 
 export type LoopTimestampProvider = () => string;
 
@@ -34,7 +34,7 @@ export type AgentLoopRunOptions = {
   team_id?: string;
   objective: string;
   context_builder: ContextBuilder;
-  providers: ProviderRegistry;
+  providers: ProviderRegistryLike;
   tools?: Record<string, unknown>[];
   runtime_policy?: RuntimeExecutionPolicy;
   provider_id?: ProviderId;

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AgentRuntimeLike } from "../agent/runtime.types.js";
-import type { ProviderRegistry } from "../providers/service.js";
+import type { ProviderRegistryLike } from "../providers/index.js";
 import type { RuntimeExecutionPolicy } from "../providers/types.js";
 import type { RuntimePolicyResolver } from "../channels/runtime-policy.js";
 import type { SecretVaultLike } from "../security/secret-vault.js";
@@ -23,7 +23,7 @@ import type { AgentBackendRegistry } from "../agent/agent-registry.js";
 import type { AgentRunResult } from "../agent/agent.types.js";
 import type { CDObserver } from "../agent/cd-scoring.js";
 import type { ProcessTrackerLike } from "./process-tracker.js";
-import type { WorkflowEventService, AppendWorkflowEventInput } from "../events/index.js";
+import type { WorkflowEventServiceLike, AppendWorkflowEventInput } from "../events/index.js";
 // ── 추출 모듈 ──
 import {
   build_once_overlay, build_agent_overlay, build_bootstrap_overlay,
@@ -88,7 +88,7 @@ type OrchestratorConfig = {
 };
 
 export type OrchestrationServiceDeps = {
-  providers: ProviderRegistry;
+  providers: ProviderRegistryLike;
   agent_runtime: AgentRuntimeLike;
   secret_vault: SecretVaultLike;
   runtime_policy_resolver: RuntimePolicyResolver;
@@ -100,7 +100,7 @@ export type OrchestrationServiceDeps = {
   /** SDK 백엔드에 전달할 MCP 서버 설정 조회. */
   get_mcp_configs?: () => Record<string, { command: string; args?: string[]; env?: Record<string, string>; cwd?: string }>;
   /** 워크플로우 이벤트 기록 서비스. 없으면 이벤트 기록 스킵. */
-  events?: WorkflowEventService | null;
+  events?: WorkflowEventServiceLike | null;
   /** Phase Loop에서 사용할 workspace 경로. */
   workspace?: string;
   /** 워크플로우/스킬 템플릿 로드에 사용할 사용자 콘텐츠 경로. 미설정 시 workspace 사용. */
@@ -153,7 +153,7 @@ export type OrchestrationServiceDeps = {
  * ChannelManager로부터 독립된 단일 책임 서비스.
  */
 export class OrchestrationService implements OrchestrationServiceLike {
-  private readonly providers: ProviderRegistry;
+  private readonly providers: ProviderRegistryLike;
   private readonly runtime: AgentRuntimeLike;
   private readonly vault: SecretVaultLike;
   private readonly policy_resolver: RuntimePolicyResolver;
@@ -162,7 +162,7 @@ export class OrchestrationService implements OrchestrationServiceLike {
   private readonly agent_backends: AgentBackendRegistry | null;
   private readonly process_tracker: ProcessTrackerLike | null;
   private readonly get_mcp_configs: (() => Record<string, { command: string; args?: string[]; env?: Record<string, string>; cwd?: string }>) | null;
-  private readonly events: WorkflowEventService | null;
+  private readonly events: WorkflowEventServiceLike | null;
   private readonly guard: ConfirmationGuard | null;
   private readonly deps: OrchestrationServiceDeps;
   private readonly session_cd: CDObserver;

@@ -5,7 +5,7 @@ import type { AgentHooks } from "../agent/agent.types.js";
 import { FINISH_REASON_WARNINGS } from "../agent/finish-reason-warnings.js";
 import type { ToolSchema } from "../agent/tools/types.js";
 import type { MessageBusLike } from "../bus/index.js";
-import type { WorkflowEventService } from "../events/index.js";
+import type { WorkflowEventServiceLike } from "../events/index.js";
 import type { ProviderCapabilities } from "../providers/executor.js";
 import { parse_executor_preference, resolve_executor_provider } from "../providers/executor.js";
 import { sanitize_provider_output } from "../channels/output-sanitizer.js";
@@ -38,7 +38,7 @@ export type WorkflowTriggerCallback = (template_slug: string, channel: string, c
 export type CronRuntimeHandlerDeps = {
   config: CronConfig;
   bus: MessageBusLike;
-  events: WorkflowEventService;
+  events: WorkflowEventServiceLike;
   agent_runtime: AgentRuntimeLike;
   agent_backends: AgentBackendRegistry;
   secret_vault: SecretVaultLike;

@@ -13,7 +13,7 @@ import type {
   OpenRouterSettings,
   OllamaSettings,
 } from "./provider-settings.types.js";
-import type { ProviderRegistry } from "../providers/service.js";
+import type { ProviderRegistryLike } from "../providers/index.js";
 import { ClaudeSdkAgent } from "./backends/claude-sdk.agent.js";
 import { CodexAppServerAgent } from "./backends/codex-appserver.agent.js";
 import { OpenAiCompatibleAgent } from "./backends/openai-compatible.agent.js";
@@ -24,7 +24,7 @@ import { ClaudeCliAdapter, CodexCliAdapter, GeminiCliAdapter } from "./pty/cli-a
 import { local_pty_factory } from "./pty/local-pty.js";
 import { CliDockerOps } from "./pty/docker-ops.js";
 import { create_docker_pty_factory } from "./pty/docker-pty.js";
-import { resolve_secrets, type SecretMapping } from "./pty/secret-reader.js";
+import { resolve_secrets } from "./pty/secret-reader.js";
 import { ToolBridgeServer } from "./pty/tool-bridge-server.js";
 import { create_logger } from "../logger.js";
 import type { CliAuthService } from "./cli-auth.service.js";
@@ -32,7 +32,7 @@ import type { McpClientManager } from "../mcp/client-manager.js";
 import type { CliAdapter, PtyFactory } from "./pty/types.js";
 
 export type AgentProviderFactoryDeps = {
-  provider_registry: ProviderRegistry;
+  provider_registry: ProviderRegistryLike;
   workspace: string;
   /** CLI 인증 홈 디렉토리 (user_dir/.agents). 미설정 시 process.env.HOME 사용. */
   agents_home?: string;
@@ -84,7 +84,7 @@ function create_cli_backend(
   const default_env: Record<string, string> = {};
   if (deps.agents_home) default_env.HOME = deps.agents_home;
   // env는 JSON 저장 값이므로 런타임 타입 체크 유지 (실제 값이 선언 타입과 다를 수 있음)
-  if (s.env != null && typeof s.env === "object") {
+  if (s.env !== null && s.env !== undefined && typeof s.env === "object") {
     for (const [k, v] of Object.entries(s.env)) {
       if (typeof v === "string") default_env[k] = v;
     }
@@ -128,7 +128,7 @@ function create_cli_backend(
     for (let i = 0; i < s.auth_profiles.length; i++) {
       const entry = s.auth_profiles[i];
       // env는 JSON 저장 값이므로 런타임 타입 체크 유지
-      if (entry?.env != null && typeof entry.env === "object") {
+      if (entry?.env !== null && entry?.env !== undefined && typeof entry.env === "object") {
         const env_map: Record<string, string> = {};
         for (const [k, v] of Object.entries(entry.env)) {
           if (typeof v === "string") env_map[k] = v;

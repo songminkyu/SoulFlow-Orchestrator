@@ -1,24 +1,22 @@
 ## 감사 범위
-- [합의완료] GW-Track7 — 반려 전수 폐쇄 + 보안/영속/계약 수정 + 직접 회귀 테스트
+- [합의완료] PA-Track6 Residual — PA-5 outbound port + PA-7 import boundary + lint 수정
 
 ## 독립 검증 결과
-- `docs/feedback/claude.md`의 claim, 변경 파일, 테스트 명령을 다시 추출하고 관련 코드와 테스트 파일을 직접 확인했다.
-- `claude.md`의 변경 파일 목록은 실제로 21개였고, 21개 각각에 대해 파일별 `npx eslint <file>`를 분리 실행해 모두 통과했다.
-- 증거 명령 `npx vitest run tests/orchestration/gateway-contracts.test.ts tests/orchestration/execute-dispatcher.test.ts tests/orchestration/execution-gateway.test.ts tests/channel/ tests/dashboard/`를 재실행한 결과 `97 files / 2065 tests passed`였다.
-- FE 렌더 테스트 `cd web && npx vitest run tests/pages/chat-message-list-delivery.test.tsx tests/pages/workflows/detail-badges.test.tsx`를 재실행한 결과 `2 files / 18 tests passed`였다.
-- 추가로 `npx vitest run tests/orchestration/service-mock-preflight.test.ts`를 재실행한 결과 `1 file / 34 tests passed`였다.
-- `npx tsc --noEmit`를 실행해 통과를 확인했다.
-- `src/channels/manager.ts`의 builtin web flush, `src/dashboard/service.ts`의 delivery trace SessionStore 영속/복원, `src/orchestration/gateway-contracts.ts`의 direct_tool `no_token` 계약 보정과 이를 잠그는 신규 직접 테스트가 현재 코드와 일치했다.
+- `docs/feedback/claude.md`의 미합의 claim 1건, 변경 파일 23개, 증거 테스트 명령 1개를 다시 추출하고 관련 코드와 테스트를 직접 확인했다.
+- 변경 파일 23개에 대해 파일별 `npx eslint <file>`를 분리 실행해 모두 통과했다.
+- 증거 명령 `npx vitest run tests/architecture/di-boundaries.test.ts tests/orchestration/ tests/channel/ tests/dashboard/`를 재실행한 결과 `173 files / 3317 tests passed`였다.
+- `npx tsc --noEmit`를 재실행해 통과를 확인했다.
+- `src/agent/provider-factory.ts`의 lint 수정, `src/agent/phase-loop-runner.ts`의 `ProviderRegistryLike` 경로 정규화, `src/providers/service.ts` / `src/events/service.ts`의 포트 추출, `tests/architecture/di-boundaries.test.ts`의 11개 경계 테스트를 현재 코드에서 직접 확인했다.
 - 현재 코드 범위에서는 SOLID/YAGNI/DRY/KISS/LoD 구조 회귀나 OWASP Top 10 기준의 새로운 고위험 취약점은 확인하지 못했다.
 
 ## 최종 판정
-- [합의완료] GW-Track7 — 반려 전수 폐쇄 + 보안/영속/계약 수정 + 직접 회귀 테스트
+- [합의완료] PA-Track6 Residual — PA-5 outbound port + PA-7 import boundary + lint 수정
 
 ## 핵심 근거
-- 이전 blocker였던 builtin web 경로는 `tests/channel/channel-manager.test.ts`의 신규 케이스로 `done=true` flush를 직접 검증한다.
-- delivery trace 3필드 영속/복원은 `tests/dashboard/web-session-persistence.test.ts`의 신규 2개 케이스로 직접 잠겨 있다.
-- direct_tool `cost_tier=no_token` 계약은 `tests/orchestration/gateway-contracts.test.ts`의 신규 케이스들로 직접 검증된다.
-- lint, backend/FE vitest, 추가 단독 vitest, `tsc --noEmit`가 모두 green이므로 현재 감사 범위는 닫을 수 있다.
+- 이전 반려였던 `src/agent/provider-factory.ts`의 eslint 3건은 현재 파일별 재실행에서 모두 해소됐다.
+- `src/agent/phase-loop-runner.ts`는 이제 `import("../providers/index.js").ProviderRegistryLike`를 사용해 claude claim의 경로 정규화와 일치한다.
+- `ProviderRegistryLike` 16건, `WorkflowEventServiceLike` 4건의 소비자 전환과 concrete import confinement 3케이스는 현재 `src/` 및 `tests/architecture/di-boundaries.test.ts`와 일치한다.
+- 파일별 eslint, 증거 vitest, `npx tsc --noEmit`가 모두 green이므로 현재 감사 범위는 닫을 수 있다.
 
 ## 다음 작업
 

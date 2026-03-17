@@ -117,6 +117,60 @@ describe("DI boundary — concrete service import confinement", () => {
   });
 });
 
+describe("PA-5 — outbound port concrete import confinement", () => {
+  const all_files = collect_ts_files(SRC);
+
+  it("ProviderRegistry concrete import는 정의 파일 + index + bootstrap + main에만 존재", () => {
+    const allowed = new Set([
+      "providers/service.ts",         // 클래스 정의
+      "providers/index.ts",           // re-export
+      "bootstrap/providers.ts",       // composition root
+      "bootstrap/channel-wiring.ts",  // composition root
+      "bootstrap/agent-core.ts",      // composition root
+      "bootstrap/runtime-support.ts", // composition root
+      "bootstrap/runtime-tools.ts",   // composition root
+      "bootstrap/orchestration.ts",   // composition root
+      "bootstrap/dashboard.ts",       // composition root
+      "bootstrap/workflow-ops.ts",    // composition root
+      "main.ts",
+    ]);
+    const violators = find_concrete_imports(
+      all_files,
+      /import\s*\{[^}]*\bProviderRegistry\b/,
+    ).filter((f) => !allowed.has(f));
+    expect(violators, `ProviderRegistry concrete import 누출: ${violators.join(", ")}`).toEqual([]);
+  });
+
+  it("WorkflowEventService concrete import는 정의 파일 + index + bootstrap + main에만 존재", () => {
+    const allowed = new Set([
+      "events/service.ts",            // 클래스 정의
+      "events/index.ts",              // re-export
+      "bootstrap/runtime-data.ts",    // composition root
+      "bootstrap/agent-core.ts",      // composition root
+      "bootstrap/orchestration.ts",   // composition root
+      "bootstrap/dashboard.ts",       // composition root
+      "main.ts",
+    ]);
+    const violators = find_concrete_imports(
+      all_files,
+      /import\s*\{[^}]*\bWorkflowEventService\b/,
+    ).filter((f) => !allowed.has(f));
+    expect(violators, `WorkflowEventService concrete import 누출: ${violators.join(", ")}`).toEqual([]);
+  });
+
+  it("MutableBroadcaster concrete import는 정의 파일 + main에만 존재", () => {
+    const allowed = new Set([
+      "dashboard/sse-manager.ts",     // 클래스 정의
+      "main.ts",
+    ]);
+    const violators = find_concrete_imports(
+      all_files,
+      /import\s*\{[^}]*\bMutableBroadcaster\b/,
+    ).filter((f) => !allowed.has(f));
+    expect(violators, `MutableBroadcaster concrete import 누출: ${violators.join(", ")}`).toEqual([]);
+  });
+});
+
 describe("PA-4 — application service는 concrete gateway/executor를 직접 import하지 않음", () => {
   const all_files = collect_ts_files(SRC);
 

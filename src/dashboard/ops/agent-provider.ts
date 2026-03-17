@@ -11,12 +11,12 @@ import { activate_provider, apply_connection_api_base } from "./shared.js";
 import type { DashboardAgentProviderOps, ProviderConnectionInfo } from "../service.js";
 import type { AgentBackendRegistry } from "../../agent/agent-registry.js";
 import type { AgentProviderStore } from "../../agent/provider-store.js";
-import type { ProviderRegistry } from "../../providers/index.js";
+import type { ProviderRegistryLike } from "../../providers/index.js";
 
 export function create_agent_provider_ops(deps: {
   provider_store: AgentProviderStore;
   agent_backends: AgentBackendRegistry;
-  provider_registry: ProviderRegistry;
+  provider_registry: ProviderRegistryLike;
   workspace: string;
 }): DashboardAgentProviderOps {
   const { provider_store, agent_backends, provider_registry, workspace } = deps;

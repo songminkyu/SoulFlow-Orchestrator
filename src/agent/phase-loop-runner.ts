@@ -48,7 +48,7 @@ export type PhaseLoopRunnerDeps = {
   /** 워크플로우 템플릿 로더 (sub_workflow 노드용). */
   load_template?: (name: string) => import("./phase-loop.types.js").WorkflowDefinition | null;
   /** LLM provider 레지스트리 (llm, analyzer 노드용). */
-  providers?: import("../providers/service.js").ProviderRegistry | null;
+  providers?: import("../providers/index.js").ProviderRegistryLike | null;
   /** DecisionService (decision 노드용). */
   decision_service?: import("../decision/service.js").DecisionService | null;
   /** PromiseService (promise 노드용). */

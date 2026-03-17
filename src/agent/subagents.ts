@@ -1,6 +1,6 @@
 import type { Logger } from "../logger.js";
 import { now_iso, now_seoul_iso, error_message, short_id, normalize_text, sleep } from "../utils/common.js";
-import type { ChatMessage, ProviderId, ProviderRegistry, ToolCallRequest } from "../providers/index.js";
+import type { ChatMessage, ProviderId, ProviderRegistryLike, ToolCallRequest } from "../providers/index.js";
 import { create_default_tool_registry, type ToolRegistry } from "./tools.js";
 import type { MessageBusLike } from "../bus/index.js";
 import type { ContextBuilder } from "./context.js";
@@ -79,7 +79,7 @@ export class SubagentRegistry {
   private readonly items = new Map<string, SubagentRef>();
   private readonly running = new Map<string, RunningSubagent>();
   private readonly workspace: string;
-  private readonly providers: ProviderRegistry | null;
+  private readonly providers: ProviderRegistryLike | null;
   private readonly bus: MessageBusLike | null;
   private readonly build_tools: () => ToolRegistry;
   private readonly context_builder: ContextBuilder | null;
@@ -89,7 +89,7 @@ export class SubagentRegistry {
 
   constructor(args?: {
     workspace?: string;
-    providers?: ProviderRegistry | null;
+    providers?: ProviderRegistryLike | null;
     bus?: MessageBusLike | null;
     build_tools?: (() => ToolRegistry) | null;
     context_builder?: ContextBuilder | null;

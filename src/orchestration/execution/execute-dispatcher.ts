@@ -7,7 +7,7 @@
 import type { RunExecutionArgs } from "./runner-deps.js";
 import type { OrchestrationRequest, OrchestrationResult } from "../types.js";
 import type { ReadyPreflight } from "../request-preflight.js";
-import type { ProviderRegistry } from "../../providers/service.js";
+import type { ProviderRegistryLike } from "../../providers/index.js";
 import type { ExecutorProvider, ProviderCapabilities } from "../../providers/executor.js";
 import { resolve_executor_provider } from "../../providers/executor.js";
 import type { AgentRuntimeLike } from "../../agent/runtime.types.js";
@@ -31,7 +31,7 @@ import { now_ms } from "../../utils/common.js";
 const VALIDATION_ROLES = new Set(["validator", "reviewer"]);
 
 export type ExecuteDispatcherDeps = {
-  providers: ProviderRegistry;
+  providers: ProviderRegistryLike;
   runtime: AgentRuntimeLike;
   logger: Logger;
   config: {

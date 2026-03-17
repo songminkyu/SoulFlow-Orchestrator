@@ -1,5 +1,5 @@
 import { error_message } from "../utils/common.js";
-import type { ProviderRegistry } from "../providers/service.js";
+import type { ProviderRegistryLike } from "../providers/index.js";
 import { CircuitBreaker } from "../providers/circuit-breaker.js";
 import type { ProviderId } from "../providers/types.js";
 import type { ExecutionMode } from "../orchestration/types.js";
@@ -48,7 +48,7 @@ export class AgentBackendRegistry {
   private readonly backends = new Map<AgentBackendId, AgentBackend>();
   private readonly breakers = new Map<AgentBackendId, CircuitBreaker>();
   private readonly provider_configs = new Map<AgentBackendId, AgentProviderConfig>();
-  private readonly provider_registry: ProviderRegistry;
+  private readonly provider_registry: ProviderRegistryLike;
   private readonly config: AgentBackendConfig;
   private readonly session_store: AgentSessionStore | null;
   private readonly _provider_store: AgentProviderStore | null;
@@ -56,7 +56,7 @@ export class AgentBackendRegistry {
   private readonly _metrics: import("../observability/metrics.js").MetricsSinkLike | null;
 
   constructor(deps: {
-    provider_registry: ProviderRegistry;
+    provider_registry: ProviderRegistryLike;
     backends?: AgentBackend[];
     config?: AgentBackendConfig;
     provider_store?: AgentProviderStore | null;

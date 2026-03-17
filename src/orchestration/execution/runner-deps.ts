@@ -7,7 +7,7 @@ import type { AgentRuntimeLike } from "../../agent/runtime.types.js";
 import type { ToolExecutionContext } from "../../agent/tools/types.js";
 import type { StreamBuffer } from "../../channels/stream-buffer.js";
 import type { RuntimeExecutionPolicy } from "../../providers/types.js";
-import type { ProviderRegistry } from "../../providers/service.js";
+import type { ProviderRegistryLike } from "../../providers/index.js";
 import type { ExecutorProvider } from "../../providers/executor.js";
 import type { Logger } from "../../logger.js";
 import type { ProcessTrackerLike } from "../process-tracker.js";
@@ -57,7 +57,7 @@ export function streaming_cfg_for(base: StreamingConfig, provider: string): Stre
 
 /** OrchestrationService에서 runner 함수로 전달되는 공유 의존성. */
 export type RunnerDeps = {
-  providers: ProviderRegistry;
+  providers: ProviderRegistryLike;
   runtime: AgentRuntimeLike;
   /** OB: observability 주입. 미설정 시 no-op. */
   observability?: import("../../observability/context.js").ObservabilityLike | null;

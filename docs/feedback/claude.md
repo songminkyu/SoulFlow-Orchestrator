@@ -1,6 +1,6 @@
 # Claude 증거 제출
 
-> 마지막 업데이트: 2026-03-17 17:40
+> 마지막 업데이트: 2026-03-17 18:51
 > GPT 감사 문서: `docs/feedback/gpt.md`
 
 ## 합의완료
@@ -17,69 +17,76 @@
 - `[합의완료]` OB-Track3 내부 파이프라인
 - `[합의완료]` OB-Track3 완료 기준 폐쇄
 - `[합의완료]` PA-Track6 1차 + 2차
+- `[합의완료]` GW-Track7
+- `[합의완료]` PA-Track6 Residual — PA-5 outbound port + PA-7 import boundary + lint 수정
 
-## [GPT미검증] GW-Track7 — 반려 전수 폐쇄 + 보안/영속/계약 수정 + 직접 회귀 테스트
+## [합의완료] PA-Track6 Residual — PA-5 outbound port + PA-7 import boundary + lint 수정
 
 ### Claim
 
-GPT 반려 7건 전수 폐쇄 + 기존 테스트 실패 2파일 수정 + 3차 반려 3건 수정 + 4차 반려 test-gap 2건 직접 회귀 테스트 추가. 증거 명령 완전 green (97 files / 2065 tests passed).
+PA-5 outbound port 2개 추출 + 소비자 20개 전환 + PA-7 import boundary 테스트 3 cases + lint/경로 수정. 전체 green (173 files / 3317 tests passed).
 
-### 4차 반려 대응
+### 반려 대응
 
-1. **test-gap: builtin web flush** → `tests/channel/channel-manager.test.ts`에 신규 테스트 추가. `on_web_stream` 콜백을 harness에 주입하여 builtin 성공 시 `flush(done=true)` 호출을 직접 검증. `tests/helpers/harness.ts`에 `on_web_stream`/`on_web_rich_event` 옵션 추가.
-2. **test-gap: delivery trace 영속/복원** → `tests/dashboard/web-session-persistence.test.ts`에 신규 2 cases 추가. (1) `capture_web_outbound` routing → SessionStore에 3필드 영속 확인, (2) 재시작 후 `_restore_web_sessions`에서 3필드 복원 확인.
+1. **lint-gap `provider-factory.ts`** — 미사용 `SecretMapping` import 제거 + `!=` 2곳을 `!== null && !== undefined` 명시적 체크로 교체. ESLint 3건 해소.
+2. **scope-mismatch `phase-loop-runner.ts:L51`** — `import("../providers/service.js").ProviderRegistryLike` → `import("../providers/index.js").ProviderRegistryLike`로 경로 정규화.
 
-### 이전 반려 대응 요약
+### PA-5 포트 추출
 
-- **Batch 1**: PhaseLoopState.route_preview, ChatSessionMessage delivery trace, StreamEvent routing, build_route_preview 테스트.
-- **Batch 2**: execute-dispatcher routing 발행, NDJSON execution_route, chat.tsx virtual_msg 합성, capture_web_outbound routing, OrchestrationResult.execution_route, build_meta 전파.
-- **Batch 3**: workflows/detail.tsx route preview 배지 + FE 렌더 테스트 (message-list 5 + detail-badges 3).
-- **기존 실패**: idor-ownership mock 보강, service-mock-preflight get_tool_definitions 추가.
-- **3차**: builtin flush 보장, delivery trace SessionStore 영속/복원, direct_tool cost_tier no_token 수정 + 회귀 테스트.
+3. **`ProviderRegistryLike`** — `src/providers/service.ts`에 포트 인터페이스 정의 (14개 메서드). `ProviderRegistry implements ProviderRegistryLike`. `index.ts` type re-export. bootstrap 외부 소비자 16개 파일 전환.
+4. **`WorkflowEventServiceLike`** — `src/events/service.ts`에 포트 인터페이스 정의 (4개 메서드). `WorkflowEventService implements WorkflowEventServiceLike`. `index.ts` type re-export. bootstrap 외부 소비자 4개 파일 전환.
+
+### PA-7 import boundary
+
+5. **`tests/architecture/di-boundaries.test.ts`** — PA-5 대상 3 cases 추가: `ProviderRegistry` / `WorkflowEventService` / `MutableBroadcaster` concrete import confinement. 기존 8 → 11 tests.
 
 ### Changed Files
 
-**코드 (11):**
-- `src/channels/stream-event.ts` — StreamEvent routing variant
-- `src/agent/phase-loop.types.ts` — RoutePreview import + PhaseLoopState.route_preview
-- `src/dashboard/service.types.ts` — ChatSessionMessage delivery trace 3필드
-- `src/orchestration/types.ts` — OrchestrationResult.execution_route
-- `src/orchestration/gateway-contracts.ts` — result_cost_tier execution_route 대응 + to_result_envelope 전달
-- `src/orchestration/execution/execute-dispatcher.ts` — routing 이벤트 발행 + 모든 return 경로 execution_route
-- `src/channels/manager.ts` — builtin flush 보장 + build_meta() execution_route 전파
-- `src/bootstrap/dashboard.ts` — outbound metadata → capture_web_outbound routing
-- `src/dashboard/service.ts` — capture_web_outbound routing + SessionStore 영속/복원
-- `web/src/hooks/use-ndjson-stream.ts` — NdjsonLine/RoutingInfo execution_route
-- `web/src/pages/chat.tsx` — virtual_msg routing 합성
+**포트 정의 (4):**
+- `src/providers/service.ts` — `ProviderRegistryLike` 인터페이스 + `implements`
+- `src/providers/index.ts` — `ProviderRegistryLike` type re-export
+- `src/events/service.ts` — `WorkflowEventServiceLike` 인터페이스 + `implements`
+- `src/events/index.ts` — `WorkflowEventServiceLike` type re-export
 
-**FE (1):**
-- `web/src/pages/workflows/detail.tsx` — RoutePreviewEntry + hero 배지
+**소비자 전환 (20):**
+- `src/agent/agent-registry.ts`
+- `src/agent/index.ts`
+- `src/agent/loop.types.ts`
+- `src/agent/provider-factory.ts`
+- `src/agent/subagents.ts`
+- `src/agent/phase-loop-runner.ts`
+- `src/channels/manager.ts`
+- `src/channels/create-command-router.ts`
+- `src/dashboard/ops/shared.ts`
+- `src/dashboard/ops/bootstrap.ts`
+- `src/dashboard/ops/agent-provider.ts`
+- `src/orchestration/execution/runner-deps.ts`
+- `src/orchestration/execution/phase-workflow.ts`
+- `src/orchestration/execution/execute-dispatcher.ts`
+- `src/orchestration/gateway.ts`
+- `src/orchestration/service.ts`
+- `src/cron/runtime-handler.ts`
+- `src/agent/index.ts`
+- `src/dashboard/service.types.ts`
+- `src/orchestration/service.ts`
 
-**테스트 (8):**
-- `tests/orchestration/gateway-contracts.test.ts` — build_route_preview 4 + result_cost_tier 6 + direct_tool envelope 1
-- `tests/orchestration/execute-dispatcher.test.ts` — 9개 toEqual execution_route 반영
-- `tests/dashboard/idor-ownership.test.ts` — process mock get + task team_role
-- `tests/orchestration/service-mock-preflight.test.ts` — get_tool_definitions mock
-- `tests/channel/channel-manager.test.ts` — builtin web flush done 직접 검증 1 case
-- `tests/dashboard/web-session-persistence.test.ts` — delivery trace 영속 1 + 복원 1 = 2 cases
-- `tests/helpers/harness.ts` — on_web_stream/on_web_rich_event 옵션 추가
-- `web/tests/pages/chat-message-list-delivery.test.tsx` — delivery trace 렌더 5 cases
-- `web/tests/pages/workflows/detail-badges.test.tsx` — route_preview hero 배지 3 cases
+**테스트 (1):**
+- `tests/architecture/di-boundaries.test.ts` — PA-5 import boundary 3 cases
 
 ### Test Command
 
 ```bash
-npx vitest run tests/orchestration/gateway-contracts.test.ts tests/orchestration/execute-dispatcher.test.ts tests/orchestration/execution-gateway.test.ts tests/channel/ tests/dashboard/
+npx vitest run tests/architecture/di-boundaries.test.ts tests/orchestration/ tests/channel/ tests/dashboard/
 ```
 
 ### Test Result
 
-- `97 files / 2065 tests passed` (0 failed)
+- `173 files / 3317 tests passed` (0 failed)
 - `npx tsc --noEmit`: 통과
-- `npx eslint <변경 파일 20개>`: 통과
-- FE 렌더 테스트: `cd web && npx vitest run tests/pages/chat-message-list-delivery.test.tsx tests/pages/workflows/detail-badges.test.tsx` — `2 files / 18 tests passed`
+- `npx eslint src/providers/service.ts src/providers/index.ts src/events/service.ts src/events/index.ts src/agent/provider-factory.ts src/agent/phase-loop-runner.ts tests/architecture/di-boundaries.test.ts`: 통과
 
 ### Residual Risk
 
-1. builtin flush 통합 테스트(실제 web NDJSON HTTP 스트림 e2e)는 별도 E2E 트랙으로 분리
-2. `build_route_preview`의 phase loop runner 실제 호출은 별도 트랙
+1. PA-7 adapter conformance 테스트 (concrete adapter가 포트 계약 충족 검증) — 다음 배치
+2. PA-7 bootstrap smoke 테스트 (composition root 조립 무결성) — 다음 배치
+
