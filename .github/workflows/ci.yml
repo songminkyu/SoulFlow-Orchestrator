@@ -107,6 +107,7 @@ jobs:
         run: |
           npx vitest run \
             --reporter=blob \
+            --reporter=default \
             --coverage \
             --shard=${{ matrix.shard }}/${{ matrix.total }}
         env:

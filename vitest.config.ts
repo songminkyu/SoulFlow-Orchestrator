@@ -57,15 +57,17 @@ export default defineConfig({
       reportsDirectory: "coverage",
       reportOnFailure: true,
       // shard 실행 시 개별 shard가 전체 커버리지를 채울 수 없으므로 threshold 비활성화
-      // threshold 체크는 merge job에서 수행
-      thresholds: process.env.VITEST_SHARD
-        ? undefined
+      // threshold 체크는 merge job에서만 수행
+      ...(process.env.VITEST_SHARD
+        ? {}
         : {
-            lines: 85,
-            statements: 85,
-            branches: 75,
-            functions: 85,
-          },
+            thresholds: {
+              lines: 85,
+              statements: 85,
+              branches: 75,
+              functions: 85,
+            },
+          }),
     },
   },
 });
