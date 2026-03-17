@@ -211,6 +211,7 @@ export default function WorkflowDetailPage() {
                 <Badge status={wf.status} variant={STATUS_VARIANT[wf.status] || "off"} />
                 <Badge status={`${done_agents}/${total_agents} agents`} variant="info" />
                 <Badge status={`Phase ${wf.current_phase + 1}/${wf.phases.length}`} variant="off" />
+                <Badge status="workflow" variant="info" />
                 <span className="wf-detail__time" title={new Date(wf.updated_at).toLocaleString()}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   {time_ago(wf.updated_at)}

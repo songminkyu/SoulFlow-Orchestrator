@@ -110,6 +110,26 @@ export function to_result_envelope(
   };
 }
 
+/** GW-5: 워크플로우/실행 경로 미리보기 계약. */
+export type RoutePreview = {
+  plan_kind: RequestPlan["kind"];
+  cost_tier: CostTier;
+  direct_node_count: number;
+  agent_node_count: number;
+  total_node_count: number;
+};
+
+/** RequestPlan에서 RoutePreview 생성. */
+export function build_route_preview(plan: RequestPlan, node_stats?: { direct: number; agent: number; total: number }): RoutePreview {
+  return {
+    plan_kind: plan.kind,
+    cost_tier: plan.route,
+    direct_node_count: node_stats?.direct ?? 0,
+    agent_node_count: node_stats?.agent ?? 0,
+    total_node_count: node_stats?.total ?? 0,
+  };
+}
+
 /** ExecutionMode → CostTier 매핑. */
 export function result_cost_tier(mode: ExecutionMode): CostTier {
   if (mode === "once") return "model_direct";

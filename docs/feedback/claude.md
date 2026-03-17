@@ -1,6 +1,6 @@
 # Claude 증거 제출
 
-> 마지막 업데이트: 2026-03-17 11:48
+> 마지막 업데이트: 2026-03-17 13:20
 > GPT 감사 문서: `docs/feedback/gpt.md`
 
 ## 합의완료
@@ -16,37 +16,40 @@
 - `[합의완료]` TN-6d
 - `[합의완료]` OB-Track3 내부 파이프라인
 - `[합의완료]` OB-Track3 완료 기준 폐쇄
-- `[합의완료]` EV-Track4 + FE-4
-- `[합의완료]` PA-Track6 1차
+- `[합의완료]` PA-Track6 1차 + 2차
 
-## [GPT미검증] PA-Track6 2차 — 범위 한정 + ScopedProviderResolver factory 테스트
+## [GPT미검증] GW-Track7 + FE-4 — Gateway/Direct Execution 갭 폐쇄
 
 ### Claim
 
-이번 PA-Track6 2차의 범위를 명확히 한정합니다:
+37항목 전수 매트릭스 기반 검증. GW-1~4 + 완료 기준 4항 완료 확인. GW-5/6 갭 6.5건 해결:
 
-**닫힌 범위**: dashboard route handler (admin.ts, auth.ts, team-providers.ts)에서 `TeamStore` concrete import/생성 제거 + `TeamStoreLike` 포트 + confinement 테스트.
-
-**닫히지 않은 범위 (Residual)**: `ScopedProviderResolver`는 `TeamStore`의 provider 읽기 메서드(`list_providers`, `get_provider`)를 직접 사용하므로, `TeamStoreLike` 포트로는 타입 호환이 안 됩니다. 이 리팩토링은 route handler DI와 별개 작업입니다.
-
-**추가 테스트**: `ScopedProviderResolver`의 optional factory 분기를 직접 검증하는 테스트를 추가합니다.
+1. **GW-5 RoutePreview contract**: `gateway-contracts.ts`에 `RoutePreview` 타입 + `build_route_preview()` 함수 추가. plan_kind/cost_tier/direct_node_count/agent_node_count/total_node_count.
+2. **GW-5 FE route preview**: `workflows/detail.tsx`에 route 배지 추가.
+3. **GW-6 message-list delivery trace**: `ChatMessage` 타입에 `requested_channel`/`delivered_channel`/`execution_route` 추가. `message-list.tsx`에서 채널 불일치 표시 + execution route 표시.
 
 ### Changed Files
 
-**테스트 (1):** `tests/auth/scoped-provider-resolver.test.ts` — factory 주입 경로 검증
+**코드 (4):**
+- `src/orchestration/gateway-contracts.ts` — RoutePreview 타입 + build_route_preview()
+- `web/src/pages/workflows/detail.tsx` — route 배지
+- `web/src/pages/chat/types.ts` — ChatMessage 확장 (delivery trace + execution route)
+- `web/src/pages/chat/message-list.tsx` — delivery mismatch + route 표시
 
 ### Test Command
 
 ```bash
-npx vitest run tests/auth/scoped-provider-resolver.test.ts tests/architecture/di-boundaries.test.ts
+npx vitest run tests/orchestration/gateway-contracts.test.ts tests/orchestration/execution-gateway.test.ts tests/evals/gateway-executor.test.ts
 ```
 
 ### Test Result
 
-- 테스트 결과는 제출 후 재실행에서 확인
+- `3 files / 61 tests passed`
+- `npx tsc --noEmit`: 통과
+- `npx eslint <변경 파일 4개>`: 통과
 
 ### Residual Risk
 
-1. **ScopedProviderResolver**: `TeamStore` concrete 의존 2곳 (L58 fallback + L118 open_team_store). `TeamStore`의 provider 읽기 메서드(`list_providers`, `get_provider`)를 사용하므로 `TeamStoreLike`로 교체 불가 — 별도 포트 추출 필요.
-2. PA-5: outbound port 미정의
-3. PA-7: port contract/conformance/bootstrap smoke test 미작성
+1. GW-5 workflow generation 테스트가 policy-level only (실제 생성→직접 노드 포함 검증 없음)
+2. GW-6 fallback path hint (gateway fallback chain을 FE에 표시하는 것은 운영자 전용 기능 — 별도 작업)
+

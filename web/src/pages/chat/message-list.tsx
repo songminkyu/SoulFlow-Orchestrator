@@ -32,13 +32,27 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(function
 
         {props.messages.map((m, i) => {
           const is_streaming_bubble = props.is_streaming && i === last_idx && m.direction === "assistant";
+          const has_mismatch = m.requested_channel && m.delivered_channel && m.requested_channel !== m.delivered_channel;
           return (
-            <ChatMessageBubble
-              key={`${m.at}-${m.direction}-${i}`}
-              message={m}
-              streaming={is_streaming_bubble}
-              thinking_blocks={is_streaming_bubble ? props.thinking_blocks : undefined}
-            />
+            <div key={`${m.at}-${m.direction}-${i}`}>
+              <ChatMessageBubble
+                message={m}
+                streaming={is_streaming_bubble}
+                thinking_blocks={is_streaming_bubble ? props.thinking_blocks : undefined}
+              />
+              {/* GW-6: delivery trace — 채널 불일치 표시 */}
+              {has_mismatch && (
+                <div className="text-xs text-muted" style={{ paddingLeft: 12, marginTop: -4, marginBottom: 8 }}>
+                  {m.requested_channel} → {m.delivered_channel}
+                </div>
+              )}
+              {/* GW-6: execution route 표시 */}
+              {m.execution_route && m.direction === "assistant" && (
+                <div className="text-xs text-muted" style={{ paddingLeft: 12, marginTop: -4, marginBottom: 8 }}>
+                  route: {m.execution_route}
+                </div>
+              )}
+            </div>
           );
         })}
 

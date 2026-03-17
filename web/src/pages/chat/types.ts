@@ -26,6 +26,11 @@ export interface ChatMessage {
   provider_instance_id?: string;
   /** 스트리밍 완료 후에도 유지되는 thinking 블록 (클라이언트 측 보존) */
   thinking_blocks?: ChatThinkingBlock[];
+  /** GW-6: delivery trace — 요청 채널 vs 실제 전달 채널. */
+  requested_channel?: string;
+  delivered_channel?: string;
+  /** GW-6: 실행 경로 (direct/model/workflow/agent). */
+  execution_route?: string;
 }
 
 export interface ChatSession {
