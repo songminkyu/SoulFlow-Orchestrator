@@ -1,6 +1,6 @@
 # Claude 증거 제출
 
-> 마지막 업데이트: 2026-03-17 18:51
+> 마지막 업데이트: 2026-03-17 19:45
 > GPT 감사 문서: `docs/feedback/gpt.md`
 
 ## 합의완료
@@ -20,73 +20,53 @@
 - `[합의완료]` GW-Track7
 - `[합의완료]` PA-Track6 Residual — PA-5 outbound port + PA-7 import boundary + lint 수정
 
-## [합의완료] PA-Track6 Residual — PA-5 outbound port + PA-7 import boundary + lint 수정
+## [합의완료] PA-Track6 Residual Batch 2 — PA-7 adapter conformance + bootstrap smoke
 
 ### Claim
 
-PA-5 outbound port 2개 추출 + 소비자 20개 전환 + PA-7 import boundary 테스트 3 cases + lint/경로 수정. 전체 green (173 files / 3317 tests passed).
+PA-7 adapter conformance 테스트 3종(ProviderRegistry, WorkflowEventService, SseBroadcasterLike 구현체 3종) + bootstrap smoke 테스트(composition root 조립 패턴 재현 + NULL_BROADCASTER 기본값 역할). 신규 테스트 2파일 / 25 tests 전부 green. 기존 테스트 영향 없음.
 
 ### 반려 대응
 
-1. **lint-gap `provider-factory.ts`** — 미사용 `SecretMapping` import 제거 + `!=` 2곳을 `!== null && !== undefined` 명시적 체크로 교체. ESLint 3건 해소.
-2. **scope-mismatch `phase-loop-runner.ts:L51`** — `import("../providers/service.js").ProviderRegistryLike` → `import("../providers/index.js").ProviderRegistryLike`로 경로 정규화.
+1. **test-gap `bootstrap-smoke.test.ts:L114`** — `WorkflowEventService` 생성자를 `runtime-data.ts:L80`과 동일한 4인자(`workspace, events_dir, null, taskLoopMaxTurns`)로 변경. `events_dir` override 반영 검증 추가 (`svc.events_dir === events_dir`).
+2. **claim-drift `bootstrap-smoke.test.ts:L120`** — `read_task_detail` 호출 추가. `append`에 `detail` 필드를 전달하고 `read_task_detail`로 조회하여 포트 4개 메서드 중 `append`, `list`, `read_task_detail` 3개를 직접 검증 (나머지 `bind_task_store`는 별도 테스트).
 
-### PA-5 포트 추출
+### PA-7 Adapter Conformance
 
-3. **`ProviderRegistryLike`** — `src/providers/service.ts`에 포트 인터페이스 정의 (14개 메서드). `ProviderRegistry implements ProviderRegistryLike`. `index.ts` type re-export. bootstrap 외부 소비자 16개 파일 전환.
-4. **`WorkflowEventServiceLike`** — `src/events/service.ts`에 포트 인터페이스 정의 (4개 메서드). `WorkflowEventService implements WorkflowEventServiceLike`. `index.ts` type re-export. bootstrap 외부 소비자 4개 파일 전환.
+3. **`tests/architecture/pa7-adapter-conformance.test.ts`** (11 tests) — 포트 인터페이스의 모든 required 메서드가 런타임 인스턴스에 존재하고 `typeof === "function"`인지 구조적 검증.
+   - `ProviderRegistry` → `ProviderRegistryLike` (15개 메서드)
+   - `WorkflowEventService` → `WorkflowEventServiceLike` (4개 메서드)
+   - `MutableBroadcaster` → `SseBroadcasterLike` (11 required + 1 optional)
+   - `NULL_BROADCASTER` → `SseBroadcasterLike` (11 required, optional 미구현 확인)
+   - `SseManager` → `SseBroadcasterLike` (11 required + 1 optional)
 
-### PA-7 import boundary
+### PA-7 Bootstrap Smoke
 
-5. **`tests/architecture/di-boundaries.test.ts`** — PA-5 대상 3 cases 추가: `ProviderRegistry` / `WorkflowEventService` / `MutableBroadcaster` concrete import confinement. 기존 8 → 11 tests.
+4. **`tests/bootstrap/bootstrap-smoke.test.ts`** (14 tests) — composition root(main.ts) 조립 패턴을 최소 의존성으로 재현.
+   - ProviderRegistry 조립: 최소 설정 생성 → 포트로 사용 → set/get 왕복 → health_scorer/vault 반환 (3 tests)
+   - WorkflowEventService 조립: `runtime-data.ts:L80`과 동일 4인자 생성 → events_dir override 검증 → append/list/read_task_detail CRUD → bind_task_store (2 tests)
+   - MutableBroadcaster 조립: 생성 → NULL_BROADCASTER 위임 → attach(SseManager) → 실제 위임 → detach → 복귀 → add_rich_stream_listener 생명주기 (5 tests)
+   - NULL_BROADCASTER 기본값 역할: 포트 할당 → no-op void 계약 → detach 후 복귀 검증 (3 tests)
+   - 포트 조합 주입: 3개 포트를 동시에 소비자 함수에 전달 (1 test)
 
 ### Changed Files
 
-**포트 정의 (4):**
-- `src/providers/service.ts` — `ProviderRegistryLike` 인터페이스 + `implements`
-- `src/providers/index.ts` — `ProviderRegistryLike` type re-export
-- `src/events/service.ts` — `WorkflowEventServiceLike` 인터페이스 + `implements`
-- `src/events/index.ts` — `WorkflowEventServiceLike` type re-export
-
-**소비자 전환 (20):**
-- `src/agent/agent-registry.ts`
-- `src/agent/index.ts`
-- `src/agent/loop.types.ts`
-- `src/agent/provider-factory.ts`
-- `src/agent/subagents.ts`
-- `src/agent/phase-loop-runner.ts`
-- `src/channels/manager.ts`
-- `src/channels/create-command-router.ts`
-- `src/dashboard/ops/shared.ts`
-- `src/dashboard/ops/bootstrap.ts`
-- `src/dashboard/ops/agent-provider.ts`
-- `src/orchestration/execution/runner-deps.ts`
-- `src/orchestration/execution/phase-workflow.ts`
-- `src/orchestration/execution/execute-dispatcher.ts`
-- `src/orchestration/gateway.ts`
-- `src/orchestration/service.ts`
-- `src/cron/runtime-handler.ts`
-- `src/agent/index.ts`
-- `src/dashboard/service.types.ts`
-- `src/orchestration/service.ts`
-
-**테스트 (1):**
-- `tests/architecture/di-boundaries.test.ts` — PA-5 import boundary 3 cases
+**신규 테스트 (2):**
+- `tests/architecture/pa7-adapter-conformance.test.ts` — PA-7 adapter conformance 11 tests
+- `tests/bootstrap/bootstrap-smoke.test.ts` — PA-7 bootstrap smoke 14 tests
 
 ### Test Command
 
 ```bash
-npx vitest run tests/architecture/di-boundaries.test.ts tests/orchestration/ tests/channel/ tests/dashboard/
+npx vitest run tests/architecture/pa7-adapter-conformance.test.ts tests/bootstrap/bootstrap-smoke.test.ts
 ```
 
 ### Test Result
 
-- `173 files / 3317 tests passed` (0 failed)
-- `npx tsc --noEmit`: 통과
-- `npx eslint src/providers/service.ts src/providers/index.ts src/events/service.ts src/events/index.ts src/agent/provider-factory.ts src/agent/phase-loop-runner.ts tests/architecture/di-boundaries.test.ts`: 통과
+- `2 files / 25 tests passed` (0 failed)
+- `npx eslint tests/architecture/pa7-adapter-conformance.test.ts tests/bootstrap/bootstrap-smoke.test.ts`: 통과
 
 ### Residual Risk
 
-1. PA-7 adapter conformance 테스트 (concrete adapter가 포트 계약 충족 검증) — 다음 배치
-2. PA-7 bootstrap smoke 테스트 (composition root 조립 무결성) — 다음 배치
+이전 배치의 Residual Risk 2항목(PA-7 conformance + bootstrap smoke)이 이 배치에서 해소됨. 신규 잔여 리스크 없음.
 
