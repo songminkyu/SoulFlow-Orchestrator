@@ -23,6 +23,7 @@ const KanbanPage = lazyRetry(() => import("./pages/kanban"));
 const WbsPage = lazyRetry(() => import("./pages/wbs"));
 const PromptingPage = lazyRetry(() => import("./pages/prompting/index"));
 const LoginPage = lazyRetry(() => import("./pages/login"));
+const UsagePage = lazyRetry(() => import("./pages/usage/index"));
 const AdminPage = lazyRetry(() => import("./pages/admin/index"));
 
 /** createHashRouter용 경로 변환: "/foo" → "foo", "/" → undefined (index route). */
@@ -64,6 +65,7 @@ export const router = createHashRouter([
       { path: r(PATHS.PROMPTING), element: lazify(<PromptingPage />) },
       { path: r(PATHS.KANBAN), element: lazify(<KanbanPage />) },
       { path: r(PATHS.WBS), element: lazify(<WbsPage />) },
+      { path: r(PATHS.USAGE), element: lazify(<UsagePage />) },
       { path: r(PATHS.ADMIN), element: lazify(<AdminPage />) },
     ],
   },

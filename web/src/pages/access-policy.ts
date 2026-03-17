@@ -131,6 +131,12 @@ export const PAGE_POLICIES: PagePolicy[] = [
 
   // ── 팀 관리 (team_manager 이상) ──────────────────
   {
+    path: "/usage",
+    view: "team_manager",
+    manage: "team_manager",
+    description: "LLM 사용량·비용 대시보드",
+  },
+  {
     path: "/channels",
     view: "team_manager",
     manage: "team_manager",

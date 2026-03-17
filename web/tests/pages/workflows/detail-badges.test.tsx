@@ -141,14 +141,13 @@ describe("PhaseCard — reconcile_conflicts 배지", () => {
   it("reconcile_conflicts=0 → 충돌 배지 미렌더", () => {
     const phase = { phase_id: "p1", title: "P1", status: "completed", agents: [make_agent()], mode: "parallel", reconcile_conflicts: 0 };
     render_detail(make_wf({ phases: [phase] }));
-    expect(screen.queryByText(/reconcile_conflicts/)).toBeNull();
+    expect(screen.queryByText(/conflicts/)).toBeNull();
   });
 
   it("reconcile_conflicts=2 → 충돌 배지 렌더", () => {
     const phase = { phase_id: "p1", title: "P1", status: "completed", agents: [make_agent()], mode: "parallel", reconcile_conflicts: 2 };
     render_detail(make_wf({ phases: [phase] }));
-    // t("workflows.reconcile_conflicts", { n: "2" }) → "workflows.reconcile_conflicts:{"n":"2"}"
-    expect(screen.getByText(/reconcile_conflicts/)).toBeInTheDocument();
+    expect(screen.getByText(/2 conflicts/)).toBeInTheDocument();
   });
 });
 

@@ -137,6 +137,18 @@
   color: var(--fg-muted);
   text-align: center;
 }
+.topbar__role-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  color: var(--muted);
+}
+.topbar__role-badge[data-role="owner"] { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.topbar__role-badge[data-role="manager"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .topbar__username {
   font-size: var(--fs-xs);
   color: var(--fg-muted);

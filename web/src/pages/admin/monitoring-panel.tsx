@@ -8,6 +8,8 @@ import { useT } from "../../i18n";
 import { PROVIDER_COLORS } from "../../utils/constants";
 import { fmt_time } from "../../utils/format";
 import { MetricBar, StatusDot, fmt_uptime, fmt_kbps } from "../overview/helpers";
+import { DistributionBar, DistributionLegend, LatencyBars, ProportionBar } from "../../components/chart-primitives";
+import type { DistributionSegment, LatencyEntry } from "../../components/chart-primitives";
 import { ProcessesSection } from "../overview/processes-section";
 import type { DashboardState, SystemMetrics, ValidatorSummary, ObservabilitySummary, SpanKind } from "../overview/types";
 import { PHASE_VARIANT } from "../overview/types";
@@ -273,13 +275,13 @@ export function MonitoringPanel() {
   );
 }
 
-const REQUEST_CLASS_VARIANT: Record<string, "ok" | "info" | "warn" | undefined> = {
-  builtin: "ok",
-  direct_tool: "ok",
-  model_direct: "info",
-  workflow_compile: "info",
-  workflow_run: "info",
-  agent: "warn",
+const REQUEST_CLASS_COLOR: Record<string, string> = {
+  builtin: "var(--ok)",
+  direct_tool: "#2fb171",
+  model_direct: "var(--accent)",
+  workflow_compile: "#6c8ebf",
+  workflow_run: "#5dade2",
+  agent: "var(--warn)",
 };
 
 function RequestClassPanel({
@@ -296,24 +298,23 @@ function RequestClassPanel({
 
   if (entries.length === 0 && !has_guardrails) return null;
 
+  const segments: DistributionSegment[] = entries.map(([cls, count]) => ({
+    key: cls,
+    value: count,
+    color: REQUEST_CLASS_COLOR[cls] || "var(--muted)",
+    label: cls,
+  }));
+
   return (
     <div className="panel-grid" data-testid="request-class-panel">
       {entries.length > 0 && (
         <section className="panel panel--flush">
-          <SectionHeader title={t("overview.request_class") || "Request Classification"} />
+          <SectionHeader title={t("overview.request_class") || "Request Classification"}>
+            <span className="text-xs text-muted">{total} total</span>
+          </SectionHeader>
           <div className="grid-stack">
-            {entries.map(([cls, count]) => (
-              <div key={cls} className="kv mt-0 mb-0">
-                <Badge status={cls} variant={REQUEST_CLASS_VARIANT[cls]} />
-                <span className="fw-600 text-sm">{count}</span>
-                <span className="text-xs text-muted">
-                  {total > 0 ? `${Math.round((count / total) * 100)}%` : ""}
-                </span>
-              </div>
-            ))}
-            <div className="text-xs text-muted">
-              {t("overview.request_total") || "Total"}: {total}
-            </div>
+            <DistributionBar segments={segments} height={28} />
+            <DistributionLegend segments={segments} />
           </div>
         </section>
       )}
@@ -322,18 +323,15 @@ function RequestClassPanel({
         <section className="panel panel--flush" data-testid="guardrail-stats">
           <SectionHeader title={t("overview.guardrails") || "Guardrails"} />
           <div className="grid-stack">
-            <div className="kv mt-0 mb-0">
-              <Badge
-                status={
-                  guardrail_stats.blocked === 0
-                    ? (t("overview.guardrail_clear") || "Clear")
-                    : `${guardrail_stats.blocked} ${t("overview.guardrail_blocked") || "blocked"}`
-                }
-                variant={guardrail_stats.blocked === 0 ? "ok" : "warn"}
-              />
-              <span className="text-xs text-muted">
-                {guardrail_stats.blocked}/{guardrail_stats.total}
-              </span>
+            <DistributionBar
+              segments={[
+                { key: "passed", value: guardrail_stats.total - guardrail_stats.blocked, color: "var(--ok)", label: t("overview.guardrail_clear") || "Passed" },
+                { key: "blocked", value: guardrail_stats.blocked, color: "var(--err)", label: t("overview.guardrail_blocked") || "Blocked" },
+              ]}
+              height={20}
+            />
+            <div className="text-xs text-muted">
+              {guardrail_stats.blocked}/{guardrail_stats.total} {t("overview.guardrail_blocked") || "blocked"}
             </div>
           </div>
         </section>
@@ -386,26 +384,19 @@ function ObservabilityPanel({ obs, active_runs }: { obs: ObservabilitySummary; a
         </div>
       </section>
 
-      {/* Latency Summary */}
+      {/* Latency Summary — horizontal grouped bars */}
       {obs.latency_summary.length > 0 && (
         <section className="panel panel--flush">
-          <SectionHeader title={t("overview.latency") || "Latency"} />
-          <div className="grid-stack">
-            {obs.latency_summary.map((l) => (
-              <div key={l.kind} className="kv mt-0 mb-0">
-                <span className="fw-600 text-sm">{t(SPAN_KIND_LABEL[l.kind]) || l.kind}</span>
-                <span className="text-xs">
-                  {t("overview.latency_p50")}: <b>{l.p50}ms</b>
-                </span>
-                <span className="text-xs">
-                  {t("overview.latency_p95")}: <b>{l.p95}ms</b>
-                </span>
-                <span className="text-xs text-muted">
-                  {t("overview.latency_p99")}: {l.p99}ms
-                </span>
-              </div>
-            ))}
-          </div>
+          <SectionHeader title={t("overview.latency") || "Latency (ms)"} />
+          <LatencyBars
+            entries={obs.latency_summary.map((l): LatencyEntry => ({
+              label: t(SPAN_KIND_LABEL[l.kind]) || l.kind,
+              p50: l.p50,
+              p95: l.p95,
+              p99: l.p99,
+              count: l.count,
+            }))}
+          />
         </section>
       )}
 
@@ -433,21 +424,27 @@ function ObservabilityPanel({ obs, active_runs }: { obs: ObservabilitySummary; a
         </section>
       )}
 
-      {/* Provider Usage */}
-      {obs.provider_usage.length > 0 && (
-        <section className="panel panel--flush">
-          <SectionHeader title={t("overview.provider_usage") || "Provider Usage"} />
-          <div className="grid-stack">
-            {obs.provider_usage.map((p) => (
-              <div key={p.provider} className="kv mt-0 mb-0">
-                <span className="fw-600 text-sm">{p.provider}</span>
-                <span className="text-xs">{p.total} runs</span>
-                {p.errors > 0 && <Badge status={`${p.errors} errors`} variant="err" />}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Provider Usage — proportion bars */}
+      {obs.provider_usage.length > 0 && (() => {
+        const max_runs = Math.max(...obs.provider_usage.map((p) => p.total), 1);
+        return (
+          <section className="panel panel--flush">
+            <SectionHeader title={t("overview.provider_usage") || "Provider Usage"} />
+            <div className="grid-stack">
+              {obs.provider_usage.map((p) => (
+                <div key={p.provider}>
+                  <div className="kv mt-0 mb-0">
+                    <span className="fw-600 text-sm">{p.provider}</span>
+                    <span className="text-xs">{p.total} runs</span>
+                    {p.errors > 0 && <Badge status={`${p.errors} err`} variant="err" />}
+                  </div>
+                  <ProportionBar value={p.total} max={max_runs} color={p.errors > 0 ? "var(--warn)" : "var(--accent)"} />
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Delivery Mismatch */}
       {obs.delivery_mismatch.length > 0 && (
@@ -470,39 +467,51 @@ function ObservabilityPanel({ obs, active_runs }: { obs: ObservabilitySummary; a
         </section>
       )}
 
-      {/* Tool Usage */}
-      {(obs.tool_usage?.length ?? 0) > 0 && (
-        <section className="panel panel--flush">
-          <SectionHeader title="Tool Usage" />
-          <div className="grid-stack">
-            {obs.tool_usage?.map((t) => (
-              <div key={t.tool_name} className="kv mt-0 mb-0">
-                <span className="fw-600 text-sm">{t.tool_name}</span>
-                <span className="text-xs">{t.total} calls</span>
-                {t.errors > 0 && <Badge status={`${t.errors} errors`} variant="err" />}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Tool Usage — proportion bars */}
+      {(obs.tool_usage?.length ?? 0) > 0 && (() => {
+        const max_calls = Math.max(...(obs.tool_usage?.map((tu) => tu.total) ?? []), 1);
+        return (
+          <section className="panel panel--flush">
+            <SectionHeader title="Tool Usage" />
+            <div className="grid-stack">
+              {obs.tool_usage?.map((tu) => (
+                <div key={tu.tool_name}>
+                  <div className="kv mt-0 mb-0">
+                    <span className="fw-600 text-sm">{tu.tool_name}</span>
+                    <span className="text-xs">{tu.total} calls</span>
+                    {tu.errors > 0 && <Badge status={`${tu.errors} err`} variant="err" />}
+                  </div>
+                  <ProportionBar value={tu.total} max={max_calls} color={tu.errors > 0 ? "var(--warn)" : "var(--ok)"} />
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      })()}
 
-      {/* LLM Cost */}
+      {/* LLM Cost — stat-card layout */}
       {(obs.llm_cost?.total_calls ?? 0) > 0 && (
         <section className="panel panel--flush">
-          <SectionHeader title="LLM Usage" />
-          <div className="grid-stack">
-            <div className="kv mt-0 mb-0">
-              <span className="text-xs text-muted">Calls</span>
-              <span className="fw-600 text-sm">{obs.llm_cost!.total_calls}</span>
+          <SectionHeader title="LLM Usage">
+            <Link to="/usage" className="btn btn--xs">{t("common.view_all")}</Link>
+          </SectionHeader>
+          <div className="stat-grid">
+            <div className="stat-card">
+              <div className="stat-card__value">{obs.llm_cost!.total_calls.toLocaleString()}</div>
+              <div className="stat-card__label">Calls</div>
             </div>
-            <div className="kv mt-0 mb-0">
-              <span className="text-xs text-muted">Tokens</span>
-              <span className="text-xs">in: {obs.llm_cost!.total_input_tokens.toLocaleString()} / out: {obs.llm_cost!.total_output_tokens.toLocaleString()}</span>
+            <div className="stat-card">
+              <div className="stat-card__value">{obs.llm_cost!.total_input_tokens.toLocaleString()}</div>
+              <div className="stat-card__label">Input Tokens</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card__value">{obs.llm_cost!.total_output_tokens.toLocaleString()}</div>
+              <div className="stat-card__label">Output Tokens</div>
             </div>
             {(obs.llm_cost?.total_cost_usd ?? 0) > 0 && (
-              <div className="kv mt-0 mb-0">
-                <span className="text-xs text-muted">Cost</span>
-                <span className="fw-600 text-sm">${obs.llm_cost!.total_cost_usd.toFixed(4)}</span>
+              <div className="stat-card">
+                <div className="stat-card__value">${obs.llm_cost!.total_cost_usd.toFixed(4)}</div>
+                <div className="stat-card__label">Cost (USD)</div>
               </div>
             )}
           </div>

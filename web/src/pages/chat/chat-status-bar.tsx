@@ -19,12 +19,14 @@ interface ChatBottomBarProps {
   delivered_channel?: string | null;
   /** FE-2: 이전 세션 재사용 중 여부 (EG 트랙 세션 재사용 정책). */
   session_reuse?: boolean;
+  /** FE-4/GW: 실행 경로 분류 (direct/workflow/agent). */
+  execution_route?: string | null;
   onStop: () => void;
 }
 
 export function ChatBottomBar({
   session_label, is_busy, is_streaming, tool_name, active_session_id,
-  requested_channel, delivered_channel, session_reuse, onStop,
+  requested_channel, delivered_channel, session_reuse, execution_route, onStop,
 }: ChatBottomBarProps) {
   if (!is_busy) return null;
 
@@ -38,6 +40,7 @@ export function ChatBottomBar({
       requested_channel={requested_channel ?? null}
       delivered_channel={delivered_channel ?? null}
       session_reuse={session_reuse ?? false}
+      execution_route={execution_route ?? null}
       onStop={onStop}
     />
   );
@@ -46,11 +49,12 @@ export function ChatBottomBar({
 /** is_busy=true 시에만 마운트되는 내부 컴포넌트 — 마운트 즉시 elapsed=0에서 시작. */
 function BusyBar({
   session_label, is_streaming, tool_name, active_session_id,
-  requested_channel, delivered_channel, session_reuse, onStop,
+  requested_channel, delivered_channel, session_reuse, execution_route, onStop,
 }: {
   session_label: string; is_streaming: boolean; tool_name: string | null;
   active_session_id: string | null; requested_channel: string | null;
-  delivered_channel: string | null; session_reuse: boolean; onStop: () => void;
+  delivered_channel: string | null; session_reuse: boolean;
+  execution_route: string | null; onStop: () => void;
 }) {
   const t = useT();
   const [elapsed_s, setElapsedS] = useState(0);
@@ -77,6 +81,12 @@ function BusyBar({
       <span className="chat-bottom-bar__elapsed">{elapsed_str}</span>
       {active_session_id && (
         <span className="chat-bottom-bar__run-id">{active_session_id.slice(0, 8).toUpperCase()}</span>
+      )}
+      {/* FE-4/GW: 실행 경로 칩 */}
+      {execution_route && (
+        <span className="chat-bottom-bar__route-chip" data-route={execution_route}>
+          {execution_route}
+        </span>
       )}
       {/* FE-2: 채널 미스매치 경고 */}
       {channel_mismatch && (

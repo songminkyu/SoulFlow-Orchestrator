@@ -222,7 +222,7 @@ describe("MonitoringPanel — Request Class 분포 (FE-4)", () => {
     expect(screen.queryByTestId("request-class-panel")).toBeNull();
   });
 
-  it("request_class_summary 있으면 분류별 배지 + 비율 렌더", () => {
+  it("request_class_summary 있으면 DistributionBar + 범례 렌더", () => {
     mockUseStatus.mockReturnValue({
       data: make_base_state({
         request_class_summary: { builtin: 10, direct_tool: 5, agent: 3 },
@@ -232,12 +232,11 @@ describe("MonitoringPanel — Request Class 분포 (FE-4)", () => {
     });
     wrap(<MonitoringPanel />);
     expect(screen.getByTestId("request-class-panel")).toBeInTheDocument();
-    expect(screen.getByText("builtin")).toBeInTheDocument();
-    expect(screen.getByText("direct_tool")).toBeInTheDocument();
-    expect(screen.getByText("agent")).toBeInTheDocument();
-    expect(screen.getByText("10")).toBeInTheDocument();
-    // builtin = 10/18 ≈ 56%
-    expect(screen.getByText("56%")).toBeInTheDocument();
+    // DistributionBar + DistributionLegend 모두에 렌더되므로 getAllByText 사용
+    expect(screen.getAllByText("builtin").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("direct_tool").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("agent").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("10").length).toBeGreaterThanOrEqual(1);
   });
 
   it("request_class_summary가 빈 객체면 패널 미렌더", () => {
@@ -248,21 +247,6 @@ describe("MonitoringPanel — Request Class 분포 (FE-4)", () => {
     });
     wrap(<MonitoringPanel />);
     expect(screen.queryByTestId("request-class-panel")).toBeNull();
-  });
-
-  it("내림차순 정렬 — 가장 많은 분류가 먼저", () => {
-    mockUseStatus.mockReturnValue({
-      data: make_base_state({
-        request_class_summary: { agent: 1, builtin: 100 },
-      }),
-      isLoading: false,
-      refetch: vi.fn(),
-    });
-    wrap(<MonitoringPanel />);
-    const panel = screen.getByTestId("request-class-panel");
-    const badges = panel.querySelectorAll("[class*='badge']");
-    // 첫 번째 배지가 builtin이어야 함
-    expect(badges[0]?.textContent).toBe("builtin");
   });
 });
 
@@ -287,7 +271,7 @@ describe("MonitoringPanel — Guardrail 통계 (FE-4)", () => {
     expect(screen.queryByTestId("guardrail-stats")).toBeNull();
   });
 
-  it("blocked=0 → 'overview.guardrail_clear' 배지 렌더", () => {
+  it("blocked=0 → Passed 세그먼트가 DistributionBar에 렌더", () => {
     mockUseStatus.mockReturnValue({
       data: make_base_state({ guardrail_stats: { blocked: 0, total: 50 } }),
       isLoading: false,
@@ -295,19 +279,17 @@ describe("MonitoringPanel — Guardrail 통계 (FE-4)", () => {
     });
     wrap(<MonitoringPanel />);
     expect(screen.getByTestId("guardrail-stats")).toBeInTheDocument();
-    expect(screen.getByText("overview.guardrail_clear")).toBeInTheDocument();
-    expect(screen.getByText("0/50")).toBeInTheDocument();
+    expect(screen.getByText(/0\/50/)).toBeInTheDocument();
   });
 
-  it("blocked>0 → 차단 횟수 배지 렌더", () => {
+  it("blocked>0 → blocked/total 텍스트 렌더", () => {
     mockUseStatus.mockReturnValue({
       data: make_base_state({ guardrail_stats: { blocked: 3, total: 20 } }),
       isLoading: false,
       refetch: vi.fn(),
     });
     wrap(<MonitoringPanel />);
-    expect(screen.getByText(/3.*overview\.guardrail_blocked/)).toBeInTheDocument();
-    expect(screen.getByText("3/20")).toBeInTheDocument();
+    expect(screen.getByText(/3\/20/)).toBeInTheDocument();
   });
 
   it("request_class_summary + guardrail_stats 동시 렌더", () => {
@@ -322,7 +304,7 @@ describe("MonitoringPanel — Guardrail 통계 (FE-4)", () => {
     wrap(<MonitoringPanel />);
     expect(screen.getByTestId("request-class-panel")).toBeInTheDocument();
     expect(screen.getByTestId("guardrail-stats")).toBeInTheDocument();
-    expect(screen.getByText("builtin")).toBeInTheDocument();
+    expect(screen.getAllByText("builtin").length).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -427,7 +409,7 @@ describe("MonitoringPanel — ObservabilityPanel (OB-7)", () => {
     expect(screen.getByText("10 calls")).toBeInTheDocument();
   });
 
-  it("llm_cost.total_calls > 0이면 LLM Usage 렌더", () => {
+  it("llm_cost.total_calls > 0이면 LLM Usage stat-card 렌더", () => {
     mockUseStatus.mockReturnValue({
       data: make_base_state({
         observability: make_obs({ llm_cost: { total_cost_usd: 0.05, total_calls: 20, total_input_tokens: 5000, total_output_tokens: 1500 } }),
@@ -436,7 +418,9 @@ describe("MonitoringPanel — ObservabilityPanel (OB-7)", () => {
       refetch: vi.fn(),
     });
     wrap(<MonitoringPanel />);
+    // stat-card 패턴: 값이 toLocaleString으로 렌더됨
     expect(screen.getByText("20")).toBeInTheDocument();
     expect(screen.getByText("$0.0500")).toBeInTheDocument();
+    expect(screen.getByText("Calls")).toBeInTheDocument();
   });
 });

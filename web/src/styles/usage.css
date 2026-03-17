@@ -1,0 +1,270 @@
+/* FE-4: Usage Dashboard */
+
+.usage {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--sp-4) var(--sp-4) var(--sp-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+/* ── Header + Period Selector ── */
+
+.usage__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+.usage__title {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  margin: 0;
+}
+
+.usage__period-selector {
+  display: flex;
+  gap: var(--sp-1);
+  background: var(--surface-subtle);
+  border-radius: var(--radius-md);
+  padding: 2px;
+}
+
+.usage__period-btn {
+  all: unset;
+  cursor: pointer;
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.usage__period-btn:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.usage__period-btn--active {
+  color: var(--text);
+  background: var(--panel);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+}
+
+/* ── Summary Stat Grid ── */
+
+.usage__stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-4);
+}
+
+@media (max-width: 640px) {
+  .usage__stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Chart Section ── */
+
+.usage__chart-section {
+  padding: var(--sp-4) !important;
+}
+
+/* ── Bar Chart ── */
+
+.usage-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.usage-chart__summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.usage-chart__total {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+}
+
+.usage-chart__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 180px;
+  padding-top: var(--sp-2);
+}
+
+.usage-chart__bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  min-width: 0;
+  cursor: default;
+}
+
+.usage-chart__bar-track {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.usage-chart__bar-fill {
+  width: 100%;
+  max-width: 32px;
+  min-height: 1px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: height 0.3s ease, opacity 0.15s ease;
+  opacity: 0.85;
+}
+
+.usage-chart__bar-col:hover .usage-chart__bar-fill {
+  opacity: 1;
+  filter: brightness(1.15);
+}
+
+.usage-chart__bar-label {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: var(--sp-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* 30일 이상일 때 라벨 간격 조정 */
+.usage-chart__bars:has(> :nth-child(20)) .usage-chart__bar-label {
+  font-size: 0;
+}
+
+.usage-chart__bars:has(> :nth-child(20)) .usage-chart__bar-col:nth-child(5n) .usage-chart__bar-label {
+  font-size: 10px;
+}
+
+/* ── Table ── */
+
+.usage-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.usage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.usage-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.usage-table td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--surface-subtle);
+  white-space: nowrap;
+}
+
+.usage-table tbody tr:hover {
+  background: var(--hover);
+}
+
+.usage-table .text-right {
+  text-align: right;
+}
+
+.usage-model-name {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  background: var(--surface-code);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Cost Share Bar ── */
+
+.usage-share {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 100px;
+}
+
+.usage-share__bar {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.usage-share__fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  transition: width 0.3s ease;
+}
+
+.usage-share__label {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  min-width: 40px;
+  text-align: right;
+}
+
+/* ── Empty State ── */
+
+.usage__empty {
+  text-align: center;
+  padding: var(--sp-8) var(--sp-4);
+}
+
+/* ── Mobile ── */
+
+@media (max-width: 768px) {
+  .usage {
+    padding: var(--sp-3) var(--sp-3) var(--sp-6);
+  }
+
+  .usage__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .usage__title {
+    font-size: var(--fs-lg);
+  }
+
+  .usage-chart__bars {
+    height: 140px;
+  }
+
+  .usage-table {
+    font-size: var(--fs-xs);
+  }
+
+  .usage-table th,
+  .usage-table td {
+    padding: var(--sp-1) var(--sp-2);
+  }
+}

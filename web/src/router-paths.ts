@@ -21,6 +21,7 @@ export const PATHS = {
   PROMPTING: "/prompting",
   KANBAN: "/kanban",
   WBS: "/wbs",
+  USAGE: "/usage",
   ADMIN: "/admin",
 } as const;
 

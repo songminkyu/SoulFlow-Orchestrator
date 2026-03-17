@@ -147,6 +147,27 @@ export function NodeOutputView({ state, schema, node_id }: { state?: NodeExecuti
         </div>
       )}
 
+      {/* FE-4/PAR: Reconcile conflict + retry drill-down */}
+      {((state!.reconcile_conflicts ?? 0) > 0 || (state!.retry_count ?? 0) > 0) && (
+        <div className="schema-badge-row" style={{ marginTop: 4 }}>
+          {(state!.retry_count ?? 0) > 0 && (
+            <span className="schema-badge schema-badge--warn" title={t("workflows.retry_count_hint") || "Retry attempts"}>
+              ↩ {state!.retry_count} {t("workflows.retries") || "retries"}
+            </span>
+          )}
+          {(state!.reconcile_conflicts ?? 0) > 0 && (
+            <span className="schema-badge schema-badge--err" title={state!.reconcile_details?.join("; ") || t("workflows.reconcile_conflict_hint") || "Reconciliation conflicts"}>
+              ⚡ {state!.reconcile_conflicts} {t("workflows.conflicts") || "conflicts"}
+            </span>
+          )}
+          {state!.reconcile_details && state!.reconcile_details.length > 0 && (
+            <ul className="output-conflict-list" style={{ margin: "4px 0 0", padding: "0 0 0 16px", fontSize: "var(--fs-xs)", color: "var(--muted)" }}>
+              {state!.reconcile_details.map((d, i) => <li key={i}>{d}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+
       <div className="output-view-modes" role="tablist">
         <button className={`output-view-mode${viewMode === "tree" ? " active" : ""}`} role="tab" aria-selected={viewMode === "tree"} onClick={() => setViewMode("tree")}>{t("workflows.tree_view")}</button>
         <button className={`output-view-mode${viewMode === "json" ? " active" : ""}`} role="tab" aria-selected={viewMode === "json"} onClick={() => setViewMode("json")}>{t("workflows.json_view")}</button>

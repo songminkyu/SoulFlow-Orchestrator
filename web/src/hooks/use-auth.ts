@@ -199,14 +199,16 @@ export function useMyTeams() {
   });
 }
 
-/** 현재 팀 컨텍스트를 전환 — 새 JWT 발급 후 auth-me 캐시 갱신. */
+/** 현재 팀 컨텍스트를 전환 — 새 JWT 발급 후 전체 캐시 갱신.
+ *  팀 전환은 전체 데이터 경계가 바뀌므로 auth-status만 남기고 전부 invalidate. */
 export function useSwitchTeam() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (team_id: string) => api.post("/api/auth/switch-team", { team_id }),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["auth-me"] });
-      void qc.invalidateQueries({ queryKey: ["scoped-providers"] });
+      void qc.invalidateQueries({
+        predicate: (query) => query.queryKey[0] !== "auth-status",
+      });
     },
   });
 }

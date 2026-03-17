@@ -24,7 +24,7 @@ const base_props = {
 };
 
 describe("MessageList — GW-6 delivery trace 렌더", () => {
-  it("채널 불일치 시 'requested → delivered' 텍스트를 렌더한다", () => {
+  it("채널 불일치 시 drill-down 토글 버튼을 렌더한다", () => {
     const messages = [{
       direction: "assistant" as const,
       content: "Hello",
@@ -33,7 +33,7 @@ describe("MessageList — GW-6 delivery trace 렌더", () => {
       delivered_channel: "web",
     }];
     render(<MessageList {...base_props} messages={messages} />);
-    expect(screen.getByText("slack → web")).toBeInTheDocument();
+    expect(screen.getByText(/slack.*→.*web/)).toBeInTheDocument();
   });
 
   it("채널 일치 시 불일치 텍스트를 렌더하지 않는다", () => {
@@ -48,7 +48,7 @@ describe("MessageList — GW-6 delivery trace 렌더", () => {
     expect(container.textContent).not.toContain("web → web");
   });
 
-  it("execution_route가 있으면 'route: ...' 텍스트를 렌더한다", () => {
+  it("execution_route가 있으면 drill-down 토글 버튼을 렌더한다", () => {
     const messages = [{
       direction: "assistant" as const,
       content: "Done",
@@ -56,7 +56,7 @@ describe("MessageList — GW-6 delivery trace 렌더", () => {
       execution_route: "agent",
     }];
     render(<MessageList {...base_props} messages={messages} />);
-    expect(screen.getByText("route: agent")).toBeInTheDocument();
+    expect(screen.getByText(/agent/)).toBeInTheDocument();
   });
 
   it("user 메시지에는 execution_route를 렌더하지 않는다", () => {

@@ -34,6 +34,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label_key: "nav.group.system",
     items: [
+      { to: "/usage", key: "nav.usage", icon: "\u2261" },
       { to: "/secrets", key: "nav.secrets", icon: "\u26bf" },
       { to: "/settings", key: "nav.settings", icon: "\u229e" },
     ],

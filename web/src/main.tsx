@@ -12,6 +12,7 @@ import "./styles/chat.css";
 import "./styles/prompt.css";
 import "./styles/canvas.css";
 import "./styles/tool-call.css";
+import "./styles/chart-primitives.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {

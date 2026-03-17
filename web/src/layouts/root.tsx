@@ -203,6 +203,11 @@ export function RootLayout() {
                     )}
                   </div>
                 )}
+                {auth_user.team_role && (
+                  <span className="topbar__role-badge" data-role={auth_user.team_role}>
+                    {auth_user.team_role}
+                  </span>
+                )}
                 <span className="topbar__username" title={auth_user.role}>
                   {auth_user.username}
                 </span>

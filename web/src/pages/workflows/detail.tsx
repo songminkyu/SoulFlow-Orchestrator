@@ -54,6 +54,10 @@ interface PhaseAgentState {
   eval_score?: number;
   /** FE-3: 스키마 검증 통과 여부 (SchemaChain Validator). */
   schema_valid?: boolean;
+  /** FE-4/SO: 스키마 검증 실패 사유 (파서 에러 drill-down). */
+  schema_error?: string;
+  /** FE-4/SO: 스키마 수리 시도 여부. */
+  schema_repaired?: boolean;
 }
 
 interface PhaseCriticState {
@@ -77,6 +81,10 @@ interface PhaseState {
   pending_user_input?: boolean;
   /** FE-3: 병렬 재조정에서 발견된 충돌 수 (PAR 트랙 ReconcileNode). */
   reconcile_conflicts?: number;
+  /** FE-4/PAR: 재조정 상태. */
+  reconcile_status?: "pending" | "resolved" | "manual_required";
+  /** FE-4/PAR: 충돌 요약 목록. */
+  reconcile_details?: string[];
 }
 
 interface PhaseDefinitionBrief {
@@ -260,6 +268,9 @@ export default function WorkflowDetailPage() {
             <ArtifactEntryCard bundle={wf.artifact_bundle} />
           )}
 
+          {/* FE-4/SO: Workflow Verdict Summary — 전체 스키마/eval 집계 */}
+          <WorkflowVerdictSummary phases={wf.phases} />
+
           {wf.phases.map((phase, i) => {
             const def = wf.definition?.phases?.find((d) => d.phase_id === phase.phase_id);
             return (
@@ -347,11 +358,11 @@ function PhaseCard({ phase, index, isCurrent, maxIterations, workflowId, onChat 
           {phase.pending_user_input && (
             <Badge status={t("workflows.awaiting_input")} variant="warn" />
           )}
-          {/* FE-3: 병렬 재조정 충돌 배지 */}
+          {/* FE-4/PAR: 병렬 재조정 충돌 배지 + 상태 */}
           {(phase.reconcile_conflicts ?? 0) > 0 && (
             <Badge
-              status={t("workflows.reconcile_conflicts", { n: String(phase.reconcile_conflicts) })}
-              variant="warn"
+              status={`${phase.reconcile_conflicts} conflicts${phase.reconcile_status ? ` · ${phase.reconcile_status}` : ""}`}
+              variant={phase.reconcile_status === "resolved" ? "ok" : phase.reconcile_status === "manual_required" ? "err" : "warn"}
             />
           )}
           {collapsed && (
@@ -465,11 +476,20 @@ function AgentCard({ agent, onChat }: {
             </span>
           )}
           {agent.schema_valid === false && (
-            <span className="wf-agent__schema-err" title={t("workflows.schema_invalid_hint")}>
+            <span
+              className="wf-agent__schema-err"
+              title={agent.schema_error || t("workflows.schema_invalid_hint")}
+              style={agent.schema_error ? { cursor: "help", textDecoration: "underline dotted" } : undefined}
+            >
               ⚠ {t("workflows.schema_invalid")}
             </span>
           )}
-          {agent.schema_valid === true && (
+          {agent.schema_repaired && (
+            <span className="wf-agent__schema-warn" title={t("workflows.schema_repaired_hint") || "Schema was auto-repaired"}>
+              ↻ repaired
+            </span>
+          )}
+          {agent.schema_valid === true && !agent.schema_repaired && (
             <span className="wf-agent__schema-ok" title={t("workflows.schema_valid_hint")}>
               ✓ {t("workflows.schema_valid")}
             </span>
@@ -877,5 +897,51 @@ function AgentChatPanel({ workflow_id, phase_id, agent_id, label, model, status,
         </button>
       </form>
     </div>
+  );
+}
+
+/** FE-4/SO: 워크플로우 전체 스키마/eval/reconcile 집계 요약. */
+function WorkflowVerdictSummary({ phases }: { phases: PhaseState[] }) {
+  const t = useT();
+  const all_agents = phases.flatMap((p) => p.agents);
+  if (all_agents.length === 0) return null;
+
+  const schema_ok = all_agents.filter((a) => a.schema_valid === true).length;
+  const schema_fail = all_agents.filter((a) => a.schema_valid === false).length;
+  const schema_repaired = all_agents.filter((a) => a.schema_repaired).length;
+  const with_score = all_agents.filter((a) => a.eval_score != null);
+  const avg_score = with_score.length > 0
+    ? with_score.reduce((s, a) => s + (a.eval_score ?? 0), 0) / with_score.length
+    : null;
+  const total_retries = all_agents.reduce((s, a) => s + (a.retry_count ?? 0), 0);
+  const total_conflicts = phases.reduce((s, p) => s + (p.reconcile_conflicts ?? 0), 0);
+
+  const has_data = schema_ok > 0 || schema_fail > 0 || avg_score !== null || total_retries > 0 || total_conflicts > 0;
+  if (!has_data) return null;
+
+  return (
+    <section className="wf-verdict" style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "8px 0" }}>
+      {avg_score !== null && (
+        <Badge
+          status={`${t("workflows.eval_avg") || "Avg Score"}: ${Math.round(avg_score * 100)}%`}
+          variant={avg_score >= 0.8 ? "ok" : avg_score >= 0.5 ? "warn" : "err"}
+        />
+      )}
+      {(schema_ok > 0 || schema_fail > 0) && (
+        <Badge
+          status={`${t("workflows.schema_summary") || "Schema"}: ${schema_ok}/${schema_ok + schema_fail} ${t("workflows.passed") || "passed"}`}
+          variant={schema_fail === 0 ? "ok" : "warn"}
+        />
+      )}
+      {schema_repaired > 0 && (
+        <Badge status={`${schema_repaired} repaired`} variant="info" />
+      )}
+      {total_retries > 0 && (
+        <Badge status={`${total_retries} ${t("workflows.retries") || "retries"}`} variant="warn" />
+      )}
+      {total_conflicts > 0 && (
+        <Badge status={`${total_conflicts} ${t("workflows.conflicts") || "conflicts"}`} variant="warn" />
+      )}
+    </section>
   );
 }

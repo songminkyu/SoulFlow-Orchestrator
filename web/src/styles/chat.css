@@ -528,6 +528,32 @@
   transition: background 0.1s;
 }
 .chat-bottom-bar__stop:hover { background: color-mix(in srgb, var(--err) 20%, transparent); }
+.chat-bottom-bar__route-chip {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.chat-bottom-bar__route-chip[data-route="direct"],
+.chat-bottom-bar__route-chip[data-route="direct_tool"] { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.chat-bottom-bar__route-chip[data-route="workflow"],
+.chat-bottom-bar__route-chip[data-route="workflow_run"],
+.chat-bottom-bar__route-chip[data-route="workflow_compile"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.chat-bottom-bar__route-chip[data-route="agent"] { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.chat-bottom-bar__channel-warn {
+  font-size: var(--fs-xs);
+  color: var(--warn);
+  flex-shrink: 0;
+}
+.chat-bottom-bar__reuse-chip {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  flex-shrink: 0;
+}
 @media (max-width: 768px) {
   .chat-bottom-bar--busy { height: 32px; }
 }

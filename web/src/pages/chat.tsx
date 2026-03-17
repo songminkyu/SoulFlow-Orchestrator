@@ -380,6 +380,7 @@ export default function ChatPage() {
               requested_channel={ndjson_routing?.requested_channel}
               delivered_channel={ndjson_routing?.delivered_channel}
               session_reuse={ndjson_routing?.session_reuse}
+              execution_route={ndjson_routing?.execution_route}
               onStop={cancel_active}
             />
             {!is_mirror && (

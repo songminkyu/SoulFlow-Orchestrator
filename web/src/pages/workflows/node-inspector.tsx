@@ -33,6 +33,12 @@ export interface NodeExecutionState {
   schema_valid?: boolean;
   /** FE-3: SchemaRepairLoop가 자동 수정한 경우 true. */
   schema_repaired?: boolean;
+  /** FE-4/PAR: 재조정 충돌 수. */
+  reconcile_conflicts?: number;
+  /** FE-4/PAR: 충돌 요약 목록. */
+  reconcile_details?: string[];
+  /** FE-4/SO: retry 횟수. */
+  retry_count?: number;
 }
 
 /** 상류 노드의 드래그 가능 출력 참조. */

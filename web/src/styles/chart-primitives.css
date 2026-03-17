@@ -1,0 +1,265 @@
+/* FE-4: Chart Primitives CSS — DistributionBar, LatencyBars, ProportionBar, DeltaIndicator, StackedBar, Tooltip */
+
+/* ── Distribution Bar (수평 비율 바) ── */
+
+.dist-bar {
+  display: flex;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  width: 100%;
+}
+
+.dist-bar__seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2px;
+  transition: opacity 0.15s;
+  position: relative;
+}
+
+.dist-bar__seg:hover { opacity: 0.85; }
+
+.dist-bar__label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+}
+
+.dist-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  margin-top: var(--sp-2);
+}
+
+.dist-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+}
+
+.dist-legend__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.dist-legend__key { color: var(--text); }
+.dist-legend__val { font-weight: 600; }
+.dist-legend__pct { color: var(--muted); }
+
+/* ── Latency Bars (수평 그룹 바) ── */
+
+.lat-bars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.lat-bars__row {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+@media (max-width: 640px) {
+  .lat-bars__row { grid-template-columns: 80px 1fr auto; }
+}
+
+.lat-bars__label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lat-bars__count {
+  font-weight: 400;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.lat-bars__tracks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+  height: 24px;
+  justify-content: center;
+}
+
+.lat-bars__bar {
+  height: 6px;
+  border-radius: 3px;
+  min-width: 2px;
+  transition: width 0.3s ease;
+  position: absolute;
+  left: 0;
+}
+
+/* p99 뒤에, p95 중간, p50 앞에 — z-index로 겹쳐서 표시 */
+.lat-bars__bar:nth-child(1) { z-index: 1; opacity: 0.4; height: 8px; top: 8px; }
+.lat-bars__bar:nth-child(2) { z-index: 2; opacity: 0.7; height: 8px; top: 8px; }
+.lat-bars__bar:nth-child(3) { z-index: 3; height: 8px; top: 8px; }
+
+.lat-bars__values {
+  display: flex;
+  gap: 6px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.lat-bars__v { min-width: 36px; text-align: right; }
+.lat-bars__v--ok { color: var(--ok); }
+.lat-bars__v--warn { color: var(--warn); }
+.lat-bars__v--err { color: var(--err); }
+
+.lat-bars__legend {
+  display: flex;
+  gap: var(--sp-4);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  padding-top: var(--sp-1);
+}
+
+.lat-bars__ldot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 3px;
+  vertical-align: middle;
+}
+
+/* ── Proportion Bar (인라인 비율 바) ── */
+
+.prop-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.prop-bar__fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width 0.3s ease;
+}
+
+/* ── Delta Indicator ── */
+
+.delta-ind {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.delta-ind--pos { color: var(--ok); }
+.delta-ind--neg { color: var(--err); }
+.delta-ind--flat { color: var(--muted); }
+
+.delta-ind__arrow { font-size: 9px; }
+.delta-ind__pct { /* inherits color */ }
+.delta-ind__prev {
+  font-weight: 400;
+  color: var(--muted);
+  margin-left: 2px;
+}
+
+/* ── Stacked Bar additions ── */
+
+.usage-chart__stacked-bar {
+  width: 100%;
+  max-width: 32px;
+  display: flex;
+  flex-direction: column-reverse;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  overflow: hidden;
+  transition: height 0.3s ease;
+}
+
+.usage-chart__stacked-seg {
+  width: 100%;
+  min-height: 1px;
+  transition: opacity 0.15s;
+}
+
+.usage-chart__bar-col--hover .usage-chart__stacked-seg { opacity: 0.9; }
+.usage-chart__bar-col--hover .usage-chart__bar-fill { opacity: 1; filter: brightness(1.15); }
+
+/* ── Tooltip ── */
+
+.usage-chart__bar-col {
+  position: relative;
+}
+
+.usage-chart__tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel-elevated);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--sp-2) var(--sp-3);
+  box-shadow: var(--shadow-popup);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  z-index: 100;
+  pointer-events: none;
+  min-width: 140px;
+}
+
+.usage-chart__tooltip-date {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.usage-chart__tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 0;
+  color: var(--muted);
+}
+
+.usage-chart__tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.usage-chart__tooltip-val {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.usage-chart__tooltip-total {
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  padding-top: 4px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* 좌우 넘침 방지 */
+.usage-chart__bar-col:first-child .usage-chart__tooltip { left: 0; transform: none; }
+.usage-chart__bar-col:last-child .usage-chart__tooltip { left: auto; right: 0; transform: none; }

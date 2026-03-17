@@ -83,8 +83,8 @@ describe("State Consistency — MonitoringPanel request class 배지 직접 렌�
     });
     render(<MemoryRouter><MonitoringPanel /></MemoryRouter>);
     expect(screen.getByTestId("request-class-panel")).toBeInTheDocument();
-    expect(screen.getByText("builtin")).toBeInTheDocument();
-    expect(screen.getByText("agent")).toBeInTheDocument();
+    expect(screen.getAllByText("builtin").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("agent").length).toBeGreaterThanOrEqual(1);
   });
 
   it("guardrail_stats blocked=0이면 clear 배지가 렌더된다", () => {
