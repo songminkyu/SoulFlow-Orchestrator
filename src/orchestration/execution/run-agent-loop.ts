@@ -1,6 +1,6 @@
 /** run_agent_loop: executor 루프 실행. native backend 우선, legacy headless 폴백. */
 
-import type { ToolSchema } from "../../agent/tools/types.js";
+import type { ToolSchema, ToolExecutionContext } from "../../agent/tools/types.js";
 import { StreamBuffer } from "../../channels/stream-buffer.js";
 import {
   sanitize_provider_output,
@@ -55,6 +55,18 @@ async function _run_agent_loop_inner(
       try {
         const system = args.system_base;
         const caps = backend.capabilities;
+        // EG-4: native 경로 pre-execution budget 강제
+        const base_hooks = deps.hooks_for(stream, args, backend.id, args.tool_ctx.task_id, tools_used);
+        const budget_max = deps.config.max_tool_calls_per_run;
+        let native_tool_count = 0;
+        const hooks = budget_max > 0 ? {
+          ...base_hooks,
+          pre_tool_use: async (name: string, params: Record<string, unknown>, ctx?: unknown) => {
+            if (native_tool_count >= budget_max) return { permission: "deny" as const, reason: "max_tool_calls_exceeded" };
+            native_tool_count++;
+            return base_hooks.pre_tool_use ? base_hooks.pre_tool_use(name, params, ctx as ToolExecutionContext | undefined) : { permission: "allow" as const };
+          },
+        } : base_hooks;
         const result = await deps.agent_backends.run(backend.id, {
           task: args.context_block,
           task_id: `agent:${args.req.provider}:${args.req.message.chat_id}:${args.req.alias}`,
@@ -67,7 +79,7 @@ async function _run_agent_loop_inner(
           max_turns: deps.config.agent_loop_max_turns,
           effort: "high",
           ...(caps.thinking ? { enable_thinking: true, max_thinking_tokens: 16000 } : {}),
-          hooks: deps.hooks_for(stream, args, backend.id, args.tool_ctx.task_id, tools_used),
+          hooks,
           abort_signal: args.req.signal,
           cwd: deps.workspace,
           mcp_server_configs: deps.get_mcp_configs?.() ?? undefined,

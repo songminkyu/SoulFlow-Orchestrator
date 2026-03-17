@@ -1,6 +1,5 @@
 # Claude 증거 제출
 
-> 마지막 업데이트: 2026-03-17 19:45
 > GPT 감사 문서: `docs/feedback/gpt.md`
 
 ## 합의완료
@@ -19,54 +18,64 @@
 - `[합의완료]` PA-Track6 1차 + 2차
 - `[합의완료]` GW-Track7
 - `[합의완료]` PA-Track6 Residual — PA-5 outbound port + PA-7 import boundary + lint 수정
+- `[합의완료]` PA-Track6 Residual Batch 2 — PA-7 adapter conformance + bootstrap smoke
 
-## [합의완료] PA-Track6 Residual Batch 2 — PA-7 adapter conformance + bootstrap smoke
+## [GPT미검증] Track 1~7 전수조사 3회차 — disconnected code 연결 + 보안 갭 폐쇄
 
 ### Claim
 
-PA-7 adapter conformance 테스트 3종(ProviderRegistry, WorkflowEventService, SseBroadcasterLike 구현체 3종) + bootstrap smoke 테스트(composition root 조립 패턴 재현 + NULL_BROADCASTER 기본값 역할). 신규 테스트 2파일 / 25 tests 전부 green. 기존 테스트 영향 없음.
+도메인 1~7 전수조사(36개 작업 단위) 갭 수정. 수정 파일 20개(신규 2, 기존 18). `npx tsc --noEmit` 0 errors. `repo-profile` 8/8.
 
-### 반려 대응
+### 반려 대응 (라운드 6)
 
-1. **test-gap `bootstrap-smoke.test.ts:L114`** — `WorkflowEventService` 생성자를 `runtime-data.ts:L80`과 동일한 4인자(`workspace, events_dir, null, taskLoopMaxTurns`)로 변경. `events_dir` override 반영 검증 추가 (`svc.events_dir === events_dir`).
-2. **claim-drift `bootstrap-smoke.test.ts:L120`** — `read_task_detail` 호출 추가. `append`에 `detail` 필드를 전달하고 `read_task_detail`로 조회하여 포트 4개 메서드 중 `append`, `list`, `read_task_detail` 3개를 직접 검증 (나머지 `bind_task_store`는 별도 테스트).
+이전 라운드에서 보안(OWASP) 이슈는 모두 해소됨. 남은 것은 test-gap 1건: `repo-profile` bundle CLI 실행을 자동 회귀 테스트로 잠그지 않은 것.
 
-### PA-7 Adapter Conformance
-
-3. **`tests/architecture/pa7-adapter-conformance.test.ts`** (11 tests) — 포트 인터페이스의 모든 required 메서드가 런타임 인스턴스에 존재하고 `typeof === "function"`인지 구조적 검증.
-   - `ProviderRegistry` → `ProviderRegistryLike` (15개 메서드)
-   - `WorkflowEventService` → `WorkflowEventServiceLike` (4개 메서드)
-   - `MutableBroadcaster` → `SseBroadcasterLike` (11 required + 1 optional)
-   - `NULL_BROADCASTER` → `SseBroadcasterLike` (11 required, optional 미구현 확인)
-   - `SseManager` → `SseBroadcasterLike` (11 required + 1 optional)
-
-### PA-7 Bootstrap Smoke
-
-4. **`tests/bootstrap/bootstrap-smoke.test.ts`** (14 tests) — composition root(main.ts) 조립 패턴을 최소 의존성으로 재현.
-   - ProviderRegistry 조립: 최소 설정 생성 → 포트로 사용 → set/get 왕복 → health_scorer/vault 반환 (3 tests)
-   - WorkflowEventService 조립: `runtime-data.ts:L80`과 동일 4인자 생성 → events_dir override 검증 → append/list/read_task_detail CRUD → bind_task_store (2 tests)
-   - MutableBroadcaster 조립: 생성 → NULL_BROADCASTER 위임 → attach(SseManager) → 실제 위임 → detach → 복귀 → add_rich_stream_listener 생명주기 (5 tests)
-   - NULL_BROADCASTER 기본값 역할: 포트 할당 → no-op void 계약 → detach 후 복귀 검증 (3 tests)
-   - 포트 조합 주입: 3개 포트를 동시에 소비자 함수에 전달 (1 test)
+1. **`tests/evals/eval-run-cli.test.ts`** — `--bundle repo-profile --threshold 100` CLI 테스트 추가. `Running: repo-profile`, `Passed: 8`, `Failed: 0` 검증. `BUNDLE_SCORER_MAP["repo-profile"]` 경로가 자동으로 잠김.
 
 ### Changed Files
 
-**신규 테스트 (2):**
-- `tests/architecture/pa7-adapter-conformance.test.ts` — PA-7 adapter conformance 11 tests
-- `tests/bootstrap/bootstrap-smoke.test.ts` — PA-7 bootstrap smoke 14 tests
+**신규 (2):**
+- `tests/security/token-egress.test.ts` — SH-2 회귀 13 tests
+- `src/evals/repo-profile-executor.ts` — context 분기 executor
+
+**수정 (18):**
+- `src/agent/tools/http-request.ts` — HTTPS 전용
+- `src/agent/tools/http-utils.ts` — `check_allowed_hosts()` 공유 헬퍼
+- `src/agent/tools/oauth-fetch.ts` — `check_allowed_hosts()` 공유 경로
+- `src/bootstrap/orchestration.ts` — `check_allowed_hosts()` 공유 경로
+- `src/observability/correlation.ts` — task_id 필드
+- `src/orchestration/execution/run-task-loop.ts` — task_id correlation
+- `src/orchestration/execution/continue-task-loop.ts` — task_id correlation
+- `src/orchestration/execution/run-once.ts` — native budget pre_tool_use
+- `src/orchestration/execution/run-agent-loop.ts` — native budget pre_tool_use
+- `src/evals/loader.ts` — 5필드 파싱
+- `scripts/eval-run.ts` — EXECUTOR_MAP + BUNDLE_SCORER_MAP
+- `src/orchestration/execution/execute-dispatcher.ts` — normalize_ingress + route_preview
+- `src/orchestration/execution/phase-workflow.ts` — audit_workflow_nodes
+- `src/channels/stream-event.ts` — routing route_preview
+- `src/dashboard/routes/references.ts` — is_inside 통일
+- `src/auth/scoped-provider-resolver.ts` — open_team_store 팩토리
+- `tests/evals/loader.test.ts` — 신규 필드 검증
+- `tests/evals/eval-run-cli.test.ts` — repo-profile bundle CLI 회귀 추가
 
 ### Test Command
 
 ```bash
-npx vitest run tests/architecture/pa7-adapter-conformance.test.ts tests/bootstrap/bootstrap-smoke.test.ts
+npx vitest run tests/security/ tests/observability/ tests/orchestration/guardrails/ tests/evals/ tests/orchestration/gateway-contracts.test.ts tests/orchestration/ingress-normalizer.test.ts tests/auth/scoped-provider-resolver.test.ts tests/architecture/ tests/bootstrap/
 ```
 
 ### Test Result
 
-- `2 files / 25 tests passed` (0 failed)
-- `npx eslint tests/architecture/pa7-adapter-conformance.test.ts tests/bootstrap/bootstrap-smoke.test.ts`: 통과
+- `45 files / 693 tests passed` (0 failed)
+- `npx tsc --noEmit`: 0 errors
+- `npx tsx scripts/eval-run.ts --bundle repo-profile --threshold 100`: 8/8 (100%)
+- `npx eslint` 수정 파일 전부 통과
 
 ### Residual Risk
 
-이전 배치의 Residual Risk 2항목(PA-7 conformance + bootstrap smoke)이 이 배치에서 해소됨. 신규 잔여 리스크 없음.
+1. **인프라 계층 갭 (docs/feedback/infra-layer-gaps.md)**: EventBus/SSE/Redis tenant 격리. → Track 14.
+2. **OB-3 tool/LLM span 부재**: metrics만.
+3. **OB-5 FE 모니터링 패널 부재**.
+4. **PA-5 outbound port 4개 미추출**.
 
+> 마지막 업데이트: 2026-03-17 22:24

@@ -2,7 +2,7 @@
 
 import { existsSync } from "node:fs";
 import { writeFile, unlink, mkdir } from "node:fs/promises";
-import { join, resolve as path_resolve, sep } from "node:path";
+import { join } from "node:path";
 import type { RouteContext } from "../route-context.js";
 import { require_team_manager } from "../route-context.js";
 import { sanitize_filename, is_inside } from "../ops/shared.js";
@@ -78,10 +78,8 @@ export async function handle_references(ctx: RouteContext): Promise<boolean> {
     const refs_dir = join(ctx.workspace_runtime?.user_content ?? ctx.personal_dir, "references");
     const filepath = join(refs_dir, filename);
 
-    // path traversal 차단: resolve() 정규화 후 base dir 포함 여부 확인
-    const base = path_resolve(refs_dir) + sep;
-    const target = path_resolve(filepath);
-    if (!target.startsWith(base)) { json(res, 400, { error: "invalid filename" }); return true; }
+    // SH-3: 공유 containment 헬퍼 사용 — upload과 동일 방어 (case-insensitive, resolve 정규화)
+    if (!is_inside(refs_dir, filepath)) { json(res, 400, { error: "invalid filename" }); return true; }
 
     if (!existsSync(filepath)) { json(res, 404, { error: "file not found" }); return true; }
 

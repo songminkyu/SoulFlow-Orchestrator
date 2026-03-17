@@ -9,6 +9,7 @@ import {
   normalize_agent_reply,
 } from "../../channels/output-sanitizer.js";
 import { now_ms, short_id } from "../../utils/common.js";
+import { extend_correlation } from "../../observability/correlation.js";
 import { resolve_executor_provider } from "../../providers/executor.js";
 import {
   create_tool_call_handler, type ToolCallState,
@@ -58,6 +59,8 @@ async function _continue_task_loop_inner(
   task_with_media: string,
   media: string[],
 ): Promise<OrchestrationResult> {
+  // OB-1: task_id를 correlation context에 전파
+  if (req.correlation) req.correlation = extend_correlation(req.correlation, { task_id: task.taskId });
   const stream = new StreamBuffer();
   const always_skills = deps.runtime.get_always_skills();
   const skill_names = resolve_context_skills(deps, task_with_media, always_skills);

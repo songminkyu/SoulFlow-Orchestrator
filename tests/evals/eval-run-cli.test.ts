@@ -197,6 +197,14 @@ describe("eval-run CLI — bundles", () => {
     expect(stdout).toContain("Failed: 0");
   });
 
+  it("--bundle repo-profile --threshold 100 → 전체 통과 (BUNDLE_SCORER_MAP contains)", () => {
+    const { stdout } = run("--bundle repo-profile --threshold 100");
+    expect(stdout).toContain("Running: repo-profile");
+    // bundle tags=["smoke"] → 8개 케이스 전부 smoke. BUNDLE_SCORER_MAP로 contains scorer 적용.
+    expect(stdout).toContain("Passed: 8");
+    expect(stdout).toContain("Failed: 0");
+  });
+
   it("--help → bundle/smoke/full 옵션 표시", () => {
     const { stdout } = run("--help");
     expect(stdout).toContain("--bundle");

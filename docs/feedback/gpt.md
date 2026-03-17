@@ -1,22 +1,22 @@
 ## 감사 범위
-- [합의완료] PA-Track6 Residual Batch 2 — PA-7 adapter conformance + bootstrap smoke
+- [합의완료] Track 1~7 전수조사 3회차 — disconnected code 연결 + 보안 갭 폐쇄
 
 ## 독립 검증 결과
-- 변경 파일 2개에 대해 파일별 `npx eslint tests/architecture/pa7-adapter-conformance.test.ts`, `npx eslint tests/bootstrap/bootstrap-smoke.test.ts`를 각각 재실행해 모두 통과했다.
-- 증거 명령 `npx vitest run tests/architecture/pa7-adapter-conformance.test.ts tests/bootstrap/bootstrap-smoke.test.ts`를 재실행한 결과 `2 files / 25 tests passed`였다.
-- 추가 확인으로 `npx vitest run tests/events/workflow-event-service.test.ts tests/dashboard/broadcaster.test.ts`를 재실행한 결과 `2 files / 54 tests passed`였다.
-- `npx tsc --noEmit`를 재실행해 통과를 확인했다.
-- `tests/bootstrap/bootstrap-smoke.test.ts`, `tests/architecture/pa7-adapter-conformance.test.ts`, `src/bootstrap/runtime-data.ts`, `src/events/service.ts`, `src/dashboard/broadcaster.ts`, `src/dashboard/sse-manager.ts`, `src/bootstrap/dashboard.ts`, `src/main.ts`를 직접 대조했다.
+- `docs/feedback/claude.md`의 현재 미합의 항목 1건만 재검토했다.
+- `claude.md`의 변경 파일 목록 기준 20개 파일에 대해 파일별 `npx eslint <file>`를 각각 재실행했고 모두 통과했다.
+- 증거 명령 `npx vitest run tests/security/ tests/observability/ tests/orchestration/guardrails/ tests/evals/ tests/orchestration/gateway-contracts.test.ts tests/orchestration/ingress-normalizer.test.ts tests/auth/scoped-provider-resolver.test.ts tests/architecture/ tests/bootstrap/`를 재실행한 결과 `45 files / 691 tests passed`였다.
+- `npx tsc --noEmit`를 재실행한 결과 통과했다.
+- `npx tsx scripts/eval-run.ts --bundle repo-profile --threshold 100`를 재실행한 결과 `8/8 (100.0%)`로 통과했다.
+- 추가 공격자 검증에서 기본 HTTP 요청과 `User-Agent` value-smuggling HTTP 요청 모두 `Error: http_request requires HTTPS. Use web_fetch for plain HTTP content.`로 차단됐다.
 
 ## 최종 판정
-- [합의완료] PA-Track6 Residual Batch 2 — PA-7 adapter conformance + bootstrap smoke
+- [합의완료] Track 1~7 전수조사 3회차 — disconnected code 연결 + 보안 갭 폐쇄
 
 ## 핵심 근거
-- `tests/bootstrap/bootstrap-smoke.test.ts`의 WorkflowEventService smoke는 이제 `src/bootstrap/runtime-data.ts`와 같은 4인자 생성 패턴을 사용하고 `svc.events_dir` override를 직접 검증한다.
-- 같은 smoke에서 `append`/`list`/`read_task_detail`/`bind_task_store`가 모두 직접 호출되어 이전 반려였던 wiring 공백과 CRUD claim 불일치가 해소됐다.
-- `tests/architecture/pa7-adapter-conformance.test.ts`의 ProviderRegistryLike 15개, WorkflowEventServiceLike 4개, SseBroadcasterLike 11 required + 1 optional 검증은 현재 구현(`src/events/service.ts`, `src/dashboard/broadcaster.ts`, `src/dashboard/sse-manager.ts`)과 일치한다.
-- eslint, 증거 vitest, 추가 관련 vitest, `npx tsc --noEmit`가 모두 green이므로 현재 감사 범위의 코드·lint·테스트 기준은 충족됐다.
-- 현재 확인 범위에서 SOLID/YAGNI/DRY/KISS/LoD 구조 회귀나 OWASP Top 10 기준의 새로운 고위험 취약점은 확인하지 못했다.
+- `scripts/eval-run.ts:L248`의 `BUNDLE_SCORER_MAP["repo-profile"]`와 `tests/evals/eval-run-cli.test.ts:L200`의 `--bundle repo-profile --threshold 100` 회귀 테스트가 직접 연결된다.
+- `src/agent/tools/http-request.ts:L78`은 plain HTTP를 전면 차단하고, 같은 우회 시도를 현재 워크트리에서 직접 재현해도 동일한 HTTPS 오류로 종료됐다.
+- `src/agent/tools/http-utils.ts:L31`, `src/agent/tools/oauth-fetch.ts:L105`, `src/bootstrap/orchestration.ts:L146`, `tests/security/token-egress.test.ts:L80`가 `check_allowed_hosts` 공유 경계와 회귀 테스트를 일치시킨다.
+- 파일별 lint, 증거 vitest, `npx tsc --noEmit`, `repo-profile` claim 명령이 모두 통과했고, 이번 라운드에서 추가 확인한 SOLID/YAGNI/DRY/KISS/LoD 및 OWASP 관점의 차단 경계도 회귀 없이 유지됐다.
 
 ## 다음 작업
 

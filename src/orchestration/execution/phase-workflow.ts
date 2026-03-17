@@ -12,6 +12,7 @@ import { instrument } from "../../observability/instrument.js";
 import { error_result } from "./helpers.js";
 import { now_iso, error_message, short_id } from "../../utils/common.js";
 import { normalize_json_text } from "../output-contracts.js";
+import { audit_workflow_nodes } from "../../quality/workflow-compiler-policy.js";
 
 export type PhaseWorkflowDeps = {
   providers: ProviderRegistryLike;
@@ -106,6 +107,15 @@ async function _run_phase_loop_inner(
       return error_result("phase", null, "no_matching_workflow_template");
     }
     const preview = format_workflow_preview(dynamic);
+    // GW-5: 워크플로우 생성 직후 policy 감사 — agent-heavy 등 위반 경고 로그
+    const audit_nodes = (dynamic.phases ?? []).flatMap((p) => (p as { nodes?: unknown[] }).nodes ?? [])
+      .filter((n): n is { node_type: string; role_prompt?: string } => typeof (n as Record<string, unknown>).node_type === "string");
+    if (audit_nodes.length > 0) {
+      const audit = audit_workflow_nodes(audit_nodes as Parameters<typeof audit_workflow_nodes>[0]);
+      if (audit.violations.length > 0) {
+        deps.logger.warn("workflow_policy_violations", { count: audit.violations.length, violations: audit.violations.map((v) => v.code) });
+      }
+    }
     const workflow_id = pre_workflow_id ?? `wf-${short_id(12)}`;
     if (store) {
       store.upsert({

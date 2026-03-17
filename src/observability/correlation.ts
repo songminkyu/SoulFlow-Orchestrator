@@ -16,6 +16,8 @@ export type CorrelationContext = {
   run_id?: string;
   /** 워크플로우 실행 ID. */
   workflow_id?: string;
+  /** 태스크 루프 실행 ID. */
+  task_id?: string;
   /** 팀 ID. 멀티테넌트 스코핑 기준. */
   team_id?: string;
   /** 사용자 ID. */

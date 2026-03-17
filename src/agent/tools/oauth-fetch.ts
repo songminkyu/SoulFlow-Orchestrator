@@ -10,7 +10,7 @@ import type { OAuthFlowService } from "../../oauth/flow-service.js";
 import type { OAuthIntegrationStore } from "../../oauth/integration-store.js";
 import { create_logger } from "../../logger.js";
 import { error_message } from "../../utils/common.js";
-import { validate_url, normalize_headers, serialize_body, format_response, timed_fetch } from "./http-utils.js";
+import { validate_url, normalize_headers, serialize_body, format_response, timed_fetch, check_allowed_hosts } from "./http-utils.js";
 
 const log = create_logger("oauth-fetch");
 
@@ -101,17 +101,11 @@ export class OAuthFetchTool extends Tool {
       return `Error: OAuth integration "${service_id}" is disabled`;
     }
 
-    // host allowlist 검증 — allowed_hosts 미설정 시 차단 (토큰 유출 방지)
-    const allowed_hosts = Array.isArray(integration.settings?.allowed_hosts)
-      ? (integration.settings.allowed_hosts as unknown[]).map(String).filter(Boolean)
-      : [];
-    if (allowed_hosts.length === 0) {
-      log.warn("oauth_fetch_blocked_no_allowlist", { service_id, host: url_or_error.hostname });
-      return `Error: allowed_hosts not configured for "${service_id}". Set allowed_hosts in integration settings to enable fetch.`;
-    }
-    if (!allowed_hosts.includes(url_or_error.hostname)) {
-      log.warn("oauth_fetch_blocked", { service_id, host: url_or_error.hostname, allowed: allowed_hosts });
-      return `Error: host "${url_or_error.hostname}" is not in allowed_hosts for "${service_id}"`;
+    // SH-2: check_allowed_hosts 공유 헬퍼 사용 — orchestration.ts oauth_fetch_service와 동일 경로
+    const hosts_error = check_allowed_hosts(url_or_error.hostname, integration.settings, service_id);
+    if (hosts_error) {
+      log.warn("oauth_fetch_blocked", { service_id, host: url_or_error.hostname, error: hosts_error });
+      return `Error: ${hosts_error}`;
     }
 
     const { token, error } = await this.flow.get_valid_access_token(service_id);

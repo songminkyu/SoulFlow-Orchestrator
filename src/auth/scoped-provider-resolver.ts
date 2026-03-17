@@ -120,6 +120,8 @@ export class ScopedProviderResolver {
 
   /** TeamStore를 열어 반환 (없으면 생성). 팀 프로바이더 write 작업용. */
   open_team_store(team_id: string): TeamStore {
+    // PA-2: 팩토리 주입 우선, fallback으로 직접 생성
+    if (this._create_team_store) return this._create_team_store(team_id);
     const db_path = join(this.workspace_root, "tenants", team_id, "team.db");
     return new TeamStore(db_path, team_id);
   }

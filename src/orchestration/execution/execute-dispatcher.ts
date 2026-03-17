@@ -17,7 +17,7 @@ import type { ConfirmationGuard } from "../confirmation-guard.js";
 import { format_guard_prompt } from "../confirmation-guard.js";
 import type { AppendWorkflowEventInput } from "../../events/index.js";
 import { resolve_gateway } from "../gateway.js";
-import { to_request_plan } from "../gateway-contracts.js";
+import { to_request_plan, build_route_preview } from "../gateway-contracts.js";
 import type { ExecutionGatewayLike } from "../execution-gateway.js";
 import type { DirectExecutorLike, ExecuteToolFn } from "./direct-executor.js";
 import { error_message } from "../../utils/common.js";
@@ -27,6 +27,7 @@ import { error_result } from "./helpers.js";
 import { generate_completion_checks, format_follow_up } from "../completion-checker.js";
 import { build_session_evidence, format_reuse_reply, evaluate_reuse } from "../guardrails/index.js";
 import { now_ms } from "../../utils/common.js";
+import { normalize_ingress } from "../ingress-normalizer.js";
 
 const VALIDATION_ROLES = new Set(["validator", "reviewer"]);
 
@@ -73,12 +74,18 @@ export async function execute_dispatch(
     category_map, tool_categories, active_tasks_in_chat,
   } = preflight;
 
+  // GW-2: 채널별 ingress 정규화 — Slack 멘션 제거, Telegram 봇명 제거
+  const normalized = normalize_ingress(req.message, req.provider);
+  const gateway_text = normalized.text !== String(req.message.content || "").trim()
+    ? task_with_media.replace(String(req.message.content || "").trim(), normalized.text)
+    : task_with_media;
+
   // warm_up은 비동기 fire-and-forget: gateway를 블로킹하지 않음
   // select_tools_for_request 호출 시점에 완료되어 있으면 캐시 활용, 아니면 그때 임베딩
-  deps.tool_index?.warm_up(task_with_media).catch(() => {});
+  deps.tool_index?.warm_up(gateway_text).catch(() => {});
 
   const decision = await resolve_gateway(
-    task_with_media,
+    gateway_text,
     {
       active_tasks: active_tasks_in_chat,
       recent_history: req.session_history.slice(-6),
@@ -102,7 +109,8 @@ export async function execute_dispatch(
 
   // GW-5: routing 이벤트 발행 — gateway 결정 직후, 실행 전
   const plan = to_request_plan(decision);
-  req.on_stream_event?.({ type: "routing", execution_route: plan.kind });
+  const route_preview = build_route_preview(plan);
+  req.on_stream_event?.({ type: "routing", execution_route: plan.kind, route_preview });
 
   // Short-circuit: identity
   if (decision.action === "identity") {

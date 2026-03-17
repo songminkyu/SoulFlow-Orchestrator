@@ -24,6 +24,23 @@ export function validate_url(url_str: string): URL | string {
   return parsed;
 }
 
+/**
+ * SH-2: OAuth allowed_hosts 검증. 미설정 시 차단, 불일치 시 차단.
+ * OAuthFetchTool과 oauth_fetch_service가 동일 함수를 사용.
+ */
+export function check_allowed_hosts(
+  hostname: string,
+  settings: { allowed_hosts?: unknown[] } | undefined,
+  service_id: string,
+): string | null {
+  const allowed = Array.isArray(settings?.allowed_hosts)
+    ? settings!.allowed_hosts.map(String).filter(Boolean)
+    : [];
+  if (allowed.length === 0) return `allowed_hosts not configured for "${service_id}". Set allowed_hosts in integration settings.`;
+  if (!allowed.includes(hostname)) return `host "${hostname}" is not in allowed_hosts for "${service_id}"`;
+  return null;
+}
+
 /** params.headers 객체를 Record<string, string>으로 정규화. */
 export function normalize_headers(raw: unknown): Record<string, string> {
   const out: Record<string, string> = {};

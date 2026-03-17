@@ -24,7 +24,7 @@ describe("load_eval_dataset", () => {
     expect(ds.name).toBe("greeting");
     expect(ds.description).toBe("인사말 테스트");
     expect(ds.cases).toHaveLength(2);
-    expect(ds.cases[0]).toEqual({ id: "g1", input: "hello", expected: "hi", tags: undefined, metadata: undefined });
+    expect(ds.cases[0]).toMatchObject({ id: "g1", input: "hello", expected: "hi" });
     expect(ds.cases[1].tags).toEqual(["farewell"]);
   });
 
@@ -56,6 +56,39 @@ describe("load_eval_dataset", () => {
     const file = join(tmp, "no-input.json");
     writeFileSync(file, JSON.stringify({ cases: [{ id: "c1" }] }));
     expect(() => load_eval_dataset(file)).toThrow("'input' string");
+  });
+
+  it("EV-1 신규 필드 파싱: expected_route, expected_output_shape, judge_profile, bundle, baseline_version", () => {
+    const file = join(tmp, "full-fields.json");
+    writeFileSync(file, JSON.stringify({
+      cases: [{
+        id: "f1", input: "test",
+        expected_route: "direct",
+        expected_output_shape: ["title", "body"],
+        judge_profile: "strict",
+        bundle: "routing",
+        baseline_version: "1.0.0",
+      }],
+    }));
+    const ds = load_eval_dataset(file);
+    expect(ds.cases[0].expected_route).toBe("direct");
+    expect(ds.cases[0].expected_output_shape).toEqual(["title", "body"]);
+    expect(ds.cases[0].judge_profile).toBe("strict");
+    expect(ds.cases[0].bundle).toBe("routing");
+    expect(ds.cases[0].baseline_version).toBe("1.0.0");
+  });
+
+  it("EV-1 신규 필드 미지정 시 undefined", () => {
+    const file = join(tmp, "minimal.json");
+    writeFileSync(file, JSON.stringify({
+      cases: [{ id: "m1", input: "test" }],
+    }));
+    const ds = load_eval_dataset(file);
+    expect(ds.cases[0].expected_route).toBeUndefined();
+    expect(ds.cases[0].expected_output_shape).toBeUndefined();
+    expect(ds.cases[0].judge_profile).toBeUndefined();
+    expect(ds.cases[0].bundle).toBeUndefined();
+    expect(ds.cases[0].baseline_version).toBeUndefined();
   });
 
   it("metadata 보존", () => {

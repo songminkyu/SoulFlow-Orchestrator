@@ -134,10 +134,17 @@ export async function create_orchestration_bundle(deps: OrchestrationBundleDeps)
     service_id: string,
     opts: { url: string; method: string; headers?: Record<string, string>; body?: unknown },
   ): Promise<{ status: number; body: unknown; headers: Record<string, string> }> => {
-    const { normalize_headers, serialize_body, timed_fetch } = await import("../agent/tools/http-utils.js");
+    const { normalize_headers, serialize_body, timed_fetch, validate_url } = await import("../agent/tools/http-utils.js");
     const integration = oauth_store.get(service_id);
     if (!integration) throw new Error(`OAuth integration "${service_id}" not found`);
     if (!integration.enabled) throw new Error(`OAuth integration "${service_id}" is disabled`);
+
+    // SH-2: OAuthFetchTool과 동일한 allowed_hosts 검증 — 공유 헬퍼 사용
+    const parsed_url = validate_url(opts.url);
+    if (typeof parsed_url === "string") throw new Error(parsed_url);
+    const { check_allowed_hosts } = await import("../agent/tools/http-utils.js");
+    const hosts_error = check_allowed_hosts(parsed_url.hostname, integration.settings, service_id);
+    if (hosts_error) throw new Error(hosts_error);
 
     const { token, error } = await oauth_flow.get_valid_access_token(service_id);
     if (!token) throw new Error(`No valid token for "${service_id}": ${error || "not configured"}`);

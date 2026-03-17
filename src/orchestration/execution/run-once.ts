@@ -1,7 +1,7 @@
 /** run_once: executor에게 1회 질의. 오케스트레이터 LLM은 분류만 수행하고 실제 응답은 executor가 생성. */
 
 import type { ChatMessage } from "../../providers/types.js";
-import type { ToolSchema } from "../../agent/tools/types.js";
+import type { ToolSchema, ToolExecutionContext } from "../../agent/tools/types.js";
 import { StreamBuffer } from "../../channels/stream-buffer.js";
 import {
   sanitize_provider_output,
@@ -65,6 +65,18 @@ async function _run_once_inner(deps: RunnerDeps, args: RunExecutionArgs): Promis
         const history_prefix = history_turns.length
           ? history_turns.map((h) => `[${h.role.toUpperCase()}] ${h.content}`).join("\n\n") + "\n\n"
           : "";
+        // EG-4: native 경로 pre-execution budget 강제 — pre_tool_use 훅으로 초과 시 deny
+        const base_hooks = deps.hooks_for(stream, args, backend.id, args.tool_ctx.task_id, tools_used);
+        const budget_max = deps.config.max_tool_calls_per_run;
+        let native_tool_count = 0;
+        const hooks = budget_max > 0 ? {
+          ...base_hooks,
+          pre_tool_use: async (name: string, params: Record<string, unknown>, ctx?: unknown) => {
+            if (native_tool_count >= budget_max) return { permission: "deny" as const, reason: "max_tool_calls_exceeded" };
+            native_tool_count++;
+            return base_hooks.pre_tool_use ? base_hooks.pre_tool_use(name, params, ctx as ToolExecutionContext | undefined) : { permission: "allow" as const };
+          },
+        } : base_hooks;
         const result = await deps.agent_backends.run(backend.id, {
           task: `${history_prefix}${args.context_block}`,
           task_id: once_task_id,
@@ -77,7 +89,7 @@ async function _run_once_inner(deps: RunnerDeps, args: RunExecutionArgs): Promis
           max_turns: deps.config.agent_loop_max_turns,
           effort: "medium",
           ...(caps.thinking ? { enable_thinking: true, max_thinking_tokens: 10000 } : {}),
-          hooks: deps.hooks_for(stream, args, backend.id, args.tool_ctx.task_id, tools_used),
+          hooks,
           abort_signal: args.req.signal,
           cwd: deps.workspace,
           mcp_server_configs: deps.get_mcp_configs?.() ?? undefined,

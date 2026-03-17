@@ -36,6 +36,8 @@ import { create_routing_executor } from "../src/evals/routing-executor.js";
 import { create_safety_executor } from "../src/evals/safety-executor.js";
 import { create_compiler_executor } from "../src/evals/compiler-executor.js";
 import { create_memory_executor } from "../src/evals/memory-executor.js";
+import { create_parallel_conflict_executor } from "../src/evals/parallel-conflict-executor.js";
+import { create_repo_profile_executor } from "../src/evals/repo-profile-executor.js";
 import type { EvalExecutorLike, EvalScorerLike, EvalDataset } from "../src/evals/contracts.js";
 
 interface CliArgs {
@@ -238,11 +240,14 @@ const EXECUTOR_MAP: Record<string, () => EvalExecutorLike> = {
   safety: create_safety_executor,
   compiler: create_compiler_executor,
   memory: create_memory_executor,
+  "parallel-conflict": create_parallel_conflict_executor,
+  "repo-profile": create_repo_profile_executor,
 };
 
 /** 번들 전용 커스텀 scorer — CLI --scorer 플래그보다 우선. */
 const BUNDLE_SCORER_MAP: Record<string, () => EvalScorerLike> = {
   "output-reduction": create_output_reduction_scorer,
+  "repo-profile": () => CONTAINS_SCORER,
 };
 
 function resolve_executor(dataset_name: string): EvalExecutorLike {

@@ -11,6 +11,7 @@ import {
   extract_provider_error,
 } from "../../channels/output-sanitizer.js";
 import { error_message, now_ms, short_id } from "../../utils/common.js";
+import { extend_correlation } from "../../observability/correlation.js";
 import {
   create_tool_call_handler, type ToolCallState,
 } from "../tool-call-handler.js";
@@ -95,6 +96,8 @@ async function _run_task_loop_inner(
   const stream = new StreamBuffer();
   emit_execution_info(stream, args.req.on_stream, "task", args.executor, deps.logger);
   const task_id = `task:${args.req.provider}:${args.req.message.chat_id}:${args.req.alias}:${args.request_scope}`.toLowerCase();
+  // OB-1: task_id를 correlation context에 전파 — downstream 로그/span에서 task_id 기반 필터링 가능
+  if (args.req.correlation) args.req.correlation = extend_correlation(args.req.correlation, { task_id });
   if (args.req.run_id) deps.process_tracker?.link_task(args.req.run_id, task_id);
   deps.log_event({
     run_id: args.req.run_id || `task-${Date.now()}`,

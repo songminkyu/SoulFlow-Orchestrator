@@ -70,6 +70,13 @@ export class HttpRequestTool extends Tool {
 
     const headers = normalize_headers(params.headers);
     apply_auth(headers, params.auth);
+
+    // SH-2: HttpRequestTool은 HTTPS 전용. 이 도구는 외부 JSON/REST API 호출용이며,
+    // 현대 API는 모두 HTTPS 사용. 평문 HTTP는 헤더 이름/값 무관하게 credential 유출 경로.
+    // 공개 웹 페칭이 필요하면 web_fetch 도구를 사용.
+    if (url_or_error.protocol !== "https:") {
+      return "Error: http_request requires HTTPS. Use web_fetch for plain HTTP content.";
+    }
     const body = serialize_body(params.body, headers);
 
     try {

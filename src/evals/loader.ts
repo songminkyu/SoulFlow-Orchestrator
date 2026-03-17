@@ -45,5 +45,14 @@ function validate_case(raw: unknown, index: number): EvalCase {
   const tags = Array.isArray(obj.tags) ? obj.tags.filter((t): t is string => typeof t === "string") : undefined;
   const metadata = obj.metadata && typeof obj.metadata === "object" ? obj.metadata as Record<string, unknown> : undefined;
 
-  return { id, input, expected, tags, metadata };
+  // EV-1: 계약(contracts.ts)에 정의된 추가 필드 파싱 — judge/runner가 활용
+  const expected_route = typeof obj.expected_route === "string" ? obj.expected_route : undefined;
+  const expected_output_shape = Array.isArray(obj.expected_output_shape)
+    ? obj.expected_output_shape.filter((s): s is string => typeof s === "string")
+    : undefined;
+  const judge_profile = typeof obj.judge_profile === "string" ? obj.judge_profile : undefined;
+  const bundle = typeof obj.bundle === "string" ? obj.bundle : undefined;
+  const baseline_version = typeof obj.baseline_version === "string" ? obj.baseline_version : undefined;
+
+  return { id, input, expected, tags, metadata, expected_route, expected_output_shape, judge_profile, bundle, baseline_version };
 }
