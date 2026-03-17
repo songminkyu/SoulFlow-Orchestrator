@@ -1,6 +1,6 @@
 /** EV FE: PromptingPage → eval 탭 진입 통합 테스트. */
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 // 모든 하위 패널 mock — eval 탭 진입만 검증
 vi.mock("@/pages/prompting/text-panel", () => ({ TextPanel: () => <div data-testid="text-panel" /> }));
@@ -14,16 +14,16 @@ vi.mock("@/pages/prompting/eval-panel", () => ({ EvalPanel: () => <div data-test
 import PromptingPage from "@/pages/prompting/index";
 
 describe("PromptingPage — eval 탭 진입", () => {
-  it("초기 상태 — Text 탭 렌더", () => {
+  it("초기 상태 — Text 탭 렌더", async () => {
     render(<PromptingPage />);
-    expect(screen.getByTestId("text-panel")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("text-panel")).toBeInTheDocument());
     expect(screen.queryByTestId("eval-panel")).toBeNull();
   });
 
-  it("Eval 탭 클릭 → EvalPanel 렌더", () => {
+  it("Eval 탭 클릭 → EvalPanel 렌더", async () => {
     render(<PromptingPage />);
     fireEvent.click(screen.getByText("Eval"));
-    expect(screen.getByTestId("eval-panel")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("eval-panel")).toBeInTheDocument());
     expect(screen.queryByTestId("text-panel")).toBeNull();
   });
 

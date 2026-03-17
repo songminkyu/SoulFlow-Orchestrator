@@ -9,14 +9,15 @@
  *   Gallery — 에이전트 정의 갤러리 CRUD
  *   Compare — 여러 모델 병렬 비교
  */
-import { useState } from "react";
-import { TextPanel } from "./text-panel";
-import { ImagePanel } from "./image-panel";
-import { VideoPanel } from "./video-panel";
-import { AgentPanel } from "./agent-panel";
-import { GalleryPanel } from "./gallery-panel";
-import { ComparePanel } from "./compare-panel";
-import { EvalPanel } from "./eval-panel";
+import { useState, lazy, Suspense } from "react";
+
+const TextPanel = lazy(() => import("./text-panel").then(m => ({ default: m.TextPanel })));
+const ImagePanel = lazy(() => import("./image-panel").then(m => ({ default: m.ImagePanel })));
+const VideoPanel = lazy(() => import("./video-panel").then(m => ({ default: m.VideoPanel })));
+const AgentPanel = lazy(() => import("./agent-panel").then(m => ({ default: m.AgentPanel })));
+const GalleryPanel = lazy(() => import("./gallery-panel").then(m => ({ default: m.GalleryPanel })));
+const ComparePanel = lazy(() => import("./compare-panel").then(m => ({ default: m.ComparePanel })));
+const EvalPanel = lazy(() => import("./eval-panel").then(m => ({ default: m.EvalPanel })));
 
 type Tab = "text" | "image" | "video" | "agent" | "gallery" | "compare" | "eval";
 
@@ -57,13 +58,15 @@ export default function PromptingPage() {
       </nav>
 
       <div className="ps-body" role="tabpanel">
-        {tab === "text"    && <TextPanel />}
-        {tab === "image"   && <ImagePanel />}
-        {tab === "video"   && <VideoPanel />}
-        {tab === "agent"   && <AgentPanel initial_id={agent_initial_id} />}
-        {tab === "gallery" && <GalleryPanel onGoToAgent={go_to_agent} />}
-        {tab === "compare" && <ComparePanel />}
-        {tab === "eval"    && <EvalPanel />}
+        <Suspense fallback={<div className="ps-loading" />}>
+          {tab === "text"    && <TextPanel />}
+          {tab === "image"   && <ImagePanel />}
+          {tab === "video"   && <VideoPanel />}
+          {tab === "agent"   && <AgentPanel initial_id={agent_initial_id} />}
+          {tab === "gallery" && <GalleryPanel onGoToAgent={go_to_agent} />}
+          {tab === "compare" && <ComparePanel />}
+          {tab === "eval"    && <EvalPanel />}
+        </Suspense>
       </div>
     </div>
   );

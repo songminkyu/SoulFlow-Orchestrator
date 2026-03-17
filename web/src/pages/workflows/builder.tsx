@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import yaml from "js-yaml";
 import { api } from "../../api/client";
 
 import { useToast } from "../../components/toast";
-import { YamlEditor } from "../../components/yaml-editor";
+const YamlEditor = lazy(() => import("../../components/yaml-editor").then(m => ({ default: m.YamlEditor })));
 import { NodePalette } from "../../components/node-palette";
 import { useT } from "../../i18n";
 import { GraphEditor, type WorkflowDef, type AgentDef, type PhaseDef, type ToolNodeDef, type SkillNodeDef, type OrcheNodeDef, type TriggerNodeDef } from "./graph-editor";
@@ -796,6 +796,7 @@ export default function WorkflowBuilderPage() {
             </div>
             {yamlSideTab === "yaml" ? (
               <>
+                <Suspense fallback={<div className="graph-layout__yaml-cm" />}>
                 <YamlEditor
                   value={effectiveYamlText}
                   onChange={(v) => {
@@ -809,6 +810,7 @@ export default function WorkflowBuilderPage() {
                   }}
                   className="graph-layout__yaml-cm"
                 />
+                </Suspense>
                 {yamlError && (
                   <div className="yaml-error-banner" role="alert">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>

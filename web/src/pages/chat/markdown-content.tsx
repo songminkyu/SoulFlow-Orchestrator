@@ -1,14 +1,11 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
 import rehypeHighlight from "rehype-highlight";
-import rehypeKatex from "rehype-katex";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import type { Components } from "react-markdown";
 import type { Pluggable } from "unified";
 import "highlight.js/styles/github-dark.min.css";
-import "katex/dist/katex.min.css";
 import { MapBlock } from "./map-embed.js";
 
 /** highlight.js + KaTeX가 추가하는 클래스명/인라인 스타일을 sanitize에서 허용 */
@@ -81,12 +78,37 @@ const COMPONENTS: Components = {
   pre: MapPre as Components["pre"],
 };
 
-const REMARK_PLUGINS: Pluggable[] = [remarkGfm, remarkMath];
-const REHYPE_PLUGINS: Pluggable[] = [
+const REMARK_BASE: Pluggable[] = [remarkGfm];
+const REHYPE_BASE: Pluggable[] = [
   rehypeHighlight,
-  [rehypeKatex, { output: "html" }],
   [rehypeSanitize, SANITIZE_SCHEMA],
 ];
+
+/** 수식 패턴 감지 — $, $$, \[, \( 중 하나라도 있으면 true. */
+const HAS_MATH_RE = /\$\$|\$[^$]|\\\[|\\\(/;
+
+/** KaTeX 플러그인 지연 로딩 캐시. */
+type KatexPlugins = { remark: Pluggable; rehype: Pluggable };
+let _katex_plugins: KatexPlugins | null = null;
+let _katex_loading: Promise<KatexPlugins> | null = null;
+
+async function load_katex(): Promise<KatexPlugins> {
+  if (_katex_plugins) return _katex_plugins;
+  if (!_katex_loading) {
+    _katex_loading = Promise.all([
+      import("remark-math"),
+      import("rehype-katex"),
+      import("katex/dist/katex.min.css"),
+    ]).then(([rm, rk]) => {
+      _katex_plugins = {
+        remark: rm.default,
+        rehype: [rk.default, { output: "html" }] as Pluggable,
+      };
+      return _katex_plugins;
+    });
+  }
+  return _katex_loading;
+}
 
 /** 스트리밍 중 경량 렌더 — 줄바꿈만 처리, 풀 마크다운 파이프라인 건너뜀.
  *  DOM 교체 대신 텍스트 노드만 업데이트되어 깜빡임 없이 부드럽게 확장. */
@@ -106,14 +128,29 @@ function StreamingText({ content }: { content: string }) {
 
 export function MarkdownContent({ content, streaming }: { content: string; streaming?: boolean }) {
   if (streaming) return <StreamingText content={content} />;
+
+  const needs_math = HAS_MATH_RE.test(content);
+  const [katex, set_katex] = useState(_katex_plugins);
+
+  useEffect(() => {
+    if (needs_math && !katex) {
+      load_katex().then(set_katex);
+    }
+  }, [needs_math, katex]);
+
+  const remark_plugins = katex ? [...REMARK_BASE, katex.remark] : REMARK_BASE;
+  const rehype_plugins = katex
+    ? [rehypeHighlight, katex.rehype, [rehypeSanitize, SANITIZE_SCHEMA]] as Pluggable[]
+    : REHYPE_BASE;
+
   return (
     <div className="chat-md">
       <ReactMarkdown
-        remarkPlugins={REMARK_PLUGINS}
-        rehypePlugins={REHYPE_PLUGINS}
+        remarkPlugins={remark_plugins}
+        rehypePlugins={rehype_plugins}
         components={COMPONENTS}
       >
-        {preprocess_latex(content)}
+        {needs_math ? preprocess_latex(content) : content}
       </ReactMarkdown>
     </div>
   );

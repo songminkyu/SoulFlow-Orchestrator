@@ -23,7 +23,16 @@ export default defineConfig(({ command }) => ({
         manualChunks: {
           "vendor-react": ["react", "react-dom", "react-router-dom"],
           "vendor-query": ["@tanstack/react-query"],
-          "vendor-markdown": ["react-markdown", "remark-gfm", "rehype-highlight", "rehype-sanitize"],
+          "vendor-codemirror": [
+            "@codemirror/view", "@codemirror/state", "@codemirror/commands",
+            "@codemirror/language", "@codemirror/lang-yaml",
+          ],
+          "vendor-markdown": [
+            "react-markdown", "remark-gfm", "remark-math",
+            "rehype-highlight", "rehype-sanitize", "rehype-katex",
+            "katex", "highlight.js",
+          ],
+          "vendor-leaflet": ["leaflet"],
         },
       },
     },

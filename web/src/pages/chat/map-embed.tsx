@@ -1,8 +1,7 @@
-/** Leaflet 지도 임베드 — map 코드블록 JSON을 인터랙티브 지도로 렌더링. */
+/** Leaflet 지도 임베드 — map 코드블록 JSON을 인터랙티브 지도로 렌더링.
+ *  Leaflet은 지도 렌더링 시에만 동적 로드 (~140KB 번들 절감). */
 import { useEffect, useRef, useState } from "react";
-import L from "leaflet";
 import type { Map as LeafletMap } from "leaflet";
-import "leaflet/dist/leaflet.css";
 import "./map-embed.css";
 
 interface MapData {
@@ -58,16 +57,20 @@ export function MapBlock({ raw }: { raw: string }) {
 
     async function init_map(coords: Coords) {
       if (!container_ref.current) return;
-      const map = L.map(container_ref.current, { zoomControl: true }).setView(
+      const [L, _css] = await Promise.all([
+        import("leaflet"),
+        import("leaflet/dist/leaflet.css"),
+      ]);
+      if (!container_ref.current) return;
+      const map = L.default.map(container_ref.current, { zoomControl: true }).setView(
         [coords.lat, coords.lon],
         zoom
       );
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      L.default.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap contributors",
         maxZoom: 19,
       }).addTo(map);
-      // circleMarker — Vite 번들에서 기본 아이콘 PNG 경로 깨짐 방지
-      L.circleMarker([coords.lat, coords.lon], {
+      L.default.circleMarker([coords.lat, coords.lon], {
         radius: 8,
         color: "#2563eb",
         fillColor: "#3b82f6",
