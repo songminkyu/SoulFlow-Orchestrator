@@ -21,7 +21,7 @@
 import { mkdirSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import type { RouteContext } from "../route-context.js";
-import { TeamStore, type TeamRole } from "../../auth/team-store.js";
+import type { TeamRole } from "../../auth/team-store.js";
 import { sanitize_filename, is_inside } from "../ops/shared.js";
 
 const RE_USER       = /^\/api\/admin\/users\/([^/]+)$/;
@@ -96,7 +96,7 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
     if (workspace && team_id) {
       ensure_user_workspace(workspace, team_id, user.id);
       // TeamStore 멤버십 동기화
-      new TeamStore(team_db_path(workspace, team_id), team_id).upsert_member(user.id, team_role);
+      ctx.create_team_store(team_id).upsert_member(user.id, team_role);
     }
     json(res, 201, { id: user.id, username: user.username, system_role: user.system_role, default_team_id: user.default_team_id });
     return true;
@@ -142,7 +142,7 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
     if (workspace) {
       ensure_user_workspace(workspace, team_id, user.id);
       // TeamStore 멤버십 동기화 (기본 역할 member)
-      new TeamStore(team_db_path(workspace, team_id), team_id).upsert_member(user.id, "member");
+      ctx.create_team_store(team_id).upsert_member(user.id, "member");
     }
     json(res, 200, { ok: true, user_id: user.id, team_id });
     return true;
@@ -157,7 +157,7 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
       let member_count = 0;
       if (workspace) {
         const db = team_db_path(workspace, t.id);
-        if (existsSync(db)) member_count = new TeamStore(db, t.id).list_members().length;
+        if (existsSync(db)) member_count = ctx.create_team_store(t.id).list_members().length;
       }
       return { ...t, member_count };
     });
@@ -180,7 +180,7 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
       for (const sub of ["shared/templates", "shared/workflows", "shared/references"]) {
         mkdirSync(join(workspace, "tenants", id, sub), { recursive: true });
       }
-      new TeamStore(team_db_path(workspace, id), id); // DB 스키마 초기화
+      ctx.create_team_store(id); // DB 스키마 초기화
     }
     json(res, 201, team);
     return true;
@@ -198,7 +198,7 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
       // TeamStore 기반 멤버 목록 (role 포함)
       let members: Array<Record<string, unknown>> = [];
       if (workspace) {
-        const store = new TeamStore(team_db_path(workspace, team_id), team_id);
+        const store = ctx.create_team_store(team_id);
         const db_members = store.list_members();
         const all_users = auth_svc.list_users();
         members = db_members.map((m) => {
@@ -223,7 +223,7 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
       if (!auth_svc.get_user_by_id(user_id)) { json(res, 404, { error: "user_not_found" }); return true; }
       if (!workspace) { json(res, 503, { error: "workspace_not_configured" }); return true; }
       ensure_user_workspace(workspace, team_id, user_id);
-      const membership = new TeamStore(team_db_path(workspace, team_id), team_id).upsert_member(user_id, role);
+      const membership = ctx.create_team_store(team_id).upsert_member(user_id, role);
       json(res, 200, membership);
       return true;
     }
@@ -240,13 +240,13 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
       const body = await read_body(req);
       const raw_role = body?.role;
       const role: TeamRole = VALID_ROLES.includes(raw_role as TeamRole) ? raw_role as TeamRole : "member";
-      const updated = new TeamStore(team_db_path(workspace, team_id), team_id).upsert_member(user_id, role);
+      const updated = ctx.create_team_store(team_id).upsert_member(user_id, role);
       json(res, 200, updated);
       return true;
     }
 
     if (req.method === "DELETE") {
-      const removed = new TeamStore(team_db_path(workspace, team_id), team_id).remove_member(user_id);
+      const removed = ctx.create_team_store(team_id).remove_member(user_id);
       json(res, removed ? 200 : 404, removed ? { ok: true } : { error: "not_found" });
       return true;
     }

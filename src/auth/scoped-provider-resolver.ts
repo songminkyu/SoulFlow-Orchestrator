@@ -43,16 +43,22 @@ function from_team(r: TeamProviderRecord): ScopedProvider {
 }
 
 export class ScopedProviderResolver {
+  private readonly _create_team_store?: (team_id: string) => TeamStore;
+
   constructor(
     private readonly admin: GlobalProviderSource,
     private readonly workspace_root: string,
-  ) {}
+    create_team_store?: (team_id: string) => TeamStore,
+  ) {
+    this._create_team_store = create_team_store;
+  }
 
   /**
    * TeamStore 인스턴스를 lazy하게 반환.
    * team.db가 없으면 null 반환 (팀 미초기화 상태 허용).
    */
   private team_store(team_id: string): TeamStore | null {
+    if (this._create_team_store) return this._create_team_store(team_id);
     const db_path = join(this.workspace_root, "tenants", team_id, "team.db");
     if (!existsSync(db_path)) return null;
     return new TeamStore(db_path, team_id);

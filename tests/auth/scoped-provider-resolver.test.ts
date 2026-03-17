@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -169,5 +169,22 @@ describe("ScopedProviderResolver — open_team_store()", () => {
     expect(store.list_providers()).toHaveLength(0); // DB가 생성됨
     store.upsert_member("u1", "owner");
     expect(store.get_membership("u1")?.role).toBe("owner");
+  });
+});
+
+describe("ScopedProviderResolver — factory DI (PA-3)", () => {
+  it("3번째 인자로 factory 주입 시 team_store()가 factory를 사용", () => {
+    const root = make_workspace();
+    const factory_spy = vi.fn((team_id: string) => make_team_store(root, team_id));
+    const resolver = new ScopedProviderResolver(make_admin(root), root, factory_spy);
+    resolver.list("team-1");
+    expect(factory_spy).toHaveBeenCalledWith("team-1");
+  });
+
+  it("factory 미주입 시 기존 fallback 동작 유지", () => {
+    const root = make_workspace();
+    const resolver = new ScopedProviderResolver(make_admin(root), root);
+    // team.db 없으면 빈 배열 — fallback이 null 반환하여 에러 없이 처리
+    expect(resolver.list("nonexistent-team")).toHaveLength(0);
   });
 });

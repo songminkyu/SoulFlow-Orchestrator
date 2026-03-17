@@ -55,6 +55,8 @@ export type RouteContext = {
   get_scoped_memory_ops: () => DashboardMemoryOps | null;
   /** OB-1: 요청 단위 correlation context. service.ts에서 1회 생성 후 고정. */
   correlation: CorrelationContext;
+  /** PA-3: TeamStore factory. concrete 생성을 route handler에서 제거. */
+  create_team_store: (team_id: string) => import("../auth/team-store.js").TeamStoreLike;
 };
 
 export type RouteHandler = (ctx: RouteContext) => Promise<boolean>;

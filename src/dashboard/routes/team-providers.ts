@@ -12,9 +12,8 @@
  *   DELETE /api/admin/global-providers/:id      — 전역 프로바이더 삭제 (superadmin)
  */
 
-import { join } from "node:path";
 import type { RouteContext } from "../route-context.js";
-import { TeamStore, type TeamRole } from "../../auth/team-store.js";
+import type { TeamRole } from "../../auth/team-store.js";
 import { ScopedProviderResolver } from "../../auth/scoped-provider-resolver.js";
 
 const RE_TEAM_PROV      = /^\/api\/teams\/([^/]+)\/providers$/;
@@ -23,10 +22,6 @@ const RE_GLOBAL_PROV    = /^\/api\/admin\/global-providers$/;
 const RE_GLOBAL_PROV_ID = /^\/api\/admin\/global-providers\/([^/]+)$/;
 
 const TEAM_MANAGER_ROLES: TeamRole[] = ["owner", "manager"];
-
-function team_db_path(workspace_root: string, team_id: string): string {
-  return join(workspace_root, "tenants", team_id, "team.db");
-}
 
 export async function handle_team_providers(ctx: RouteContext): Promise<boolean> {
   const { req, res, url, options, json, read_body, auth_user } = ctx;
@@ -57,7 +52,7 @@ export async function handle_team_providers(ctx: RouteContext): Promise<boolean>
       if (!workspace) { json(res, 503, { error: "workspace_not_configured" }); return true; }
       // 팀 관리자(owner/manager) 또는 superadmin만 생성 가능
       if (auth_user.role !== "superadmin") {
-        const store = new TeamStore(team_db_path(workspace, team_id), team_id);
+        const store = ctx.create_team_store(team_id);
         const membership = store.get_membership(auth_user.sub);
         if (!membership || !TEAM_MANAGER_ROLES.includes(membership.role)) {
           json(res, 403, { error: "team_manager_required" }); return true;
@@ -68,7 +63,7 @@ export async function handle_team_providers(ctx: RouteContext): Promise<boolean>
       const name = typeof body.name === "string" ? body.name.trim() : "";
       const type = typeof body.type === "string" ? body.type.trim() : "";
       if (!name || !type) { json(res, 400, { error: "name_type_required" }); return true; }
-      const store = new TeamStore(team_db_path(workspace, team_id), team_id);
+      const store = ctx.create_team_store(team_id);
       const provider = store.create_provider({
         name, type,
         model: typeof body.model === "string" ? body.model : "",
@@ -93,7 +88,7 @@ export async function handle_team_providers(ctx: RouteContext): Promise<boolean>
 
     if (req.method === "PATCH" || req.method === "DELETE") {
       if (auth_user.role !== "superadmin") {
-        const store = new TeamStore(team_db_path(workspace, team_id), team_id);
+        const store = ctx.create_team_store(team_id);
         const membership = store.get_membership(auth_user.sub);
         if (!membership || !TEAM_MANAGER_ROLES.includes(membership.role)) {
           json(res, 403, { error: "team_manager_required" }); return true;
@@ -101,7 +96,7 @@ export async function handle_team_providers(ctx: RouteContext): Promise<boolean>
       }
     }
 
-    const store = new TeamStore(team_db_path(workspace, team_id), team_id);
+    const store = ctx.create_team_store(team_id);
 
     if (req.method === "PATCH") {
       const body = await read_body(req);

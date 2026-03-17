@@ -74,4 +74,84 @@ describe("DI boundary — concrete service import confinement", () => {
 
     expect(violators, `OrchestrationService concrete import 누출: ${violators.join(", ")}`).toEqual([]);
   });
+
+  it("DashboardService concrete import는 정의 파일 + bootstrap + main에만 존재", () => {
+    const allowed = new Set([
+      "dashboard/service.ts",
+      "bootstrap/dashboard.ts",
+      "main.ts",
+    ]);
+    const violators = find_concrete_imports(
+      all_files,
+      /import\s*\{[^}]*\bDashboardService\b/,
+    ).filter((f) => !allowed.has(f));
+    expect(violators, `DashboardService concrete import 누출: ${violators.join(", ")}`).toEqual([]);
+  });
+
+  it("ChannelManager concrete import는 정의 파일 + bootstrap + main에만 존재", () => {
+    const allowed = new Set([
+      "channels/manager.ts",
+      "bootstrap/channel-wiring.ts",
+      "bootstrap/channels.ts",
+      "main.ts",
+    ]);
+    const violators = find_concrete_imports(
+      all_files,
+      /import\s*\{[^}]*\bChannelManager\b/,
+    ).filter((f) => !allowed.has(f));
+    expect(violators, `ChannelManager concrete import 누출: ${violators.join(", ")}`).toEqual([]);
+  });
+
+  it("CronService concrete import는 정의 파일 + bootstrap + main에만 존재", () => {
+    const allowed = new Set([
+      "cron/service.ts",
+      "cron/index.ts",
+      "bootstrap/orchestration.ts",
+      "main.ts",
+    ]);
+    const violators = find_concrete_imports(
+      all_files,
+      /import\s*\{[^}]*\bCronService\b/,
+    ).filter((f) => !allowed.has(f));
+    expect(violators, `CronService concrete import 누출: ${violators.join(", ")}`).toEqual([]);
+  });
+});
+
+describe("PA-4 — application service는 concrete gateway/executor를 직접 import하지 않음", () => {
+  const all_files = collect_ts_files(SRC);
+
+  it("OrchestrationService에서 create_execution_gateway는 DI fallback으로만 사용", () => {
+    const service_file = all_files.find(f => f.replaceAll(sep, "/").endsWith("orchestration/service.ts"))!;
+    const content = readFileSync(service_file, "utf-8");
+    const lines = content.split("\n");
+    // import 라인과 DI fallback(??) 라인 제외 — 나머지에 직접 호출이 없어야 함
+    const direct_calls = lines.filter(l =>
+      l.includes("create_execution_gateway()") &&
+      !l.includes("??") &&
+      !l.trimStart().startsWith("import"),
+    );
+    expect(direct_calls, "create_execution_gateway() 직접 호출이 DI fallback 외에 존재").toEqual([]);
+  });
+});
+
+describe("PA-3 — TeamStore concrete import는 route handler에서 제거됨", () => {
+  const all_files = collect_ts_files(SRC);
+
+  it("dashboard/routes/ 에서 TeamStore concrete import 없음 (type import만 허용)", () => {
+    const route_files = all_files.filter(f => f.replaceAll(sep, "/").includes("dashboard/routes/"));
+    const violators = find_concrete_imports(route_files, /import\s*\{[^}]*\bTeamStore\b/);
+    expect(violators, `route handler에서 TeamStore concrete import: ${violators.join(", ")}`).toEqual([]);
+  });
+
+  it("dashboard/routes/ 에서 new TeamStore 직접 생성 없음", () => {
+    const route_files = all_files.filter(f => f.replaceAll(sep, "/").includes("dashboard/routes/"));
+    const violators: string[] = [];
+    for (const file of route_files) {
+      const content = readFileSync(file, "utf-8");
+      if (content.includes("new TeamStore(")) {
+        violators.push(relative(SRC, file).replaceAll(sep, "/"));
+      }
+    }
+    expect(violators, `route handler에서 new TeamStore(): ${violators.join(", ")}`).toEqual([]);
+  });
 });

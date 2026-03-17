@@ -139,6 +139,12 @@ export type OrchestrationServiceDeps = {
   observability?: import("../observability/context.js").ObservabilityLike | null;
   /** OB: LLM 사용량 기록 (UsageStore). 미설정 시 스킵. */
   usage_store?: import("./agent-hooks-builder.js").UsageRecorderLike | null;
+  /** PA-4: 실행 게이트웨이. 미설정 시 기본 생성. */
+  execution_gateway?: import("./execution-gateway.js").ExecutionGatewayLike | null;
+  /** PA-4: 직접 실행기. 미설정 시 기본 생성. */
+  direct_executor?: import("./execution/direct-executor.js").DirectExecutorLike | null;
+  /** PA-4: 프로필 컴파일러. 미설정 시 기본 생성. */
+  profile_compiler?: import("./prompt-profile-compiler.js").PromptProfileCompilerLike | null;
 };
 
 
@@ -190,14 +196,18 @@ export class OrchestrationService implements OrchestrationServiceLike {
     this.tool_index = deps.tool_index ?? null;
     this.hook_runner = deps.hook_runner ?? null;
     this._obs = deps.observability ?? NOOP_OBS;
-    this._execution_gateway = create_execution_gateway();
-    this._direct_executor = create_direct_executor();
-    // RP-3/RP-4: PromptProfileCompiler — role resolver + protocol resolver 통합
-    const skills_loader = deps.agent_runtime.get_context_builder().skills_loader;
-    this._profile_compiler = create_prompt_profile_compiler(
-      create_role_policy_resolver(skills_loader),
-      create_protocol_resolver(skills_loader),
-    );
+    // PA-4: 포트 DI 우선, 미설정 시 기본 생성 (하위 호환)
+    this._execution_gateway = deps.execution_gateway ?? create_execution_gateway();
+    this._direct_executor = deps.direct_executor ?? create_direct_executor();
+    if (deps.profile_compiler) {
+      this._profile_compiler = deps.profile_compiler;
+    } else {
+      const skills_loader = deps.agent_runtime.get_context_builder().skills_loader;
+      this._profile_compiler = create_prompt_profile_compiler(
+        create_role_policy_resolver(skills_loader),
+        create_protocol_resolver(skills_loader),
+      );
+    }
     this.deps = deps;
 
     this.streaming_cfg = {

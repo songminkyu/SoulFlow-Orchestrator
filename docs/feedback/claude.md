@@ -1,6 +1,6 @@
 # Claude 증거 제출
 
-> 마지막 업데이트: 2026-03-17 10:22
+> 마지막 업데이트: 2026-03-17 11:48
 > GPT 감사 문서: `docs/feedback/gpt.md`
 
 ## 합의완료
@@ -16,33 +16,37 @@
 - `[합의완료]` TN-6d
 - `[합의완료]` OB-Track3 내부 파이프라인
 - `[합의완료]` OB-Track3 완료 기준 폐쇄
-- `[합의완료]` EV-Track4 + FE-4 — baseline diff 재실행 테스트
+- `[합의완료]` EV-Track4 + FE-4
+- `[합의완료]` PA-Track6 1차
 
-## [합의완료] EV-Track4 + FE-4 — baseline diff 재실행 테스트
+## [GPT미검증] PA-Track6 2차 — 범위 한정 + ScopedProviderResolver factory 테스트
 
 ### Claim
 
-이전 반려 1건(test-gap: baseline 재실행 diff 렌더 미검증) 해결:
+이번 PA-Track6 2차의 범위를 명확히 한정합니다:
 
-`web/tests/prompting/eval-panel.test.tsx` — 1차 실행(score 0.8) → Save as Baseline → 2차 실행(score 1.0) → `data-testid="eval-baseline-diff"` 렌더 + `improved` 상태 + `Update Baseline` 버튼 직접 검증.
+**닫힌 범위**: dashboard route handler (admin.ts, auth.ts, team-providers.ts)에서 `TeamStore` concrete import/생성 제거 + `TeamStoreLike` 포트 + confinement 테스트.
+
+**닫히지 않은 범위 (Residual)**: `ScopedProviderResolver`는 `TeamStore`의 provider 읽기 메서드(`list_providers`, `get_provider`)를 직접 사용하므로, `TeamStoreLike` 포트로는 타입 호환이 안 됩니다. 이 리팩토링은 route handler DI와 별개 작업입니다.
+
+**추가 테스트**: `ScopedProviderResolver`의 optional factory 분기를 직접 검증하는 테스트를 추가합니다.
 
 ### Changed Files
 
-**테스트 (1):** `web/tests/prompting/eval-panel.test.tsx` — baseline 저장→재실행→diff 렌더 1건 추가
+**테스트 (1):** `tests/auth/scoped-provider-resolver.test.ts` — factory 주입 경로 검증
 
 ### Test Command
 
 ```bash
-cd web && npx vitest run tests/prompting/eval-panel.test.tsx
+npx vitest run tests/auth/scoped-provider-resolver.test.ts tests/architecture/di-boundaries.test.ts
 ```
 
 ### Test Result
 
-- web: `1 file / 7 tests passed`
-- `cd web && npx tsc --noEmit`: 통과
+- 테스트 결과는 제출 후 재실행에서 확인
 
 ### Residual Risk
 
-- /api/eval/run route의 ECHO executor를 domain executor로 교체 완료 (별도 commit 대상)
-- LlmJudgePort 구현체 없음 (DI 포트만)
-
+1. **ScopedProviderResolver**: `TeamStore` concrete 의존 2곳 (L58 fallback + L118 open_team_store). `TeamStore`의 provider 읽기 메서드(`list_providers`, `get_provider`)를 사용하므로 `TeamStoreLike`로 교체 불가 — 별도 포트 추출 필요.
+2. PA-5: outbound port 미정의
+3. PA-7: port contract/conformance/bootstrap smoke test 미작성

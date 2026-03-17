@@ -327,6 +327,9 @@ export class DashboardService implements ServiceLike {
         user_id: uid || undefined,
         workspace_dir: this.options.workspace,
       }),
+      create_team_store: this.options.create_team_store ?? ((team_id: string) =>
+        new TeamStore(join(this.options.workspace ?? "", "tenants", team_id, "team.db"), team_id)
+      ),
     };
   }
 
@@ -390,7 +393,9 @@ export class DashboardService implements ServiceLike {
             this._json(res, 403, { error: "not_a_member" });
             return;
           }
-          const team_store = new TeamStore(team_db, payload.tid);
+          const team_store = this.options.create_team_store
+            ? this.options.create_team_store(payload.tid)
+            : new TeamStore(team_db, payload.tid);
           tenant_ctx = resolve_tenant_context({
             user_id: payload.sub,
             system_role: db_user.system_role,

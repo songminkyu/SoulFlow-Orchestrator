@@ -42,6 +42,17 @@ const INIT_SQL = `
 
 export type TeamRole = "owner" | "manager" | "member" | "viewer";
 
+/** PA-3: TeamStore 최소 포트 — route handler가 소비하는 계약. */
+export interface TeamStoreLike {
+  upsert_member(user_id: string, role: TeamRole): MembershipRecord;
+  get_membership(user_id: string): MembershipRecord | null;
+  list_members(): MembershipRecord[];
+  remove_member(user_id: string): boolean;
+  create_provider(input: Omit<TeamProviderRecord, "id" | "created_at" | "team_id">): TeamProviderRecord;
+  update_provider(id: string, patch: Partial<Pick<TeamProviderRecord, "name" | "model" | "config" | "enabled" | "api_key_ref">>): boolean;
+  delete_provider(id: string): boolean;
+}
+
 export interface MembershipRecord {
   team_id: string;
   user_id: string;

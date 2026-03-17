@@ -36,6 +36,11 @@ import { create_cd_observer } from "../agent/cd-scoring.js";
 import { HookRunner, load_hooks_from_file } from "../hooks/index.js";
 import type { TeamWorkspace } from "../workspace/workspace-context.js";
 import type { ObservabilityLike } from "../observability/context.js";
+import { create_execution_gateway } from "../orchestration/execution-gateway.js";
+import { create_direct_executor } from "../orchestration/execution/direct-executor.js";
+import { create_prompt_profile_compiler } from "../orchestration/prompt-profile-compiler.js";
+import { create_role_policy_resolver } from "../orchestration/role-policy-resolver.js";
+import { create_protocol_resolver } from "../orchestration/protocol-resolver.js";
 
 export interface OrchestrationBundleDeps {
   ctx: TeamWorkspace;
@@ -251,6 +256,13 @@ export async function create_orchestration_bundle(deps: OrchestrationBundleDeps)
     hook_runner,
     observability: deps.observability,
     usage_store: deps.usage_store,
+    // PA-4: composition root에서 포트 생성 → OrchestrationService에 DI
+    execution_gateway: create_execution_gateway(),
+    direct_executor: create_direct_executor(),
+    profile_compiler: create_prompt_profile_compiler(
+      create_role_policy_resolver(agent_runtime.get_context_builder().skills_loader),
+      create_protocol_resolver(agent_runtime.get_context_builder().skills_loader),
+    ),
   });
 
   // 팀 스코프: 크론 잡은 팀 멤버 간 공유

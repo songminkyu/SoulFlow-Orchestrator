@@ -366,6 +366,8 @@ export type DashboardOptions = {
   /** TN-2: 멀티유저 런타임 locator. JWT 인증 후 자동 디렉토리 보장. 포트 인터페이스로 의존. */
   workspace_registry?: import("../workspace/registry.js").WorkspaceRuntimeLocator | null;
   logger?: Logger | null;
+  /** PA-3: TeamStore factory. composition root에서 주입. 반환 타입은 최소 포트. */
+  create_team_store?: (team_id: string) => import("../auth/team-store.js").TeamStoreLike;
   /** OB-5: observability 주입. 미설정 시 no-op. */
   observability?: import("../observability/context.js").ObservabilityLike | null;
   /** RPF-4F: 최신 ValidatorSummary 공급 포트. 미설정 시 /api/state에서 validator_summary 생략. */

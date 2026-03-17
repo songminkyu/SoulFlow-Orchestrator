@@ -12,7 +12,6 @@ import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { RouteContext } from "../route-context.js";
 import { make_auth_cookie, clear_auth_cookie } from "../../auth/auth-middleware.js";
-import { TeamStore } from "../../auth/team-store.js";
 
 function team_db_path(workspace: string, team_id: string): string {
   return join(workspace, "tenants", team_id, "team.db");
@@ -71,7 +70,7 @@ export async function handle_auth(ctx: RouteContext): Promise<boolean> {
           mkdirSync(join(base, sub), { recursive: true });
         }
       }
-      new TeamStore(team_db_path(workspace, team_id), team_id).upsert_member(result.payload.sub, "owner");
+      ctx.create_team_store(team_id).upsert_member(result.payload.sub, "owner");
     }
 
     res.setHeader("Set-Cookie", make_auth_cookie(result.token));
@@ -127,7 +126,7 @@ export async function handle_auth(ctx: RouteContext): Promise<boolean> {
     let team_role: string | null = null;
     if (workspace && p.tid) {
       const db = team_db_path(workspace, p.tid);
-      if (existsSync(db)) team_role = new TeamStore(db, p.tid).get_membership(p.sub)?.role ?? null;
+      if (existsSync(db)) team_role = ctx.create_team_store(p.tid).get_membership(p.sub)?.role ?? null;
     }
 
     json(res, 200, { sub: p.sub, username: p.usr, role: p.role, tid: p.tid, wdir: p.wdir, exp: p.exp, team_role });
@@ -154,7 +153,7 @@ export async function handle_auth(ctx: RouteContext): Promise<boolean> {
     for (const team of all_teams) {
       const db = team_db_path(workspace, team.id);
       if (!existsSync(db)) continue;
-      const membership = new TeamStore(db, team.id).get_membership(p.sub);
+      const membership = ctx.create_team_store(team.id).get_membership(p.sub);
       if (membership) my_teams.push({ ...team, role: membership.role });
     }
     json(res, 200, { teams: my_teams });
@@ -178,7 +177,7 @@ export async function handle_auth(ctx: RouteContext): Promise<boolean> {
     if (p.role !== "superadmin") {
       const db = team_db_path(workspace, team_id);
       if (!existsSync(db)) { json(res, 403, { error: "not_a_member" }); return true; }
-      const membership = new TeamStore(db, team_id).get_membership(p.sub);
+      const membership = ctx.create_team_store(team_id).get_membership(p.sub);
       if (!membership) { json(res, 403, { error: "not_a_member" }); return true; }
     }
 
