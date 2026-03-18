@@ -3,7 +3,17 @@
  * 외부 패키지 없이 Node.js 내장 crypto만 사용한다.
  */
 
-import { scryptSync, timingSafeEqual, randomBytes, createHmac } from "node:crypto";
+import { scrypt, timingSafeEqual, randomBytes, createHmac } from "node:crypto";
+
+/** H-8: 비동기 scrypt 래퍼 — 메인 스레드 비블로킹. */
+function scrypt_async(password: string, salt: string, keylen: number, options: { N: number; r: number; p: number }): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    scrypt(password, salt, keylen, options, (err, derived) => {
+      if (err) reject(err);
+      else resolve(derived);
+    });
+  });
+}
 import type { AdminStore } from "./admin-store.js";
 
 const SCRYPT_N = 16384;   // CPU/메모리 비용 (2^14)
@@ -55,20 +65,20 @@ export class AuthService {
 
   // ── 비밀번호 ──
 
-  /** scrypt 해시 생성. 저장용. */
-  hash_password(plain: string): string {
+  /** scrypt 해시 생성 (비동기 — 메인 스레드 비블로킹). */
+  async hash_password(plain: string): Promise<string> {
     const salt = randomBytes(16).toString("hex");
-    const hash = scryptSync(plain, salt, SCRYPT_KEY_LEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P });
+    const hash = await scrypt_async(plain, salt, SCRYPT_KEY_LEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P });
     return `${salt}:${hash.toString("hex")}`;
   }
 
-  /** 평문과 저장된 해시를 타이밍 안전하게 비교. */
-  verify_password(plain: string, stored_hash: string): boolean {
+  /** 평문과 저장된 해시를 타이밍 안전하게 비교 (비동기). */
+  async verify_password(plain: string, stored_hash: string): Promise<boolean> {
     const [salt, hash_hex] = stored_hash.split(":");
     if (!salt || !hash_hex) return false;
     try {
       const expected = Buffer.from(hash_hex, "hex");
-      const actual = scryptSync(plain, salt, SCRYPT_KEY_LEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P });
+      const actual = await scrypt_async(plain, salt, SCRYPT_KEY_LEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P });
       if (actual.length !== expected.length) return false;
       return timingSafeEqual(actual, expected);
     } catch {
@@ -123,7 +133,7 @@ export class AuthService {
   async setup_superadmin(username: string, password: string): Promise<{ token: string; payload: JwtPayload } | null> {
     if (this.store.is_initialized()) return null;
     this.store.ensure_team("default", "Default");
-    const hash = this.hash_password(password);
+    const hash = await this.hash_password(password);
     this.store.create_user({ username, password_hash: hash, system_role: "superadmin", default_team_id: "default" });
     return this.login(username, password);
   }
@@ -136,8 +146,8 @@ export class AuthService {
 
   get_user_by_username(username: string) { return this.store.get_user_by_username(username); }
 
-  create_user(input: { username: string; password: string; system_role: "superadmin" | "user"; default_team_id?: string | null }) {
-    const hash = this.hash_password(input.password);
+  async create_user(input: { username: string; password: string; system_role: "superadmin" | "user"; default_team_id?: string | null }) {
+    const hash = await this.hash_password(input.password);
     return this.store.create_user({ username: input.username, password_hash: hash, system_role: input.system_role, default_team_id: input.default_team_id });
   }
 
@@ -155,8 +165,8 @@ export class AuthService {
 
   delete_user(id: string): boolean { return this.store.delete_user(id); }
 
-  update_password(id: string, password: string): boolean {
-    const hash = this.hash_password(password);
+  async update_password(id: string, password: string): Promise<boolean> {
+    const hash = await this.hash_password(password);
     return this.store.update_user(id, { password_hash: hash });
   }
 
@@ -206,7 +216,7 @@ export class AuthService {
   async login(username: string, password: string): Promise<{ token: string; payload: JwtPayload } | null> {
     const user = this.store.get_user_by_username(username);
     if (!user || !user.password_hash) return null;
-    if (!this.verify_password(password, user.password_hash)) return null;
+    if (!(await this.verify_password(password, user.password_hash))) return null;
 
     this.store.update_user(user.id, { last_login_at: new Date().toISOString() });
 

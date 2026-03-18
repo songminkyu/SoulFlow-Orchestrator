@@ -115,7 +115,7 @@ describe("POST /api/auth/switch-team — TN-4 회귀 테스트", () => {
 
     // team_alpha를 AdminStore에 등록 후 사용자 생성
     (auth_svc as unknown as { store: { ensure_team: (id: string, name: string) => void } }).store.ensure_team("team_alpha", "Team Alpha");
-    auth_svc.create_user({ username: "alice", password: "password1", system_role: "user", default_team_id: "team_alpha" });
+    await auth_svc.create_user({ username: "alice", password: "password1", system_role: "user", default_team_id: "team_alpha" });
     const login_result = await auth_svc.login("alice", "password1");
     alice = login_result!.payload;
 

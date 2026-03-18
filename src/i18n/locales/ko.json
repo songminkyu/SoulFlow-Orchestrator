@@ -1,5 +1,6 @@
 {
   "a11y.skip_to_content": "본문으로 건너뛰기",
+  "auth.logout": "로그아웃",
   "agents.active_loops": "활성 루프 ({count})",
   "agents.agent_loops": "에이전트 루프 ({count})",
   "agents.cancel_confirm_desc": "{label}을(를) 취소하시겠습니까?",
@@ -1743,6 +1744,8 @@
   "setup.title": "초기 설정",
   "sidebar.collapse": "사이드바 접기",
   "sidebar.expand": "사이드바 펼치기",
+  "sidebar.locale_en": "English",
+  "sidebar.locale_ko": "한국어",
   "sidebar.toggle_language": "언어 전환",
   "sidebar.toggle_theme": "테마 전환",
   "skills.aliases": "별칭",
@@ -4050,5 +4053,12 @@
   "usage.col_cost": "비용",
   "usage.col_share": "비중",
   "usage.col_errors": "오류",
-  "usage.col_latency": "평균 레이턴시"
+  "usage.col_latency": "평균 레이턴시",
+  "team.err_id_required": "팀 ID가 필요합니다",
+  "team.err_not_member": "이 팀의 멤버가 아닙니다",
+  "team.err_switch_failed": "팀 전환에 실패했습니다",
+  "team.no_teams": "소속 팀 없음",
+  "team.switch_title": "팀 전환",
+  "team.switching": "전환 중…",
+  "workflows.profile_preview": "프롬프트 프로필 미리보기"
 }

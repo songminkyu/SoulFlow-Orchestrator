@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { FormModal } from "../../components/modal";
 import { FormGroup } from "../../components/form-group";
 import { useT } from "../../i18n";
@@ -18,7 +19,7 @@ interface AgentModalProps {
   onSaved: () => void;
 }
 
-const SHARED_PROTOCOLS = [
+const FALLBACK_PROTOCOLS = [
   "clarification-protocol",
   "phase-gates",
   "error-escalation",
@@ -62,6 +63,14 @@ function init_form(mode: AgentModalMode) {
 
 export function AgentModal({ mode, onClose, onSaved }: AgentModalProps) {
   const t = useT();
+  const { data: protocols_data } = useQuery<{ protocols: string[] }>({
+    queryKey: ["protocols"],
+    queryFn: () => api.get("/api/protocols"),
+    staleTime: 300_000,
+  });
+  const available_protocols = protocols_data?.protocols?.length
+    ? protocols_data.protocols
+    : [...FALLBACK_PROTOCOLS];
   const is_edit = mode.kind === "edit";
   const title = is_edit ? t("agents.edit_title") : mode.kind === "fork" ? t("agents.fork_title") : t("agents.add_title");
 
@@ -72,11 +81,14 @@ export function AgentModal({ mode, onClose, onSaved }: AgentModalProps) {
 
   const [form, setForm] = useState(() => init_form(mode));
 
-  useEffect(() => {
+  // mode 변경 시 폼 리셋 — useEffect 대신 render 중 조건부 setState (React 권장 패턴)
+  const [prev_mode, set_prev_mode] = useState(mode);
+  if (mode !== prev_mode) {
+    set_prev_mode(mode);
     setForm(init_form(mode));
     setAiPrompt("");
     setTab("manual");
-  }, [mode]);
+  }
 
   const set = <K extends keyof typeof form>(key: K, value: typeof form[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -229,7 +241,7 @@ export function AgentModal({ mode, onClose, onSaved }: AgentModalProps) {
       <fieldset className="form-section">
         <legend className="form-section__title">{t("agents.section_protocols")}</legend>
         <div className="checkbox-grid">
-          {SHARED_PROTOCOLS.map((protocol) => (
+          {available_protocols.map((protocol) => (
             <label key={protocol} className="checkbox-item">
               <input
                 type="checkbox"

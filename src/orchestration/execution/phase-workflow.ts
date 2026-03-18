@@ -179,15 +179,32 @@ async function _run_phase_loop_inner(
     wait_kanban_event: deps.wait_kanban_event,
     create_task: deps.create_task,
     query_db: deps.query_db,
+    // M-13: observability spans → phase-loop reconcile trace
+    span_recorder: deps.observability?.spans,
     on_event: (event) => {
       const team_id = typeof (req.message.metadata as Record<string, unknown>)?.team_id === "string"
         ? (req.message.metadata as Record<string, unknown>).team_id as string : undefined;
       deps.get_sse_broadcaster?.()?.broadcast_workflow_event(event, team_id);
       req.on_agent_event?.({ type: "content_delta", source: { backend: "phase_loop", task_id: workflow_id }, at: now_iso(), text: `[phase] ${event.type}` });
+      // M-13: reconcile_summary 이벤트 소비 — 운영 로깅
+      if (event.type === "reconcile_summary") {
+        deps.logger.info("reconcile_summary", { workflow_id, has_failures: event.has_failures, total_conflicts: event.total_conflicts });
+      }
     },
   });
 
   if (result.status === "completed") {
+    // M-13: reconcile read model 소비 — 완료 시 로깅
+    const reconcile_rm = result.memory?.__reconcile_read_model as import("../../orchestration/reconcile-read-model.js").ReconcileReadModel | undefined;
+    if (reconcile_rm) {
+      deps.logger.info("reconcile_read_model", {
+        workflow_id,
+        reconcile_count: reconcile_rm.reconcile_summaries.length,
+        critic_count: reconcile_rm.critic_summaries.length,
+        has_failures: reconcile_rm.has_failures,
+        total_conflicts: reconcile_rm.total_conflicts,
+      });
+    }
     return { reply: `워크플로우 \`${definition.title}\` 완료.\n\n${format_phase_summary(result)}`, mode: "phase", tool_calls_count: 0, streamed: false, run_id: req.run_id };
   }
   if (result.status === "waiting_user_input") {

@@ -92,7 +92,7 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
       json(res, 422, { error: "team_not_found" }); return true;
     }
 
-    const user = auth_svc.create_user({ username, password, system_role: role, default_team_id: team_id });
+    const user = await auth_svc.create_user({ username, password, system_role: role, default_team_id: team_id });
     if (workspace && team_id) {
       ensure_user_workspace(workspace, team_id, user.id);
       // TeamStore 멤버십 동기화
@@ -120,7 +120,7 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
     if (!body) { json(res, 400, { error: "invalid_body" }); return true; }
     const password = typeof body.password === "string" ? body.password : "";
     if (password.length < 6) { json(res, 400, { error: "password_min_6" }); return true; }
-    const updated = auth_svc.update_password(pw_m[1], password);
+    const updated = await auth_svc.update_password(pw_m[1], password);
     json(res, updated ? 200 : 404, updated ? { ok: true } : { error: "not_found" });
     return true;
   }

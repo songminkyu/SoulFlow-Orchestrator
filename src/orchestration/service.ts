@@ -18,6 +18,7 @@ import {
   normalize_agent_reply,
   extract_provider_error,
 } from "../channels/output-sanitizer.js";
+import { create_tool_output_reducer } from "./tool-output-reducer.js";
 import type { ExecutorProvider, ProviderCapabilities } from "../providers/executor.js";
 import type { AgentBackendRegistry } from "../agent/agent-registry.js";
 import type { AgentRunResult } from "../agent/agent.types.js";
@@ -240,6 +241,8 @@ export class OrchestrationService implements OrchestrationServiceLike {
       execute_tool: (name: string, params: Record<string, unknown>, ctx?: ToolExecutionContext) =>
         this.runtime.execute_tool(name, params, ctx),
       log_event: (e: AppendWorkflowEventInput) => this.log_event(e),
+      /** M-14: 3-projection reducer — prompt/display/storage 분리. PTY와 동일 경로. */
+      reducer: create_tool_output_reducer(this.config.max_tool_result_chars),
       metrics: this._obs.metrics,
       get known_tool_names() { return get_known_tools(); },
     };

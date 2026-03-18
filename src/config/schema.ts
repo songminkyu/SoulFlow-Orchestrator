@@ -135,6 +135,8 @@ const DashboardSchema = z.object({
   publicUrl: z.string().optional(),
   /** /hooks/* 엔드포인트 인증 토큰. 설정 시 Authorization: Bearer <token> 필수. */
   webhookSecret: z.string().optional(),
+  /** H-10: CORS 허용 origin 목록. 빈 배열이면 same-origin만 허용. "*"은 개발 전용. */
+  corsOrigins: z.array(z.string()).optional(),
 });
 
 const CliSchema = z.object({
@@ -302,6 +304,8 @@ export function get_config_defaults(): AppConfig {
       port: 4200,
       host: "0.0.0.0",
       portFallback: false,
+      /** H-10: CORS 허용 origin 목록. 빈 배열이면 same-origin만 허용. "*"은 개발 전용. */
+      corsOrigins: [] as string[],
     },
     cli: {
       maxCaptureChars: 500_000,

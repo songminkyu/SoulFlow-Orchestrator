@@ -69,6 +69,34 @@ import { join } from "node:path";
 
 const RE_MEDIA_TOKEN = /^\/media\/([a-z0-9]{16,})$/i;
 
+/** H-10: CORS preflight + 보안 헤더. 테스트에서 직접 호출 가능. */
+export function apply_cors(req: IncomingMessage, res: ServerResponse, cors_origins: string[]): boolean {
+  const origin = req.headers.origin;
+
+  // 보안 헤더 (M-25 일부 폐쇄)
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+
+  if (!origin) return false;
+
+  const is_allowed = cors_origins.includes("*") || cors_origins.includes(origin);
+  if (!is_allowed) return false;
+
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Max-Age", "600");
+  res.setHeader("Vary", "Origin");
+
+  if (req.method === "OPTIONS") {
+    res.writeHead(204);
+    res.end();
+    return true;
+  }
+  return false;
+}
+
 /** TN-6c: publicUrl 우선, X-Forwarded-Host 무시. 테스트에서 직접 호출 가능. */
 export function resolve_request_origin(req: IncomingMessage, public_url?: string, fallback_port?: number): string {
   if (public_url) return public_url.replace(/\/+$/, "");
@@ -333,7 +361,15 @@ export class DashboardService implements ServiceLike {
     };
   }
 
+  /** H-10: CORS preflight + 보안 헤더 처리. true 반환 시 요청 완료 (OPTIONS). */
+  private handle_cors(req: IncomingMessage, res: ServerResponse): boolean {
+    return apply_cors(req, res, this.options.cors_origins ?? []);
+  }
+
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    // H-10: CORS + 보안 헤더
+    if (this.handle_cors(req, res)) return;
+
     const base_port = this.bound_port ?? this.options.port;
     const url = new URL(req.url || "/", `http://${this.options.host}:${base_port}`);
 

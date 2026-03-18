@@ -12,6 +12,10 @@ import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { RouteContext } from "../route-context.js";
 import { make_auth_cookie, clear_auth_cookie } from "../../auth/auth-middleware.js";
+import { LoginRateLimiter } from "../../auth/login-rate-limiter.js";
+
+/** H-8: 로그인/셋업 brute-force 방어. 모듈 수준 싱글턴. */
+const login_limiter = new LoginRateLimiter({ max_attempts: 5, window_ms: 15 * 60 * 1000 });
 
 function team_db_path(workspace: string, team_id: string): string {
   return join(workspace, "tenants", team_id, "team.db");
@@ -39,6 +43,16 @@ export async function handle_auth(ctx: RouteContext): Promise<boolean> {
   if (url.pathname === "/api/auth/setup" && req.method === "POST") {
     if (!auth_svc) { json(res, 503, { error: "auth_not_configured" }); return true; }
     if (auth_svc.is_initialized()) { json(res, 409, { error: "already_initialized" }); return true; }
+
+    // H-8: setup 도 rate limit 적용 (scrypt DoS 방어)
+    // H-8: remoteAddress 우선 — X-Forwarded-For는 spoofable이므로 직접 소켓 IP 사용
+    const client_ip = req.socket?.remoteAddress || "unknown";
+    if (!login_limiter.check(client_ip)) {
+      const retry_sec = Math.ceil(login_limiter.retry_after_ms(client_ip) / 1000);
+      res.setHeader("Retry-After", String(retry_sec));
+      json(res, 429, { error: "too_many_requests", retry_after_sec: retry_sec });
+      return true;
+    }
 
     const body = await read_body(req);
     if (!body) { json(res, 400, { error: "invalid_body" }); return true; }
@@ -82,6 +96,16 @@ export async function handle_auth(ctx: RouteContext): Promise<boolean> {
 
   if (url.pathname === "/api/auth/login" && req.method === "POST") {
     if (!auth_svc) { json(res, 503, { error: "auth_not_configured" }); return true; }
+
+    // H-8: IP 기반 rate limiting
+    // H-8: remoteAddress 우선 — X-Forwarded-For는 spoofable이므로 직접 소켓 IP 사용
+    const client_ip = req.socket?.remoteAddress || "unknown";
+    if (!login_limiter.check(client_ip)) {
+      const retry_sec = Math.ceil(login_limiter.retry_after_ms(client_ip) / 1000);
+      res.setHeader("Retry-After", String(retry_sec));
+      json(res, 429, { error: "too_many_requests", retry_after_sec: retry_sec });
+      return true;
+    }
 
     const body = await read_body(req);
     if (!body) { json(res, 400, { error: "invalid_body" }); return true; }

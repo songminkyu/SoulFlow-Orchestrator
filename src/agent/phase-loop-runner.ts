@@ -32,6 +32,9 @@ import { execute_orche_node, apply_preset } from "./orche-node-executor.js";
 import { get_node_handler, type RunnerContext } from "./node-registry.js";
 import { resolve_executor_provider } from "../providers/executor.js";
 import { run_schema_repair } from "../orchestration/schema-repair-loop.js";
+import { emit_reconcile_event } from "../orchestration/reconcile-trace.js";
+import { extract_reconcile_read_model } from "../orchestration/reconcile-read-model.js";
+import type { SpanRecorderLike } from "../observability/index.js";
 import {
   create_worktree,
   create_isolated_directory,
@@ -71,6 +74,8 @@ export type PhaseLoopRunnerDeps = {
   on_kanban_trigger_waiting?: (workflow_id: string) => void;
   /** 칸반 보드 스토어 — PL이 생성한 보드를 페이즈 실행 전 조회하여 에이전트에 전달. */
   kanban_store?: import("../services/kanban-store.js").KanbanStoreLike;
+  /** M-13: reconcile trace span 기록용. 미설정 시 trace 생략. */
+  span_recorder?: SpanRecorderLike;
 };
 
 /** 페이즈 루프 메인 실행 함수. */
@@ -244,6 +249,29 @@ export async function run_phase_loop(
             ? await handler.runner_execute(resolved, exec_ctx, runner_ctx)
             : await execute_orche_node(resolved, exec_ctx);
           state.memory[node.node_id] = result.output;
+
+          // M-13: reconcile 노드 실행 후 trace 이벤트 발행
+          if (resolved.node_type === "reconcile" && deps.span_recorder) {
+            const correlation = { workflow_id: state.workflow_id };
+            const out = result.output as Record<string, unknown> | null;
+            const r = resolved as unknown as Record<string, unknown>;
+            emit_reconcile_event(deps.span_recorder, "reconcile_start", correlation, {
+              source_node_ids: r.source_node_ids as string[] ?? [],
+              policy: String(r.policy ?? ""),
+            });
+            const conflicts = out?.conflicts as { fields?: unknown[] } | undefined;
+            if (conflicts?.fields?.length) {
+              emit_reconcile_event(deps.span_recorder, "reconcile_conflict", correlation, {
+                conflict_count: conflicts.fields.length,
+                conflict_fields: conflicts.fields.map(String),
+              });
+            }
+            emit_reconcile_event(deps.span_recorder, "reconcile_finalized", correlation, {
+              policy_applied: String(out?.policy_applied ?? ""),
+              succeeded: Number(out?.succeeded ?? 0),
+              failed: Number(out?.failed ?? 0),
+            });
+          }
 
           // field_mappings 적용: 현재 노드의 출력 필드를 타겟 노드 메모리에 매핑
           if (options.field_mappings?.length) {
@@ -542,6 +570,20 @@ export async function run_phase_loop(
       state.updated_at = now_iso();
       await store.upsert(state);
       emit(on_event, { type: "workflow_completed", workflow_id: state.workflow_id });
+
+      // M-13: 워크플로우 완료 시 reconcile read model 추출 + 이벤트 발행
+      const read_model = extract_reconcile_read_model(state.memory);
+      if (read_model.reconcile_summaries.length > 0 || read_model.critic_summaries.length > 0) {
+        state.memory.__reconcile_read_model = read_model;
+        emit(on_event, {
+          type: "reconcile_summary",
+          workflow_id: state.workflow_id,
+          reconcile_summaries: read_model.reconcile_summaries,
+          critic_summaries: read_model.critic_summaries,
+          has_failures: read_model.has_failures,
+          total_conflicts: read_model.total_conflicts,
+        });
+      }
     }
   } catch (err) {
     state.status = "failed";

@@ -56,23 +56,23 @@ beforeAll(async () => {
   // 3. superadmin 생성
   admin_store.ensure_team("default", "Default");
   admin_store.ensure_team(TEAM_ID, "Team Alpha");
-  const sa_hash = auth_svc.hash_password("sa_pass");
+  const sa_hash = await auth_svc.hash_password("sa_pass");
   const sa = admin_store.create_user({ username: "superadmin", password_hash: sa_hash, system_role: "superadmin", default_team_id: TEAM_ID });
 
   // 4. member user 생성
-  const m_hash = auth_svc.hash_password("m_pass");
+  const m_hash = await auth_svc.hash_password("m_pass");
   const member = admin_store.create_user({ username: "member_user", password_hash: m_hash, system_role: "user", default_team_id: TEAM_ID });
 
   // 5. non-member user 생성 (team-alpha 멤버십 없음)
-  const nm_hash = auth_svc.hash_password("nm_pass");
+  const nm_hash = await auth_svc.hash_password("nm_pass");
   const non_member = admin_store.create_user({ username: "non_member", password_hash: nm_hash, system_role: "user", default_team_id: TEAM_ID });
 
   // 6. default-team user 생성
-  const d_hash = auth_svc.hash_password("d_pass");
+  const d_hash = await auth_svc.hash_password("d_pass");
   const default_user = admin_store.create_user({ username: "default_user", password_hash: d_hash, system_role: "user", default_team_id: "default" });
 
   // 7. ghost-team user 생성 (team.db가 존재하지 않는 팀)
-  const g_hash = auth_svc.hash_password("g_pass");
+  const g_hash = await auth_svc.hash_password("g_pass");
   const ghost_user = admin_store.create_user({ username: "ghost_user", password_hash: g_hash, system_role: "user" });
 
   // 8. TeamStore — team-alpha에 member_user 멤버십 추가

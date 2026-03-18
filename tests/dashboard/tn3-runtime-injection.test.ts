@@ -50,7 +50,7 @@ beforeAll(async () => {
   admin_store.ensure_team("default", "Default");
   admin_store.ensure_team(TEAM_ID, "Team Alpha");
 
-  const m_hash = auth_svc.hash_password("m_pass");
+  const m_hash = await auth_svc.hash_password("m_pass");
   const member = admin_store.create_user({ username: "alice", password_hash: m_hash, system_role: "user", default_team_id: TEAM_ID });
   member_id = member.id;
 

@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, realpath, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve, relative } from "node:path";
 import { Tool } from "./base.js";
 import type { JsonSchema, ToolCategory, ToolExecutionContext, ToolPolicyFlags } from "./types.js";
@@ -38,22 +38,45 @@ function approval_required_for_path(original_path: string, resolved_path: string
   ].join("\n");
 }
 
-function resolve_path_with_approval(
+/**
+ * H-4: symlink/junction 방어 — resolve 후 실제 경로가 allowed_dir 안에 있는지 확인.
+ * 심볼릭 링크가 allowed_dir 밖을 가리키면 차단.
+ */
+async function safe_realpath(resolved_path: string): Promise<string> {
+  try {
+    return await realpath(resolved_path);
+  } catch {
+    // 파일이 아직 없으면 (write 시) 부모 디렉토리의 realpath로 검증
+    const parent = dirname(resolved_path);
+    try {
+      const real_parent = await realpath(parent);
+      return join(real_parent, resolved_path.slice(parent.length));
+    } catch {
+      return resolved_path;
+    }
+  }
+}
+
+async function resolve_path_with_approval(
   original_path: string,
   params: Record<string, unknown>,
   workspace: string,
   allowed_dir?: string | null,
-): { path: string | null; error?: string } {
+): Promise<{ path: string | null; error?: string }> {
   const resolved_path = resolve_path(original_path, workspace);
-  if (!is_outside_allowed_dir(resolved_path, allowed_dir)) {
-    return { path: resolved_path };
+
+  // H-4: symlink 해결 후 실제 경로로 경계 검증
+  const real_path = await safe_realpath(resolved_path);
+
+  if (!is_outside_allowed_dir(real_path, allowed_dir)) {
+    return { path: real_path };
   }
   if (is_approved(params)) {
-    return { path: resolved_path };
+    return { path: real_path };
   }
   return {
     path: null,
-    error: approval_required_for_path(original_path, resolved_path),
+    error: approval_required_for_path(original_path, real_path),
   };
 }
 
@@ -80,7 +103,7 @@ export class ReadFileTool extends Tool {
 
   protected async run(params: Record<string, unknown>, _context?: ToolExecutionContext): Promise<string> {
     const original_path = String(params.path || "");
-    const resolved = resolve_path_with_approval(original_path, params, this.workspace, this.allowed_dir);
+    const resolved = await resolve_path_with_approval(original_path, params, this.workspace, this.allowed_dir);
     if (!resolved.path) return resolved.error || "Error: invalid_path";
     const file_path = resolved.path;
     try {
@@ -120,7 +143,7 @@ export class WriteFileTool extends Tool {
 
   protected async run(params: Record<string, unknown>, _context?: ToolExecutionContext): Promise<string> {
     const original_path = String(params.path || "");
-    const resolved = resolve_path_with_approval(original_path, params, this.workspace, this.allowed_dir);
+    const resolved = await resolve_path_with_approval(original_path, params, this.workspace, this.allowed_dir);
     if (!resolved.path) return resolved.error || "Error: invalid_path";
     const file_path = resolved.path;
     await mkdir(dirname(file_path), { recursive: true });
@@ -163,7 +186,7 @@ export class EditFileTool extends Tool {
 
   protected async run(params: Record<string, unknown>, _context?: ToolExecutionContext): Promise<string> {
     const original_path = String(params.path || "");
-    const resolved = resolve_path_with_approval(original_path, params, this.workspace, this.allowed_dir);
+    const resolved = await resolve_path_with_approval(original_path, params, this.workspace, this.allowed_dir);
     if (!resolved.path) return resolved.error || "Error: invalid_path";
     const file_path = resolved.path;
     const old_text = String(params.old_text || "");
@@ -206,7 +229,7 @@ export class ListDirTool extends Tool {
 
   protected async run(params: Record<string, unknown>, _context?: ToolExecutionContext): Promise<string> {
     const original_path = String(params.path || "");
-    const resolved = resolve_path_with_approval(original_path, params, this.workspace, this.allowed_dir);
+    const resolved = await resolve_path_with_approval(original_path, params, this.workspace, this.allowed_dir);
     if (!resolved.path) return resolved.error || "Error: invalid_path";
     const dir_path = resolved.path;
     let dir_stat: Awaited<ReturnType<typeof stat>>;
@@ -281,7 +304,7 @@ export class SearchFilesTool extends Tool {
 
   protected async run(params: Record<string, unknown>, _context?: ToolExecutionContext): Promise<string> {
     const original_path = String(params.path || "");
-    const resolved = resolve_path_with_approval(original_path, params, this.workspace, this.allowed_dir);
+    const resolved = await resolve_path_with_approval(original_path, params, this.workspace, this.allowed_dir);
     if (!resolved.path) return resolved.error || "Error: invalid_path";
     const dir_path = resolved.path;
     let dir_stat: Awaited<ReturnType<typeof stat>>;

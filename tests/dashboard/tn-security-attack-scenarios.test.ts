@@ -46,9 +46,9 @@ beforeAll(async () => {
   admin.ensure_team(TEAM_A, "Team Alpha");
   admin.ensure_team(TEAM_B, "Team Beta");
 
-  const sa = admin.create_user({ username: "superadmin", password_hash: auth_svc.hash_password("sa"), system_role: "superadmin", default_team_id: TEAM_A });
-  const alice = admin.create_user({ username: "alice", password_hash: auth_svc.hash_password("a"), system_role: "user", default_team_id: TEAM_A });
-  const bob = admin.create_user({ username: "bob", password_hash: auth_svc.hash_password("b"), system_role: "user", default_team_id: TEAM_B });
+  const sa = admin.create_user({ username: "superadmin", password_hash: await auth_svc.hash_password("sa"), system_role: "superadmin", default_team_id: TEAM_A });
+  const alice = admin.create_user({ username: "alice", password_hash: await auth_svc.hash_password("a"), system_role: "user", default_team_id: TEAM_A });
+  const bob = admin.create_user({ username: "bob", password_hash: await auth_svc.hash_password("b"), system_role: "user", default_team_id: TEAM_B });
 
   new TeamStore(join(TEST_DIR, "tenants", TEAM_A, "team.db"), TEAM_A).upsert_member(alice.id, "member");
   new TeamStore(join(TEST_DIR, "tenants", TEAM_B, "team.db"), TEAM_B).upsert_member(bob.id, "member");
@@ -181,7 +181,7 @@ describe("공격: disabled 사용자 토큰", () => {
   it("비활성화된 사용자 토큰 → 401", async () => {
     // 사용자 생성 + 토큰 발급 + 비활성화
     const admin = new AdminStore(ADMIN_DB);
-    const doomed = admin.create_user({ username: "doomed", password_hash: auth_svc.hash_password("d"), system_role: "user" });
+    const doomed = admin.create_user({ username: "doomed", password_hash: await auth_svc.hash_password("d"), system_role: "user" });
     const token = auth_svc.sign_token({ sub: doomed.id, usr: "doomed", role: "user", tid: "default", wdir: wdir("default", doomed.id) });
 
     // 토큰 유효 확인

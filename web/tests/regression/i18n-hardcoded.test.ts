@@ -38,9 +38,11 @@ describe("i18n 회귀 — 하드코딩 한글 감지 (FE-6b)", () => {
   });
 
   it("en.json에 한글 값이 없다", () => {
+    // sidebar.locale_ko는 네이티브 언어 이름 표시용 — 의도적 한글
+    const ALLOWED_KOREAN = new Set(["sidebar.locale_ko"]);
     const content = readFileSync(resolve("../src/i18n/locales/en.json"), "utf8");
     const entries = Object.entries(JSON.parse(content) as Record<string, string>);
-    const korean_entries = entries.filter(([, v]) => /[가-힣]/.test(v));
+    const korean_entries = entries.filter(([k, v]) => !ALLOWED_KOREAN.has(k) && /[가-힣]/.test(v));
     expect(korean_entries, `en.json에 한글 값: ${korean_entries.map(([k]) => k).join(", ")}`).toHaveLength(0);
   });
 

@@ -22,6 +22,14 @@ export async function handle_skill(ctx: RouteContext): Promise<boolean> {
   const { req, url, res, json, read_body } = ctx;
   const path = url.pathname;
 
+  // G-13: GET /api/protocols — 사용 가능한 shared protocol 목록
+  if (path === "/api/protocols" && req.method === "GET") {
+    const ops = get_skill_ops(ctx);
+    const protocols = ops?.list_shared_protocols?.() ?? [];
+    json(res, 200, { protocols });
+    return true;
+  }
+
   // GET /api/skills
   if (path === "/api/skills" && req.method === "GET") {
     const ops = skill_ops_or_503(ctx);

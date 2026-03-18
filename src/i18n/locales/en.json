@@ -1,5 +1,6 @@
 {
   "a11y.skip_to_content": "Skip to content",
+  "auth.logout": "Log out",
   "agents.active_loops": "Active Loops ({count})",
   "agents.agent_loops": "Agent Loop ({count})",
   "agents.cancel_confirm_desc": "Are you sure you want to cancel {label}?",
@@ -1743,6 +1744,8 @@
   "setup.title": "First-time Setup",
   "sidebar.collapse": "Collapse sidebar",
   "sidebar.expand": "Expand sidebar",
+  "sidebar.locale_en": "English",
+  "sidebar.locale_ko": "한국어",
   "sidebar.toggle_language": "Toggle language",
   "sidebar.toggle_theme": "Toggle theme",
   "skills.aliases": "Aliases",
@@ -4050,5 +4053,12 @@
   "usage.col_cost": "Cost",
   "usage.col_share": "Share",
   "usage.col_errors": "Errors",
-  "usage.col_latency": "Avg Latency"
+  "usage.col_latency": "Avg Latency",
+  "team.err_id_required": "Team ID is required",
+  "team.err_not_member": "You are not a member of this team",
+  "team.err_switch_failed": "Team switch failed",
+  "team.no_teams": "No teams",
+  "team.switch_title": "Switch Team",
+  "team.switching": "Switching…",
+  "workflows.profile_preview": "Prompt Profile Preview"
 }

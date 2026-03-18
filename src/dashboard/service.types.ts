@@ -40,6 +40,8 @@ export interface DashboardSkillOps {
   refresh(): void;
   upload_skill(name: string, zip_buffer: Buffer): { ok: boolean; path: string; error?: string };
   write_skill_file(name: string, file: string, content: string): { ok: boolean; error?: string };
+  /** G-13: 사용 가능한 shared protocol 목록. */
+  list_shared_protocols?(): readonly string[];
 }
 
 export interface DashboardToolOps {
@@ -370,6 +372,8 @@ export type DashboardOptions = {
   create_team_store?: (team_id: string) => import("../auth/team-store.js").TeamStoreLike;
   /** OB-5: observability 주입. 미설정 시 no-op. */
   observability?: import("../observability/context.js").ObservabilityLike | null;
+  /** H-10: CORS 허용 origin 목록. 빈 배열이면 same-origin만 허용. */
+  cors_origins?: string[];
   /** RPF-4F: 최신 ValidatorSummary 공급 포트. 미설정 시 /api/state에서 validator_summary 생략. */
   validator_summary_ops?: { get_latest(): import("../repo-profile/validator-summary-adapter.js").ValidatorSummary | null } | null;
 };

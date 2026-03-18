@@ -13,29 +13,29 @@ function make_svc(): { store: AdminStore; svc: AuthService } {
 }
 
 describe("AuthService — hash_password / verify_password", () => {
-  it("해시 후 검증 성공", () => {
+  it("해시 후 검증 성공", async () => {
     const { svc } = make_svc();
-    const hash = svc.hash_password("correcthorsebatterystaple");
-    expect(svc.verify_password("correcthorsebatterystaple", hash)).toBe(true);
+    const hash = await svc.hash_password("correcthorsebatterystaple");
+    expect(await svc.verify_password("correcthorsebatterystaple", hash)).toBe(true);
   });
 
-  it("틀린 비밀번호 → false", () => {
+  it("틀린 비밀번호 → false", async () => {
     const { svc } = make_svc();
-    const hash = svc.hash_password("right");
-    expect(svc.verify_password("wrong", hash)).toBe(false);
+    const hash = await svc.hash_password("right");
+    expect(await svc.verify_password("wrong", hash)).toBe(false);
   });
 
-  it("같은 비밀번호라도 해시는 매번 다름 (salt)", () => {
+  it("같은 비밀번호라도 해시는 매번 다름 (salt)", async () => {
     const { svc } = make_svc();
-    const h1 = svc.hash_password("pass");
-    const h2 = svc.hash_password("pass");
+    const h1 = await svc.hash_password("pass");
+    const h2 = await svc.hash_password("pass");
     expect(h1).not.toBe(h2);
   });
 
-  it("빈 비밀번호 해싱 가능", () => {
+  it("빈 비밀번호 해싱 가능", async () => {
     const { svc } = make_svc();
-    const hash = svc.hash_password("");
-    expect(svc.verify_password("", hash)).toBe(true);
+    const hash = await svc.hash_password("");
+    expect(await svc.verify_password("", hash)).toBe(true);
   });
 });
 
@@ -90,7 +90,7 @@ describe("AuthService — JWT sign / verify", () => {
 describe("AuthService — login", () => {
   it("올바른 credentials → token 반환", async () => {
     const { store, svc } = make_svc();
-    const hash = svc.hash_password("secret");
+    const hash = await svc.hash_password("secret");
     store.create_user({ username: "alice", password_hash: hash, system_role: "user" });
 
     const result = await svc.login("alice", "secret");
@@ -101,7 +101,7 @@ describe("AuthService — login", () => {
 
   it("superadmin 로그인 → role = superadmin", async () => {
     const { store, svc } = make_svc();
-    const hash = svc.hash_password("adminpw");
+    const hash = await svc.hash_password("adminpw");
     store.create_user({ username: "root", password_hash: hash, system_role: "superadmin" });
     const result = await svc.login("root", "adminpw");
     expect(result!.payload.role).toBe("superadmin");
@@ -109,7 +109,7 @@ describe("AuthService — login", () => {
 
   it("틀린 비밀번호 → null", async () => {
     const { store, svc } = make_svc();
-    const hash = svc.hash_password("real");
+    const hash = await svc.hash_password("real");
     store.create_user({ username: "bob", password_hash: hash, system_role: "user" });
     expect(await svc.login("bob", "wrong")).toBeNull();
   });
@@ -121,7 +121,7 @@ describe("AuthService — login", () => {
 
   it("login 성공 시 last_login_at 갱신", async () => {
     const { store, svc } = make_svc();
-    const hash = svc.hash_password("pw");
+    const hash = await svc.hash_password("pw");
     const user = store.create_user({ username: "carol", password_hash: hash, system_role: "superadmin" });
     expect(user.last_login_at).toBeNull();
     await svc.login("carol", "pw");
@@ -131,7 +131,7 @@ describe("AuthService — login", () => {
   // TN-1: default_team_id는 JWT tid의 초기값으로 사용되는 편의 힌트
   it("default_team_id 없는 사용자 → tid = 'default' fallback", async () => {
     const { store, svc } = make_svc();
-    const hash = svc.hash_password("pw");
+    const hash = await svc.hash_password("pw");
     store.create_user({ username: "dave", password_hash: hash, system_role: "user" /* default_team_id: 미설정 */ });
     const result = await svc.login("dave", "pw");
     expect(result!.payload.tid).toBe("default");
@@ -140,7 +140,7 @@ describe("AuthService — login", () => {
   it("default_team_id 설정 사용자 → tid = 설정값 (편의 힌트, 접근 제어 아님)", async () => {
     const { store, svc } = make_svc();
     store.ensure_team("alpha", "Alpha");
-    const hash = svc.hash_password("pw");
+    const hash = await svc.hash_password("pw");
     store.create_user({ username: "eve", password_hash: hash, system_role: "user", default_team_id: "alpha" });
     const result = await svc.login("eve", "pw");
     expect(result!.payload.tid).toBe("alpha");

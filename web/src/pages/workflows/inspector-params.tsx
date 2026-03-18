@@ -309,9 +309,12 @@ export function AgentSummaryCard({ agent, index, phase, workflow, onChange, onNo
             </BuilderField>
           )}
           {isPresetRole && (
-            <div className="builder-meta-hint--mb">
-              {t("workflows.role_auto_prompt")}
-            </div>
+            <>
+              <div className="builder-meta-hint--mb">
+                {t("workflows.role_auto_prompt")}
+              </div>
+              <PromptProfilePreview role_id={agent.role} roles={roles ?? []} t={t} />
+            </>
           )}
           <BackendModelPicker
             backend={agent.backend}
@@ -727,6 +730,29 @@ export function EndTargetParamsPanel({ target, node, onUpdate, t }: {
           </BuilderField>
         );
       })}
+    </div>
+  );
+}
+
+/** G-14: 선택된 역할의 컴파일된 프롬프트 프로필을 접을 수 있는 미리보기로 표시. */
+export function PromptProfilePreview({ role_id, roles, t }: { role_id: string; roles: RolePreset[]; t: TFunction }) {
+  const [open, setOpen] = useState(false);
+  const preset = roles.find((r) => r.id === role_id);
+  if (!preset?.rendered_prompt) return null;
+
+  return (
+    <div className="builder-profile-preview">
+      <button
+        type="button"
+        className="btn btn--xs btn--ghost"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+      >
+        {open ? "▾" : "▸"} {t("workflows.profile_preview")}
+      </button>
+      {open && (
+        <pre className="builder-profile-preview__content">{preset.rendered_prompt}</pre>
+      )}
     </div>
   );
 }

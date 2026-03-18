@@ -1101,6 +1101,21 @@
 .builder-accent-hint { font-size: var(--fs-xs); color: var(--accent); margin-top: 4px; }
 .builder-accent-hint--mb { font-size: var(--fs-xs); color: var(--accent); margin-bottom: 4px; }
 .builder-meta-hint--mb { font-size: var(--fs-xs); color: var(--muted); margin-bottom: 8px; }
+/* G-14: prompt profile preview */
+.builder-profile-preview { margin-bottom: 8px; }
+.builder-profile-preview__content {
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 .builder-inline-row { display: flex; align-items: center; gap: 6px; }
 .builder-btn-row { display: flex; gap: 4px; }
 .builder-checkbox-label { display: flex; align-items: center; gap: 4px; font-size: var(--fs-xs); white-space: nowrap; cursor: pointer; }

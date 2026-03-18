@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { BoundedQueue, MessageBus } from "@src/bus/service.js";
 
+const TS = "2024-01-01T00:00:00Z";
+const make_msg = (id: string, content = "test") => ({
+  id, provider: "test", channel: "c", sender_id: "s", chat_id: "t", content, at: TS,
+});
+
 describe("BoundedQueue", () => {
   describe("basic operations", () => {
     it("push and shift in FIFO order", () => {
@@ -119,8 +124,8 @@ describe("MessageBus P0 fixes", () => {
     it("close clears all queues completely", async () => {
       const bus = new MessageBus({ max_queue_size: 100_000 });
       for (let i = 0; i < 10_000; i++) {
-        await bus.publish_inbound({ id: `in_${i}`, provider: "test", channel: "c", sender_id: "s", chat_id: "t", content: "", at: "" });
-        await bus.publish_outbound({ id: `out_${i}`, provider: "test", channel: "c", sender_id: "s", chat_id: "t", content: "", at: "" });
+        await bus.publish_inbound(make_msg(`in_${i}`));
+        await bus.publish_outbound(make_msg(`out_${i}`));
       }
       expect(bus.get_size("inbound")).toBe(10_000);
       expect(bus.get_size("outbound")).toBe(10_000);
@@ -142,7 +147,7 @@ describe("MessageBus P0 fixes", () => {
     it("enforces max_queue_size with drop-oldest", async () => {
       const bus = new MessageBus({ max_queue_size: 3, overflow_policy: "drop-oldest" });
       for (let i = 0; i < 5; i++) {
-        await bus.publish_inbound({ id: `m_${i}`, provider: "test", channel: "c", sender_id: "s", chat_id: "t", content: `msg_${i}`, at: "" });
+        await bus.publish_inbound(make_msg(`m_${i}`, `msg_${i}`));
       }
       expect(bus.get_size("inbound")).toBe(3);
       const first = await bus.consume_inbound();
@@ -152,7 +157,7 @@ describe("MessageBus P0 fixes", () => {
     it("enforces max_queue_size with reject-newest", async () => {
       const bus = new MessageBus({ max_queue_size: 2, overflow_policy: "reject-newest" });
       for (let i = 0; i < 5; i++) {
-        await bus.publish_inbound({ id: `m_${i}`, provider: "test", channel: "c", sender_id: "s", chat_id: "t", content: `msg_${i}`, at: "" });
+        await bus.publish_inbound(make_msg(`m_${i}`, `msg_${i}`));
       }
       expect(bus.get_size("inbound")).toBe(2);
       const first = await bus.consume_inbound();
@@ -161,9 +166,9 @@ describe("MessageBus P0 fixes", () => {
 
     it("get_metrics reports depth and overflow", async () => {
       const bus = new MessageBus({ max_queue_size: 2 });
-      await bus.publish_inbound({ id: "1", provider: "t", channel: "c", sender_id: "s", chat_id: "t", content: "", at: "" });
-      await bus.publish_inbound({ id: "2", provider: "t", channel: "c", sender_id: "s", chat_id: "t", content: "", at: "" });
-      await bus.publish_inbound({ id: "3", provider: "t", channel: "c", sender_id: "s", chat_id: "t", content: "", at: "" });
+      await bus.publish_inbound(make_msg("1"));
+      await bus.publish_inbound(make_msg("2"));
+      await bus.publish_inbound(make_msg("3"));
       const metrics = bus.get_metrics();
       expect(metrics.inbound.depth).toBe(2);
       expect(metrics.inbound.overflow).toBe(1);
@@ -174,7 +179,7 @@ describe("MessageBus P0 fixes", () => {
   describe("P0-3: O(1) operations", () => {
     it("handles high throughput without degradation", async () => {
       const bus = new MessageBus({ max_queue_size: 50_000 });
-      const msg = { id: "perf", provider: "test", channel: "c", sender_id: "s", chat_id: "t", content: "", at: "" };
+      const msg = make_msg("perf");
       const start = performance.now();
       for (let i = 0; i < 10_000; i++) {
         await bus.publish_inbound(msg);
@@ -192,7 +197,7 @@ describe("MessageBus P0 fixes", () => {
   describe("backward compatibility", () => {
     it("works without options (default capacity 10000)", async () => {
       const bus = new MessageBus();
-      await bus.publish_inbound({ id: "1", provider: "t", channel: "c", sender_id: "s", chat_id: "t", content: "hello", at: "" });
+      await bus.publish_inbound(make_msg("1", "hello"));
       const msg = await bus.consume_inbound();
       expect(msg!.content).toBe("hello");
     });

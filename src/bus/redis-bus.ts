@@ -13,6 +13,7 @@ import type {
   ProgressEvent,
   ReliableMessageBus,
 } from "./types.js";
+import { validate_message, validate_progress } from "./validation.js";
 
 const log = create_logger("redis-bus");
 
@@ -137,38 +138,61 @@ export class RedisMessageBus implements MessageBusRuntime, ReliableMessageBus {
 
   /* ── publish ── */
 
-  private async xadd(stream: StreamName, payload: unknown): Promise<string> {
+  private async xadd(stream: StreamName, payload: unknown, extra_fields?: string[]): Promise<string> {
     await this.bootstrap();
     const key = this.stream_key(stream);
     const data = JSON.stringify(payload);
+    const base_fields: [string, string][] = [
+      ["payload", data],
+      ["kind", stream],
+      ["version", "1"],
+      ["published_at", now_iso()],
+    ];
+    if (extra_fields) {
+      for (let i = 0; i < extra_fields.length - 1; i += 2) {
+        base_fields.push([extra_fields[i], extra_fields[i + 1]]);
+      }
+    }
+    const flat = base_fields.flatMap(([k, v]) => [k, v]);
     const id = await this.client.xadd(
       key, "MAXLEN", "~", String(this.maxlen[stream]),
-      "*",
-      "payload", data,
-      "kind", stream,
-      "version", "1",
-      "published_at", now_iso(),
+      "*", ...flat,
     );
     return id ?? "";
   }
 
   async publish_inbound(message: InboundMessage): Promise<void> {
     if (this._closed) return;
-    await this.xadd("inbound", message);
+    validate_message("inbound", message);
+    const extra = this.extract_index_fields(message);
+    await this.xadd("inbound", message, extra);
     this.notify_observers("inbound", message);
   }
 
   async publish_outbound(message: OutboundMessage): Promise<void> {
     if (this._closed) return;
-    await this.xadd("outbound", message);
+    validate_message("outbound", message);
+    const extra = this.extract_index_fields(message);
+    await this.xadd("outbound", message, extra);
     this.notify_observers("outbound", message);
   }
 
   async publish_progress(event: ProgressEvent): Promise<void> {
     if (this._closed) return;
-    await this.xadd("progress", event).catch((err) => {
+    validate_progress(event);
+    const extra: string[] = [];
+    if (event.team_id) extra.push("team_id", event.team_id);
+    await this.xadd("progress", event, extra).catch((err) => {
       log.warn("progress publish failed (best-effort)", { error: error_message(err) });
     });
+  }
+
+  /** H-2/H-3: 메시지의 team_id, correlation_id를 Redis 인덱스 필드로 추출. */
+  private extract_index_fields(message: InboundMessage | OutboundMessage): string[] {
+    const fields: string[] = [];
+    if (message.team_id) fields.push("team_id", message.team_id);
+    if (message.correlation_id) fields.push("correlation_id", message.correlation_id);
+    return fields;
   }
 
   /* ── consume (기본 — auto-ack) ── */

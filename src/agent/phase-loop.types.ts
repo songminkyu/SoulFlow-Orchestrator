@@ -372,4 +372,5 @@ export type PhaseLoopEvent =
   | { type: "node_skipped"; workflow_id: string; node_id: string; reason: string }
   | { type: "node_waiting"; workflow_id: string; node_id: string; node_type: string; reason: string }
   | { type: "node_retry"; workflow_id: string; node_id: string; attempt: number; max_attempts: number; error: string }
-  | { type: "node_error"; workflow_id: string; node_id: string; error: string };
+  | { type: "node_error"; workflow_id: string; node_id: string; error: string }
+  | { type: "reconcile_summary"; workflow_id: string; reconcile_summaries: import("../orchestration/reconcile-read-model.js").ReconcileSummary[]; critic_summaries: import("../orchestration/reconcile-read-model.js").CriticSummary[]; has_failures: boolean; total_conflicts: number };

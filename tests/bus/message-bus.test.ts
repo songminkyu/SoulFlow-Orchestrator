@@ -5,12 +5,14 @@ import { describe, it, expect, vi } from "vitest";
 import { InMemoryMessageBus } from "../../src/bus/service.js";
 import type { InboundMessage, OutboundMessage, ProgressEvent } from "../../src/bus/types.js";
 
-const make_inbound = (id: string, content = ""): InboundMessage => ({
-  id, provider: "test", channel: "c", sender_id: "s", chat_id: "t", content, at: "",
+const TS = "2024-01-01T00:00:00Z";
+
+const make_inbound = (id: string, content = "test"): InboundMessage => ({
+  id, provider: "test", channel: "c", sender_id: "s", chat_id: "t", content, at: TS,
 });
 
-const make_outbound = (id: string, content = ""): OutboundMessage => ({
-  id, provider: "test", channel: "c", sender_id: "s", chat_id: "t", content, at: "",
+const make_outbound = (id: string, content = "test"): OutboundMessage => ({
+  id, provider: "test", channel: "c", sender_id: "s", chat_id: "t", content, at: TS,
 });
 
 describe("InMemoryMessageBus", () => {
@@ -36,7 +38,7 @@ describe("InMemoryMessageBus", () => {
 
   it("publish_progress → consume_progress", async () => {
     const bus = new InMemoryMessageBus();
-    const event: ProgressEvent = { type: "status", chat_id: "t", message: "working" } as unknown as ProgressEvent;
+    const event: ProgressEvent = { task_id: "t1", step: 1, description: "working", provider: "test", chat_id: "t", at: TS };
     await bus.publish_progress(event);
     const p = await bus.consume_progress();
     expect(p).toBeDefined();

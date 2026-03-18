@@ -153,7 +153,7 @@ function mask_exact_values(input: string): string {
   return out;
 }
 
-export type RedactionResult = {
+type RedactionResult = {
   text: string;
   redacted: boolean;
   match_count: number;

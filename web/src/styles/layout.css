@@ -126,6 +126,16 @@
   font-weight: 600;
 }
 .topbar__team-menu-item:disabled { opacity: 0.5; cursor: wait; }
+/* G-11: 팀 전환 중 배지 시각 피드백 */
+.topbar__team-badge--pending {
+  opacity: 0.6;
+  cursor: wait;
+  animation: badge-pulse 1.2s ease-in-out infinite;
+}
+@keyframes badge-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.3; }
+}
 .topbar__team-role {
   font-size: var(--fs-xs);
   color: var(--fg-muted);

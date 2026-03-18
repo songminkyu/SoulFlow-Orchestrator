@@ -13,7 +13,8 @@ import type { AgentDefinition, GeneratedAgentFields } from "../../../../src/agen
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
-const SHARED_PROTOCOLS = [
+/** G-13: 하드코딩 폴백 — API 미응답 시 사용. */
+const FALLBACK_PROTOCOLS = [
   "clarification-protocol",
   "phase-gates",
   "error-escalation",
@@ -87,6 +88,16 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
     queryFn: () => api.get("/api/agent-definitions"),
     staleTime: 10_000,
   });
+
+  /** G-13: 동적 프로토콜 목록 — API 실패 시 폴백 사용. */
+  const { data: protocols_data } = useQuery<{ protocols: string[] }>({
+    queryKey: ["protocols"],
+    queryFn: () => api.get("/api/protocols"),
+    staleTime: 300_000,
+  });
+  const available_protocols = protocols_data?.protocols?.length
+    ? protocols_data.protocols
+    : [...FALLBACK_PROTOCOLS];
 
   const [selected_id, setSelectedId] = useState<string>(initial_id ?? "__new__");
   const [model, setModel] = useState<StudioModelValue>({ provider_id: "", model: "" });
@@ -348,7 +359,7 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
         <div className="ps-pane-sec">
           <span className="ps-pane-sec__label">{t("agents.section_protocols")}</span>
           <div className="checkbox-grid">
-            {SHARED_PROTOCOLS.map((protocol) => (
+            {available_protocols.map((protocol) => (
               <label key={protocol} className="checkbox-item">
                 <input
                   type="checkbox"

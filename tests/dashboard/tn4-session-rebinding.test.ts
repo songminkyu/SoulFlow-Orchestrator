@@ -54,7 +54,7 @@ beforeAll(async () => {
   admin_store.ensure_team(TEAM_A, "Team Alpha");
   admin_store.ensure_team(TEAM_B, "Team Beta");
 
-  const a_hash = auth_svc.hash_password("a_pass");
+  const a_hash = await auth_svc.hash_password("a_pass");
   const alice = admin_store.create_user({ username: "alice", password_hash: a_hash, system_role: "user", default_team_id: TEAM_A });
 
   // alice → 양쪽 팀 모두 멤버십

@@ -7,6 +7,7 @@ import type {
   OutboundMessage,
   ProgressEvent,
 } from "./types.js";
+import { validate_message, validate_progress } from "./validation.js";
 
 type Waiter<T> = (message: T | null) => void;
 
@@ -14,7 +15,7 @@ const DEFAULT_CONSUME_TIMEOUT_MS = 30_000;
 const MAX_CONSUME_TIMEOUT_MS = 300_000;
 
 /** 큐 포화 시 정책. */
-export type OverflowPolicy = "drop-oldest" | "reject-newest";
+type OverflowPolicy = "drop-oldest" | "reject-newest";
 
 export type MessageBusOptions = {
   /** 큐별 최대 크기 (기본 10_000). */
@@ -117,12 +118,14 @@ export class InMemoryMessageBus implements MessageBusRuntime {
 
   async publish_inbound(message: InboundMessage): Promise<void> {
     if (this._closed) return;
+    validate_message("inbound", message);
     this._publish(message, this.inbound_queue, this.inbound_waiters);
     for (const fn of this.observers) try { fn("inbound", message); } catch { /* noop */ }
   }
 
   async publish_outbound(message: OutboundMessage): Promise<void> {
     if (this._closed) return;
+    validate_message("outbound", message);
     this._publish(message, this.outbound_queue, this.outbound_waiters);
     for (const fn of this.observers) try { fn("outbound", message); } catch { /* noop */ }
   }
@@ -137,6 +140,7 @@ export class InMemoryMessageBus implements MessageBusRuntime {
 
   async publish_progress(event: ProgressEvent): Promise<void> {
     if (this._closed) return;
+    validate_progress(event);
     this._publish(event, this.progress_queue, this.progress_waiters);
   }
 

@@ -243,6 +243,8 @@ Description: ${prompt}`,
     default_alias: app_config.channel.defaultAlias,
     workspace,
     webhookSecret: app_config.dashboard.webhookSecret,
+    /** H-10: CORS 허용 origin 목록을 설정에서 주입. */
+    cors_origins: app_config.dashboard.corsOrigins ?? [],
     observability: deps.observability,
     validator_summary_ops,
   });

@@ -1,23 +1,13 @@
-## 감사 범위
-- [합의완료] Track 1~7 전수조사 3회차 — disconnected code 연결 + 보안 갭 폐쇄
-
-## 독립 검증 결과
-- `docs/feedback/claude.md`의 현재 미합의 항목 1건만 재검토했다.
-- `claude.md`의 변경 파일 목록 기준 20개 파일에 대해 파일별 `npx eslint <file>`를 각각 재실행했고 모두 통과했다.
-- 증거 명령 `npx vitest run tests/security/ tests/observability/ tests/orchestration/guardrails/ tests/evals/ tests/orchestration/gateway-contracts.test.ts tests/orchestration/ingress-normalizer.test.ts tests/auth/scoped-provider-resolver.test.ts tests/architecture/ tests/bootstrap/`를 재실행한 결과 `45 files / 691 tests passed`였다.
-- `npx tsc --noEmit`를 재실행한 결과 통과했다.
-- `npx tsx scripts/eval-run.ts --bundle repo-profile --threshold 100`를 재실행한 결과 `8/8 (100.0%)`로 통과했다.
-- 추가 공격자 검증에서 기본 HTTP 요청과 `User-Agent` value-smuggling HTTP 요청 모두 `Error: http_request requires HTTPS. Use web_fetch for plain HTTP content.`로 차단됐다.
-
-## 최종 판정
-- [합의완료] Track 1~7 전수조사 3회차 — disconnected code 연결 + 보안 갭 폐쇄
-
-## 핵심 근거
-- `scripts/eval-run.ts:L248`의 `BUNDLE_SCORER_MAP["repo-profile"]`와 `tests/evals/eval-run-cli.test.ts:L200`의 `--bundle repo-profile --threshold 100` 회귀 테스트가 직접 연결된다.
-- `src/agent/tools/http-request.ts:L78`은 plain HTTP를 전면 차단하고, 같은 우회 시도를 현재 워크트리에서 직접 재현해도 동일한 HTTPS 오류로 종료됐다.
-- `src/agent/tools/http-utils.ts:L31`, `src/agent/tools/oauth-fetch.ts:L105`, `src/bootstrap/orchestration.ts:L146`, `tests/security/token-egress.test.ts:L80`가 `check_allowed_hosts` 공유 경계와 회귀 테스트를 일치시킨다.
-- 파일별 lint, 증거 vitest, `npx tsc --noEmit`, `repo-profile` claim 명령이 모두 통과했고, 이번 라운드에서 추가 확인한 SOLID/YAGNI/DRY/KISS/LoD 및 OWASP 관점의 차단 경계도 회귀 없이 유지됐다.
-
-## 다음 작업
-
-- `Ports / Adapters / DI Boundaries / Bundle P1 / PA-1 + PA-2 — boundary inventory와 composition root rules를 정리하고 bootstrap 경계 기준을 고정`
+[합의완료]
+- `git show --stat cedd256`로 `tests/orchestration/m14-m15a-wiring.test.ts` 추가가 커밋에 포함됐음을 확인했고, 현재 감사 반영 후 `git diff --name-only`는 `docs/feedback/claude.md`, `docs/feedback/gpt.md`만 남아 `docs/feedback/claude.md:46-49`의 Changed Files와 일치했다.
+- `src/orchestration/service.ts:238-245`에서 `tool_deps.reducer`가 `create_tool_output_reducer(this.config.max_tool_result_chars)`로 주입되고, `src/orchestration/execution/execute-dispatcher.ts:202-210`에서 `evaluate_route(result.mode, DEFAULT_ROUTE_CRITERIA)`와 misroute 이벤트 기록이 실제로 수행됨을 확인했다.
+- `tests/orchestration/m14-m15a-wiring.test.ts:92`, `tests/orchestration/m14-m15a-wiring.test.ts:102`, `tests/orchestration/m14-m15a-wiring.test.ts:126`, `tests/orchestration/m14-m15a-wiring.test.ts:145`, `tests/orchestration/m14-m15a-wiring.test.ts:180`, `tests/orchestration/m14-m15a-wiring.test.ts:294`, `tests/orchestration/m14-m15a-wiring.test.ts:321`, `tests/orchestration/m14-m15a-wiring.test.ts:356`, `tests/orchestration/m14-m15a-wiring.test.ts:393`, `tests/orchestration/m14-m15a-wiring.test.ts:426`이 production `OrchestrationService`와 `execute_dispatch`를 직접 import+호출해 claude.md의 10개 claim을 각각 직접 잠그고 있었다.
+- `npx eslint src/orchestration/service.ts`, `npx eslint src/orchestration/execution/execute-dispatcher.ts`, `npx eslint tests/orchestration/m14-m15a-wiring.test.ts`, `npx eslint docs/feedback/claude.md`, `npx eslint docs/feedback/gpt.md`, `npx tsc --noEmit`를 재실행해 모두 exit 0을 확인했다. 문서 파일 두 개는 ESLint 설정상 ignored-file warning만 출력됐고 실패는 아니었다.
+- `npx vitest run tests/orchestration/m14-m15a-wiring.test.ts`는 `1 file / 10 tests passed`, `npx vitest run tests/orchestration/`는 `80 files / 1343 tests passed`로 재실행 통과했다. 현재 감사 범위의 파일들에서는 새로운 BE→FE 계약, 입력 검증/권한 경로, locale key 변경이 확인되지 않았다.
+[합의완료]
+- `docs/feedback/claude.md:137-156`의 증거 명령을 재실행했고, 현재 보정 파일들에 대한 개별 `npx eslint <file>`, root/web `npx tsc --noEmit`, root `npx vitest run tests/bus/validation.test.ts tests/auth/login-rate-limiter.test.ts tests/auth/rate-limit-route.test.ts tests/dashboard/cors.test.ts tests/orchestration/m13-consumer-wiring.test.ts tests/orchestration/m14-m15a-wiring.test.ts tests/dashboard/fe-phase2-gaps.test.ts tests/agent/tools/h4-path-traversal.test.ts`, web `npx vitest run tests/prompting/g13-protocols-consumer.test.tsx tests/layouts/g11-g12-pending-toast.test.tsx tests/pages/workflows/g14-profile-preview.test.tsx`, `web` `npm test`가 각각 `8 files / 68 tests passed`, `3 files / 19 tests passed`, `34 files / 247 tests passed`로 모두 통과했다. `docs/feedback/claude.md:134-135`의 기존 수정 테스트 8개도 별도 `npx vitest run ...` 재실행에서 exit 0이었다.
+- `docs/feedback/claude.md:50`, `docs/feedback/claude.md:57-63`, `web/tests/prompting/g13-protocols-consumer.test.tsx:111`, `web/tests/prompting/g13-protocols-consumer.test.tsx:118`, `web/tests/prompting/g13-protocols-consumer.test.tsx:129`, `web/tests/prompting/g13-protocols-consumer.test.tsx:142`, `web/tests/prompting/g13-protocols-consumer.test.tsx:151`, `web/tests/prompting/g13-protocols-consumer.test.tsx:163`에서 G-13 FE 소비자 direct runtime test가 실제로 추가됐음을 확인했다. `git show --name-only 8f3d5ad`에는 `web/tests/prompting/g13-protocols-consumer.test.tsx`와 `docs/feedback/claude.md`가 포함돼 있었고, `tests/orchestration/m13-consumer-wiring.test.ts`를 포함한 현재 보정 파일들에서는 `as any|@ts-ignore|console.log` grep 매치가 없었다.
+- `docs/feedback/claude.md:70-84`의 Changed Files 분류는 현재 `git diff --name-only`, `git status --short`, `git ls-files --stage`와 일치했다. tracked diff는 `docs/feedback/claude.md`, `docs/feedback/gpt.md`, `tests/orchestration/m13-consumer-wiring.test.ts`, `web/src/layouts/root.tsx`, `web/src/pages/workflows/inspector-params.tsx`, `web/tests/regression/i18n-hardcoded.test.ts`로 확인됐고, `tests/agent/tools/h4-path-traversal.test.ts`, `web/tests/layouts/g11-g12-pending-toast.test.tsx`, `web/tests/pages/workflows/g14-profile-preview.test.tsx`는 untracked, `web/tests/prompting/g13-protocols-consumer.test.tsx`는 tracked clean이었다.
+- H-4/H-8/G-13/G-14와 i18n 계약도 `src/agent/tools/filesystem.ts:45`, `src/dashboard/routes/auth.ts:47`, `src/dashboard/routes/skill.ts:26`, `src/dashboard/ops/skill.ts:62`, `web/src/pages/prompting/agent-panel.tsx:95`, `web/src/pages/prompting/agent-modal.tsx:68`, `web/src/layouts/root.tsx:205`, `web/src/pages/workflows/inspector-params.tsx:751`, `src/i18n/locales/ko.json:4057`, `src/i18n/locales/en.json:4057`에서 직접 확인했다.
+---
+> 감사 완료: 2026-03-18 07:28

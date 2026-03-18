@@ -23,6 +23,10 @@ export type Message = {
   thread_id?: string;
   media?: MediaItem[];
   metadata?: Record<string, unknown>;
+  /** H-2: 멀티테넌트 격리 — 메시지가 속한 팀. */
+  team_id?: string;
+  /** H-3: trace 연속성 — publish 시점의 trace_id를 운반. */
+  correlation_id?: string;
 };
 
 export type InboundMessage = Message;
@@ -84,7 +88,7 @@ export interface ReliableMessageBus extends MessageBusLike {
 
 /* ── 메트릭 ── */
 
-export type BusQueueStats = {
+type BusQueueStats = {
   depth: number;
   overflow: number;
 };

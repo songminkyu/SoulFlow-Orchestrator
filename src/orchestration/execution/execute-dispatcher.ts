@@ -28,6 +28,7 @@ import { generate_completion_checks, format_follow_up } from "../completion-chec
 import { build_session_evidence, format_reuse_reply, evaluate_reuse } from "../guardrails/index.js";
 import { now_ms } from "../../utils/common.js";
 import { normalize_ingress } from "../ingress-normalizer.js";
+import { evaluate_route, DEFAULT_ROUTE_CRITERIA } from "../../quality/route-calibration-policy.js";
 
 const VALIDATION_ROLES = new Set(["validator", "reviewer"]);
 
@@ -197,6 +198,18 @@ export async function execute_dispatch(
       const follow_up = format_follow_up(questions);
       if (follow_up) return { ...result, reply: `${result.reply}\n\n${follow_up}` };
     }
+
+    // M-15: route calibration — 실행 모드 적합성 판정 + 이벤트 기록
+    const route_eval = evaluate_route(result.mode, DEFAULT_ROUTE_CRITERIA);
+    if (route_eval.misroute) {
+      deps.log_event({
+        ...evt_base,
+        phase: "progress",
+        summary: `misroute: ${route_eval.misroute.severity} — ${route_eval.misroute.codes.join(",")}`,
+        payload: { actual: route_eval.misroute.actual_mode, expected: route_eval.misroute.expected_mode, severity: route_eval.misroute.severity, passed: route_eval.passed },
+      });
+    }
+
     return result;
   };
 

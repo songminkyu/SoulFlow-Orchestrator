@@ -45,7 +45,7 @@ export const PROMPT_INJECTION_PATTERNS: readonly RegExp[] = [
   /(公开|显示).*系统提示/,
 ];
 
-export interface SanitizeResult {
+interface SanitizeResult {
   text: string;
   suspicious_lines: number;
   removed_lines: string[];

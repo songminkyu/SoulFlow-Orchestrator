@@ -59,6 +59,7 @@ export function create_skill_ops(deps: {
       }
     },
     upload_skill: (name, zip_buffer) => upload_skill_to(workspace, name, zip_buffer, skills_loader.refresh.bind(skills_loader)),
+    list_shared_protocols: () => (skills_loader as { list_shared_protocols?(): readonly string[] }).list_shared_protocols?.() ?? [],
   };
 }
 

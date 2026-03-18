@@ -139,8 +139,10 @@ export class ToolRegistry {
         return `Error: Invalid parameters for tool '${name}': ${errors.join("; ")}${ERROR_HINT}`;
       }
 
-      // PreToolUse hooks — deny가 하나라도 있으면 즉시 차단
-      let effective_params = params;
+      // H-4: LLM이 직접 __approved를 주입하는 경로 차단.
+      // __approved는 registry 내부(auto_approve, execute_approved_request)에서만 설정.
+      let effective_params = { ...params };
+      delete effective_params.__approved;
       for (const hook of this.pre_hooks) {
         const decision = await hook(name, effective_params, context);
         if (decision.permission === "deny") {

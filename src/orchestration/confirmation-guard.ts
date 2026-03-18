@@ -1,6 +1,6 @@
 /** Confirmation Guard — 크론/task 등 중요 작업 실행 전 HITL 확인. */
 
-export type PendingConfirmation = {
+type PendingConfirmation = {
   original_text: string;
   mode: string;
   tool_categories: string[];
@@ -8,7 +8,7 @@ export type PendingConfirmation = {
   created_at: number;
 };
 
-export type GuardResolution =
+type GuardResolution =
   | { action: "confirmed"; original_text: string }
   | { action: "cancelled" };
 
