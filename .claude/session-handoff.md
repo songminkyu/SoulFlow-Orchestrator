@@ -6,35 +6,33 @@ type: project
 
 ## 다음 작업
 
-### [plugin-iteration] consensus-loop 플러그인 이터레이션 검증
-- **상태**: 진행 중
+### [infra-phase3] 인프라 전수조사 Phase 3 — High 잔여 보안 (H-5, H-7, H-9)
+- **상태**: 미착수
 - **depends_on**: —
-- **blocks**: —
-- **배경**: `--plugin-dir` 방식으로 플러그인 활성화 성공. 다음 단계는 실제 이터레이션 루프 검증
-- **완료된 것**:
-  - plugin.json + marketplace.json 준비 완료
-  - hooks/hooks.json `{ "hooks": { ... } }` 래퍼 수정
-  - settings.local.json 개별 hook 제거, skill junction 제거
-  - `--plugin-dir .claude/hooks/consensus-loop` 활성화 확인
-- **남은 것**:
-  - orchestrator → implementer(background, worktree) → verify → audit 루프 한 바퀴 검증
-  - 워크트리 서브에이전트 hook 비연결 문제 해결 방안 설계
-  - SA-1 worktree 결과 머지 여부 결정
+- **blocks**: infra-phase4
+- **배경**: infra-layer-gaps.md MUST 12건 중 6건 완료. 남은 High 중 구현 가능한 3건 선택.
+- **할 것**:
+  - H-5: `cron_to_interval_ms()` `*/0` → 0ms DoS 방어
+  - H-7: 서버 측 세션 무효화 (비밀번호 변경 시 JWT 회수)
+  - H-9: Webhook 서명 검증 (HMAC-SHA256)
+- **구현자 워크트리 배분** → 감사 루프 자기완결
 
-### [ev-correction] EV-Track4 + FE-4 계류 보정
+### [infra-phase4] 인프라 전수조사 Phase 4 — High 문서-코드 괴리 (H-6, H-11, H-12)
 - **상태**: 미착수
 - **depends_on**: —
 - **blocks**: —
-- **배경**: GPT 감사에서 `[계류]` 판정 — claim-drift, test-gap, i18n-gap
-- **할 것**: H-2/H-3 claim 정정, G-11/G-12/G-14 직접 UI 테스트, root.tsx i18n
+- **배경**: 문서와 코드 불일치 3건. H-6은 ts-rs 파이프라인, H-11/H-12는 가드레일.
 
-## 완료 (다음 정리 시 제거)
+### [worktree-isolation] 워크트리 서브에이전트 격리 문제
+- **상태**: 설계 필요
+- **depends_on**: —
+- **blocks**: —
+- **배경**: `context.mjs`의 `resolveRepoRoot()`가 `git rev-parse --show-toplevel`로 항상 메인 레포 반환. 워크트리에서 실행해도 메인 파일을 수정함. `audit.mjs`, `respond.mjs` 모두 영향.
+- **할 것**: `process.cwd()` 또는 `GIT_WORK_TREE` 환경변수 기반으로 워크트리 루트 올바르게 해석하도록 수정.
 
-- [handoff-deps] 핸드오프 포맷 개선
-- [async-audit] 감사 비동기 전환
-- 프롬프트 템플릿 경로 수정
-- OB-Track3 `[합의완료]`
-- consensus-loop i18n
-- 핸드오프 저장소 동기화
-- cc-session-tools 오픈소스
-- consensus-loop 플러그인 구조화 (skills 6개, hooks.json, plugin.json, marketplace.json)
+## 완료
+
+- [plugin-iteration] consensus-loop 플러그인 이터레이션 검증 — E2E 루프 완주, 스킬 동작 확인
+- [ev-correction] Phase 0+1+2 인프라 전수조사 13건 `[합의완료]` (커밋 `6df333b`)
+- M-14/M-15a 통합 테스트 `[합의완료]`
+- G-13 FE 소비자 렌더 테스트 `[합의완료]`
