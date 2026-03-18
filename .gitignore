@@ -43,5 +43,17 @@ Thumbs.db
 *.swp
 .claude/ralph-loop.local.md
 
+# 세션 핸드오프 (메모리 동기화로 관리, git 불필요)
+.claude/session-handoff.md
+
+# consensus-loop 감사 아티팩트 (매 감사 실행마다 생성)
+.claude/audit-debounce.ts
+.claude/audit.lock
+.claude/vitest-audit.json
+.claude/tmp-root-*.json
+.claude/scheduled_tasks.lock
+.tmp-root-vitest.json
+NUL
+
 docs/**/design/improved/**
 docs/**/references/**
