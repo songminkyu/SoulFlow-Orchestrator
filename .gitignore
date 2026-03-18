@@ -43,5 +43,14 @@ Thumbs.db
 *.swp
 .claude/ralph-loop.local.md
 
+# consensus-loop 감사 아티팩트 (매 감사 실행마다 생성)
+.claude/audit-debounce.ts
+.claude/audit.lock
+.claude/vitest-audit.json
+.claude/tmp-root-*.json
+.claude/scheduled_tasks.lock
+.tmp-root-vitest.json
+NUL
+
 docs/**/design/improved/**
 docs/**/references/**
