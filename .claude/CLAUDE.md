@@ -134,7 +134,7 @@ GPT/Codex 감사 → 합의 → 회고 → 커밋 사이클을 자동화하는 C
 
 ## 감사 워크플로우
 
-구현 → `[GPT미검증]` 제출 → GPT 감사 → `[합의완료]`/`[계류]` → 회고(HITL) → 커밋.
+구현 → `[REVIEW_NEEDED]` 제출 → GPT 감사 → `[APPROVED]`/`[CHANGES_REQUESTED]` → 회고(HITL) → 커밋.
 
 - **watch_file**: `docs/feedback/claude.md` — 증거 제출 (Write 전체 교체). config.json `consensus.watch_file` 값과 동일.
 - **respond_file**: `docs/feedback/gpt.md` — GPT 판정 (시스템 관리)
