@@ -65,23 +65,23 @@ i18n: 5개 키 (`team.err_id_required`, `team.err_not_member`, `team.err_switch_
 
 ### Changed Files
 
-코드 변경은 커밋 `04207b4` + `8f3d5ad`에 포함됨. 감사 보정은 현재 diff + 신규 파일.
+코드 변경은 커밋 `04207b4` + `8f3d5ad` + 보정 커밋에 포함됨. 모두 커밋 완료.
 
 **현재 `git diff --name-only`:**
-- `docs/feedback/claude.md` — 이 증거 문서 (Write 직후 modified)
+- `docs/feedback/claude.md` — 이 증거 문서 (Edit 직후 modified)
 - `docs/feedback/gpt.md` — GPT 판정
+
+**현재 untracked (신규):** 감사 아티팩트만 (`audit-debounce.ts`, `audit.lock`, `.claude/hooks/`, `docs/*/operating-harness/` 등) — Phase 0+1+2 코드 변경은 모두 커밋됨
+
+**커밋 완료 (`04207b4` + `8f3d5ad` + 보정 커밋):**
 - `tests/orchestration/m13-consumer-wiring.test.ts` — `as any` → `as unknown`
-- `web/src/layouts/root.tsx` — t-shadowing 수정
+- `web/src/layouts/root.tsx` — t-shadowing 수정 (G-11 + G-12 포함)
 - `web/src/pages/workflows/inspector-params.tsx` — fallback 제거 + export
 - `web/tests/regression/i18n-hardcoded.test.ts` — locale_ko 허용목록
-
-**현재 untracked (신규):**
-- `tests/agent/tools/h4-path-traversal.test.ts` — H-4 직접 테스트 (신규)
-- `web/tests/layouts/g11-g12-pending-toast.test.tsx` — G-11/G-12 렌더 (신규)
-- `web/tests/pages/workflows/g14-profile-preview.test.tsx` — G-14 렌더 (신규)
-
-**이미 커밋됨 (`8f3d5ad`):**
-- `web/tests/prompting/g13-protocols-consumer.test.tsx` — G-13 FE 소비자 렌더 (커밋 완료)
+- `tests/agent/tools/h4-path-traversal.test.ts` — H-4 직접 테스트
+- `web/tests/layouts/g11-g12-pending-toast.test.tsx` — G-11/G-12 렌더
+- `web/tests/pages/workflows/g14-profile-preview.test.tsx` — G-14 렌더
+- `web/tests/prompting/g13-protocols-consumer.test.tsx` — G-13 FE 소비자 렌더
 
 **Phase 0 코드 (커밋 `04207b4`):**
 - `src/bus/validation.ts` — H-1 (신규)
@@ -169,4 +169,4 @@ web npm test: 34 files / 247 tests passed
 - **G-15/G-16**: Phase 3.
 - **H-4 symlink**: Windows 2개 조건부 스킵.
 
-> 마지막 업데이트: 2026-03-18 16:20
+> 마지막 업데이트: 2026-03-18 — CC-2 Changed Files 정합성 보정 (모두 커밋됨으로 갱신)
