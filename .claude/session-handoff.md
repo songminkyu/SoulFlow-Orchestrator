@@ -40,6 +40,13 @@ type: project
 - **배경**: `context.mjs`의 `resolveRepoRoot()`가 `git rev-parse --show-toplevel`로 항상 메인 레포 반환. 워크트리에서 실행해도 메인 파일을 수정함.
 - **할 것**: `process.cwd()` 또는 `GIT_WORK_TREE` 환경변수 기반으로 워크트리 루트 올바르게 해석하도록 수정.
 
+### [smoke-test] 루프 검증용 스모크 태스크
+- **상태**: 미착수
+- **depends_on**: —
+- **blocks**: —
+- **배경**: consensus-loop E2E 루프 한 바퀴 검증. 최소 변경으로 전체 파이프라인(implementer → evidence → audit → retro → merge) 시험.
+- **할 것**: `tests/_helpers.mjs` 공통 테스트 헬퍼 생성 (`test`, `describe`, `summary` 함수). 기존 `cl1-verify.test.mjs`가 이를 import하도록 수정. 테스트 통과 확인.
+
 ## 완료
 
 - [plugin-iteration] consensus-loop 플러그인 이터레이션 검증 — E2E 루프 완주, 스킬 동작 확인
