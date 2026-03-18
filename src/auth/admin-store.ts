@@ -20,14 +20,14 @@ const INIT_SQL = `
   );
 
   CREATE TABLE IF NOT EXISTS users (
-    id              TEXT PRIMARY KEY,
-    username        TEXT NOT NULL UNIQUE,
-    password_hash   TEXT NOT NULL,
-    system_role     TEXT NOT NULL DEFAULT 'user',
-    default_team_id TEXT REFERENCES teams(id),
-    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-    last_login_at   TEXT,
-    disabled_at     TEXT
+    id                  TEXT PRIMARY KEY,
+    username            TEXT NOT NULL UNIQUE,
+    password_hash       TEXT NOT NULL,
+    system_role         TEXT NOT NULL DEFAULT 'user',
+    default_team_id     TEXT REFERENCES teams(id),
+    created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+    last_login_at       TEXT,
+    disabled_at         TEXT
   );
 
   CREATE TABLE IF NOT EXISTS shared_providers (
@@ -56,6 +56,8 @@ export interface UserRecord {
   created_at: string;
   last_login_at: string | null;
   disabled_at: string | null;
+  /** H-7: 마지막 비밀번호 변경 시각 (ISO 8601). null이면 레거시 계정(토큰 허용). */
+  password_changed_at: string | null;
 }
 
 export interface TeamRecord {
@@ -81,6 +83,8 @@ interface UserRow {
   id: string; username: string; password_hash: string; system_role: string;
   default_team_id: string | null; created_at: string;
   last_login_at: string | null; disabled_at: string | null;
+  /** H-7: 비밀번호 변경 시각 — 마이그레이션 전 행에는 undefined가 될 수 있음. */
+  password_changed_at?: string | null;
 }
 
 interface SharedProviderRow {
@@ -93,7 +97,12 @@ function row_to_team(r: TeamRow): TeamRecord {
 }
 
 function row_to_user(r: UserRow): UserRecord {
-  return { ...r, system_role: r.system_role as "superadmin" | "user" };
+  return {
+    ...r,
+    system_role: r.system_role as "superadmin" | "user",
+    // H-7: undefined(마이그레이션 전 행)를 null로 정규화
+    password_changed_at: r.password_changed_at ?? null,
+  };
 }
 
 function row_to_shared_provider(r: SharedProviderRow): SharedProviderRecord {
@@ -111,6 +120,15 @@ export class AdminStore {
     this.db_path = db_path;
     mkdirSync(dirname(db_path), { recursive: true });
     with_sqlite_strict(db_path, (db) => { db.exec(INIT_SQL); return true; }, { pragmas: PRAGMAS });
+    // H-7: 기존 DB에 password_changed_at 컬럼 추가 (SQLite는 ADD COLUMN IF NOT EXISTS 미지원 → try/catch)
+    try {
+      with_sqlite_strict(db_path, (db) => {
+        db.exec("ALTER TABLE users ADD COLUMN password_changed_at TEXT");
+        return true;
+      }, { pragmas: PRAGMAS });
+    } catch {
+      // 이미 컬럼이 존재하면 무시 (정상)
+    }
   }
 
   // ── 초기화 여부 ──
@@ -161,6 +179,17 @@ export class AdminStore {
     }, { pragmas: PRAGMAS }) ?? null;
   }
 
+  /**
+   * H-7: 사용자의 마지막 비밀번호 변경 시각을 조회한다.
+   * 레거시 계정(컬럼 값 없음)은 null 반환 — 하위 호환성을 위해 토큰 허용.
+   */
+  get_password_changed_at(user_id: string): string | null {
+    return with_sqlite(this.db_path, (db) => {
+      const row = db.prepare("SELECT password_changed_at FROM users WHERE id = ?").get(user_id) as { password_changed_at: string | null } | undefined;
+      return row?.password_changed_at ?? null;
+    }, { pragmas: PRAGMAS }) ?? null;
+  }
+
   create_user(input: {
     username: string;
     password_hash: string;
@@ -177,7 +206,7 @@ export class AdminStore {
     return this.get_user_by_id(id)!;
   }
 
-  update_user(id: string, patch: Partial<Pick<UserRecord, "password_hash" | "system_role" | "last_login_at" | "default_team_id" | "disabled_at">>): boolean {
+  update_user(id: string, patch: Partial<Pick<UserRecord, "password_hash" | "system_role" | "last_login_at" | "default_team_id" | "disabled_at" | "password_changed_at">>): boolean {
     const user = this.get_user_by_id(id);
     if (!user) return false;
     const fields: string[] = [];
@@ -187,6 +216,7 @@ export class AdminStore {
     if (patch.last_login_at !== undefined) { fields.push("last_login_at = ?"); values.push(patch.last_login_at); }
     if (patch.default_team_id !== undefined) { fields.push("default_team_id = ?"); values.push(patch.default_team_id); }
     if (patch.disabled_at !== undefined) { fields.push("disabled_at = ?"); values.push(patch.disabled_at); }
+    if (patch.password_changed_at !== undefined) { fields.push("password_changed_at = ?"); values.push(patch.password_changed_at); }
     if (fields.length === 0) return true;
     values.push(id);
     with_sqlite_strict(this.db_path, (db) => {

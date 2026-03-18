@@ -116,14 +116,38 @@ export class CronShellTool extends Tool {
     }
   }
 
-  /** 단순 cron 간격만 파싱. 복잡한 표현식은 미지원. */
+  /** 등록된 모든 타이머를 해제하고 내부 상태를 초기화한다. */
+  dispose(): void {
+    for (const timer of this.timers.values()) clearInterval(timer);
+    this.timers.clear();
+    this.entries.clear();
+  }
+
+  /**
+   * 단순 cron 간격만 파싱. 복잡한 표현식은 미지원.
+   * 제수(divisor)가 0이면 setInterval(fn, 0) DoS 방지를 위해 null 반환.
+   * 최소 유효 간격: 60_000ms (1분).
+   */
   private cron_to_interval_ms(expr: string): number | null {
     const parts = expr.trim().split(/\s+/);
     if (parts.length < 5) return null;
+
     const minute_match = parts[0].match(/^\*\/(\d+)$/);
-    if (minute_match) return Number(minute_match[1]) * 60_000;
+    if (minute_match) {
+      const divisor = Number(minute_match[1]);
+      // 제수가 0이면 무한 루프(DoS) 위험 → null 반환
+      if (divisor === 0) return null;
+      return divisor * 60_000;
+    }
+
     const hour_match = parts[1].match(/^\*\/(\d+)$/);
-    if (hour_match && parts[0] === "0") return Number(hour_match[1]) * 3600_000;
+    if (hour_match && parts[0] === "0") {
+      const divisor = Number(hour_match[1]);
+      // 제수가 0이면 무한 루프(DoS) 위험 → null 반환
+      if (divisor === 0) return null;
+      return divisor * 3600_000;
+    }
+
     if (parts[0] === "*" && parts[1] === "*") return 60_000;
     return null;
   }

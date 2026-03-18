@@ -406,6 +406,11 @@ export class DashboardService implements ServiceLike {
           this._json(res, 401, { error: "unauthorized" });
           return;
         }
+        // H-7: 비밀번호 변경 이전에 발급된 JWT 거부 — 세션 무효화
+        if (!this.options.auth_svc.is_token_valid_for_user(payload.sub, payload.iat)) {
+          this._json(res, 401, { error: { code: "session_invalidated", message: "Password changed, please re-login" } });
+          return;
+        }
         // 1단계: wdir 구조 무결성 — DB 불필요, O(1)
         const expected_wdir = `tenants/${payload.tid}/users/${payload.sub}`;
         if (payload.wdir !== expected_wdir) {
@@ -526,9 +531,26 @@ export class DashboardService implements ServiceLike {
           publish_inbound: (msg) => bus ? bus.publish_inbound(msg) : Promise.resolve(),
           json: ctx.json,
           read_body: ctx.read_body,
+          // HMAC 서명 검증용 원본 바이트 읽기 (H-9)
+          read_raw_body: (req) => this._read_raw_body(req),
         },
         ctx.req, ctx.res, ctx.url,
       );
+    });
+  }
+
+  /** HMAC 서명 검증을 위한 원본 바이트 읽기. 최대 1MB. */
+  private _read_raw_body(req: IncomingMessage): Promise<Buffer> {
+    return new Promise((resolve_buf) => {
+      const chunks: Buffer[] = [];
+      let total = 0;
+      const MAX = 1_048_576;
+      req.on("data", (chunk: Buffer) => {
+        total += chunk.length;
+        if (total <= MAX) chunks.push(chunk);
+      });
+      req.on("end", () => resolve_buf(Buffer.concat(chunks)));
+      req.on("error", () => resolve_buf(Buffer.alloc(0)));
     });
   }
 

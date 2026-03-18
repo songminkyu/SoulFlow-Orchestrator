@@ -3,7 +3,7 @@
  * 토큰 인증 + 세션 wake + 직접 에이전트 호출 지원.
  */
 
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { now_iso, short_id } from "../../utils/common.js";
 import type { WebhookStore } from "../../services/webhook-store.service.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -18,6 +18,8 @@ export type WebhookDeps = {
   publish_inbound: (msg: import("../../bus/types.js").InboundMessage) => Promise<void>;
   json: (res: ServerResponse, status: number, data: unknown) => void;
   read_body: (req: IncomingMessage) => Promise<Record<string, unknown> | null>;
+  /** HMAC 서명 검증을 위한 원본 바이트 읽기. 선택적 — 제공 시 HMAC 검증 활성화. */
+  read_raw_body?: (req: IncomingMessage) => Promise<Buffer>;
 };
 
 /** Authorization 헤더 검증. auth 활성 + secret 미설정 시 거부 (TN-6a: 무인증 차단). */
@@ -30,6 +32,38 @@ function verify_token(req: IncomingMessage, secret: string | undefined, auth_ena
   const expected = createHash("sha256").update(secret, "utf8").digest();
   const actual = createHash("sha256").update(token, "utf8").digest();
   return timingSafeEqual(expected, actual);
+}
+
+/**
+ * HMAC-SHA256 본문 서명 검증.
+ * X-Signature-256 또는 X-Hub-Signature-256 헤더 지원 (GitHub 스타일).
+ * timing-safe 비교로 타이밍 공격 방지.
+ */
+function verify_hmac_signature(
+  raw_body: Buffer | string,
+  secret: string,
+  signature_header: string | undefined,
+): boolean {
+  if (!signature_header) return false;
+  const expected_sig = createHmac("sha256", secret).update(raw_body).digest("hex");
+  const expected = `sha256=${expected_sig}`;
+  // 길이가 다르면 timingSafeEqual 전에 거부 (길이 노출은 허용 — sha256 출력은 고정 길이)
+  if (signature_header.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(signature_header), Buffer.from(expected));
+}
+
+/**
+ * 리플레이 공격 방지: X-Webhook-Timestamp 헤더 검사.
+ * 헤더가 없으면 허용(선택적). 5분 초과 시 거부.
+ */
+function verify_timestamp(req: IncomingMessage): boolean {
+  const ts_header = req.headers["x-webhook-timestamp"];
+  if (!ts_header) return true; // 헤더 없으면 선택적 — 허용
+  const ts = Number(String(ts_header).trim());
+  if (!Number.isFinite(ts)) return false;
+  const now_sec = Math.floor(Date.now() / 1000);
+  const diff = Math.abs(now_sec - ts);
+  return diff <= 300; // 5분(300초) 이내만 허용
 }
 
 /**
@@ -145,9 +179,32 @@ export async function dispatch_webhook(
 ): Promise<boolean> {
   if (!url.pathname.startsWith("/hooks/")) return false;
 
-  // 토큰 인증
-  if (!verify_token(req, deps.webhook_secret, deps.auth_enabled)) {
+  // HMAC 서명 헤더 확인 (GitHub 스타일 X-Signature-256 / X-Hub-Signature-256)
+  const sig_header = String(
+    req.headers["x-signature-256"] ?? req.headers["x-hub-signature-256"] ?? "",
+  ).trim() || undefined;
+
+  let bearer_ok = false;
+  let hmac_ok = false;
+
+  // Bearer 토큰 인증 시도
+  bearer_ok = verify_token(req, deps.webhook_secret, deps.auth_enabled);
+
+  // HMAC 서명 인증 시도 (secret + read_raw_body 모두 있을 때만)
+  if (sig_header && deps.webhook_secret && deps.read_raw_body) {
+    const raw = await deps.read_raw_body(req);
+    hmac_ok = verify_hmac_signature(raw, deps.webhook_secret, sig_header);
+  }
+
+  // 둘 중 하나라도 통과해야 함 (OR 로직)
+  if (!bearer_ok && !hmac_ok) {
     deps.json(res, 401, { ok: false, error: "unauthorized" });
+    return true;
+  }
+
+  // 리플레이 공격 방지: 타임스탬프 검증
+  if (!verify_timestamp(req)) {
+    deps.json(res, 401, { ok: false, error: "replay_detected" });
     return true;
   }
 

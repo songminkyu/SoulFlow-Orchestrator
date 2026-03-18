@@ -134,7 +134,9 @@ export class AuthService {
     if (this.store.is_initialized()) return null;
     this.store.ensure_team("default", "Default");
     const hash = await this.hash_password(password);
-    this.store.create_user({ username, password_hash: hash, system_role: "superadmin", default_team_id: "default" });
+    const user = this.store.create_user({ username, password_hash: hash, system_role: "superadmin", default_team_id: "default" });
+    // H-7: 초기 superadmin 계정 생성 시 password_changed_at 기록
+    this.store.update_user(user.id, { password_changed_at: new Date().toISOString() });
     return this.login(username, password);
   }
 
@@ -167,7 +169,25 @@ export class AuthService {
 
   async update_password(id: string, password: string): Promise<boolean> {
     const hash = await this.hash_password(password);
-    return this.store.update_user(id, { password_hash: hash });
+    // H-7: 비밀번호 변경 시 현재 시각을 기록 — 이전 JWT를 일괄 무효화
+    const now_iso = new Date().toISOString();
+    return this.store.update_user(id, { password_hash: hash, password_changed_at: now_iso });
+  }
+
+  /**
+   * H-7: JWT 발급 시각이 사용자의 비밀번호 변경 시각 이후인지 검증.
+   * password_changed_at가 null(레거시 계정)이면 하위 호환성을 위해 true 반환.
+   *
+   * @param user_id — 검증 대상 사용자 ID
+   * @param iat     — JWT의 issued-at (Unix 초)
+   */
+  is_token_valid_for_user(user_id: string, iat: number): boolean {
+    const changed_at_iso = this.store.get_password_changed_at(user_id);
+    // 레거시 계정: password_changed_at 없음 → 하위 호환성을 위해 허용
+    if (!changed_at_iso) return true;
+    const changed_at_unix = Math.floor(new Date(changed_at_iso).getTime() / 1000);
+    // iat가 비밀번호 변경 시각과 같거나 이후이면 유효
+    return iat >= changed_at_unix;
   }
 
   // ── 전역 프로바이더 (AdminStore 위임) ──
