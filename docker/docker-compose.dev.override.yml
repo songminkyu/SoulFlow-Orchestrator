@@ -1,6 +1,6 @@
 services:
   orchestrator:
     volumes:
-      - ../src:/app/src
-      - ../web/src:/app/web/src
+      - ../src:/build/src
+      - ../web/src:/build/web/src
     command: npm run dev

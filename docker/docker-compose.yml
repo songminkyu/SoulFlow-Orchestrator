@@ -31,7 +31,7 @@ services:
       WORKSPACE: /data
       BUS_BACKEND: ${BUS_BACKEND:-redis}
       BUS_REDIS_URL: ${BUS_REDIS_URL:-redis://redis:6379}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       DEBUG: ${DEBUG:-false}
       SKIP_INSTANCE_LOCK: ${SKIP_INSTANCE_LOCK:-0}
       NODE_OPTIONS: "--max-old-space-size=${NODE_HEAP_MB:-768}"
@@ -50,12 +50,15 @@ services:
 
   chunker:
     image: soulflow-orchestrator
+    depends_on:
+      orchestrator:
+        condition: service_started
     container_name: ${PROJECT_NAME:-soulflow}-chunker
     restart: unless-stopped
     command: ["node", "dist/chunker/main.js"]
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       NODE_OPTIONS: "--max-old-space-size=${CHUNKER_HEAP_MB:-512}"
     deploy:
       resources:
@@ -70,7 +73,7 @@ services:
     volumes:
       - redis-data:/data
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     command: >
       redis-server
       --appendonly yes

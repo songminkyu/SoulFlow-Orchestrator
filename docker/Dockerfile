@@ -134,8 +134,8 @@ RUN --mount=type=cache,target=/root/.npm \
     (npm install -g @anthropic-ai/claude-code@latest || true) && \
     (npm install -g @openai/codex@latest || true) && \
     (npm install -g @google/gemini-cli@latest || true) && \
-    npm install -g agent-browser && \
-    agent-browser install
+    (npm install -g agent-browser || true) && \
+    (agent-browser install || true)
 
 WORKDIR /app
 
@@ -197,6 +197,7 @@ FROM dev-base AS dev
 
 COPY --from=deps /build/node_modules node_modules/
 COPY --from=deps /build/web/node_modules web/node_modules/
+COPY --from=build-web /build/dist/web/ dist/web/
 COPY package.json tsconfig.json ./
 
 ENTRYPOINT ["tini", "--"]

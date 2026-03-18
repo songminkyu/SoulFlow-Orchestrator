@@ -25,6 +25,7 @@ NC='\033[0m'
 COMMAND=${1:-help}
 WORKSPACE=
 WEB_PORT=
+REDIS_PORT=
 INSTANCE=
 WATCH=
 SKIP_LOCK=0
@@ -45,6 +46,10 @@ while [ $# -gt 0 ]; do
     --workspace) shift; WORKSPACE="$1" ;;
     --web-port=* | --webport=*) WEB_PORT="${1#*=}" ;;
     --web-port | --webport) shift; WEB_PORT="$1" ;;
+    --redis-port=*) REDIS_PORT="${1#*=}" ;;
+    --redis-port) shift; REDIS_PORT="$1" ;;
+    --redis-url=*) REDIS_URL="${1#*=}" ;;
+    --redis-url) shift; REDIS_URL="$1" ;;
     --instance=* | --name=*) INSTANCE="${1#*=}" ;;
     --instance | --name) shift; INSTANCE="$1" ;;
     --watch=*) WATCH="${1#*=}" ;;
@@ -60,10 +65,10 @@ done
 get_preset() {
   local profile=$1
   case $profile in
-    dev)     BUILD_TARGET=dev;        NODE_ENV=development; DEBUG=true;  MEMORY=1G; CPUS=2; DEFAULT_WEB_PORT=4200; NODE_HEAP_MB=768  ;;
-    test)    BUILD_TARGET=production; NODE_ENV=test;        DEBUG=true;  MEMORY=1G; CPUS=2; DEFAULT_WEB_PORT=4201; NODE_HEAP_MB=768  ;;
-    staging) BUILD_TARGET=production; NODE_ENV=production;  DEBUG=false; MEMORY=1G; CPUS=2; DEFAULT_WEB_PORT=4202; NODE_HEAP_MB=768  ;;
-    prod)    BUILD_TARGET=full;       NODE_ENV=production;  DEBUG=false; MEMORY=2G; CPUS=4; DEFAULT_WEB_PORT=4200; NODE_HEAP_MB=1536 ;;
+    dev)     BUILD_TARGET=dev;        NODE_ENV=development; DEBUG=true;  MEMORY=1G; CPUS=2; DEFAULT_WEB_PORT=4200; DEFAULT_REDIS_PORT=6379; NODE_HEAP_MB=768  ;;
+    test)    BUILD_TARGET=production; NODE_ENV=test;        DEBUG=true;  MEMORY=1G; CPUS=2; DEFAULT_WEB_PORT=4201; DEFAULT_REDIS_PORT=6380; NODE_HEAP_MB=768  ;;
+    staging) BUILD_TARGET=production; NODE_ENV=production;  DEBUG=false; MEMORY=1G; CPUS=2; DEFAULT_WEB_PORT=4202; DEFAULT_REDIS_PORT=6381; NODE_HEAP_MB=768  ;;
+    prod)    BUILD_TARGET=full;       NODE_ENV=production;  DEBUG=false; MEMORY=2G; CPUS=4; DEFAULT_WEB_PORT=4200; DEFAULT_REDIS_PORT=6379; NODE_HEAP_MB=1536 ;;
     *) echo -e "${RED}알 수 없는 프로필: $profile${NC}"; exit 1 ;;
   esac
 }
@@ -98,6 +103,8 @@ show_help() {
   echo "  --workspace=PATH   - 워크스페이스 경로 (필수)"
   echo "  --instance=NAME    - 인스턴스 이름 (다중 인스턴스 스케일링)"
   echo "  --web-port=PORT    - 웹 포트 (기본값: 환경별 다름)"
+  echo "  --redis-port=PORT  - Redis 호스트 포트 (기본값: dev=6379, test=6380, staging=6381)"
+  echo "  --redis-url=URL    - 외부 Redis URL (예: redis://other-host:6379)"
   echo "  --watch            - 전체 소스 마운트 + 핫 리로드 (tsx watch)"
   echo "  --watch=web        - 웹 소스만 마운트 + 핫 리로드"
   echo "  --skip-lock        - 인스턴스 락 비활성화 (복구/디버그 전용)"
@@ -145,6 +152,8 @@ run_env() {
   export HOST_WORKSPACE="$WORKSPACE"
   export PROJECT_NAME="$project_name"
   export WEB_PORT="${WEB_PORT:-$DEFAULT_WEB_PORT}"
+  export REDIS_PORT="${REDIS_PORT:-$DEFAULT_REDIS_PORT}"
+  [ -n "$REDIS_URL" ] && export REDIS_URL
   export SKIP_INSTANCE_LOCK="$SKIP_LOCK"
   export NODE_HEAP_MB
 
@@ -179,6 +188,8 @@ run_env() {
   echo -e "\n${GREEN}✅ $profile 환경이 시작되었습니다!${NC}"
   echo -e "${GREEN}   프로젝트: $project_name${NC}"
   echo -e "${GREEN}   웹 포트: $WEB_PORT${NC}"
+  echo -e "${GREEN}   Redis 포트: $REDIS_PORT${NC}"
+  [ -n "$REDIS_URL" ] && echo -e "${GREEN}   Redis URL: $REDIS_URL${NC}"
   [ "$SKIP_LOCK" = "1" ] && echo -e "${YELLOW}⚠ WARNING: instance lock disabled${NC}"
   echo ""
 
