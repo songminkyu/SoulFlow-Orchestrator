@@ -5,9 +5,9 @@ services:
       target: deps
     command: sleep infinity
     volumes:
-      - ..:/app
-      - devcontainer-node-modules:/app/node_modules
-      - devcontainer-web-modules:/app/web/node_modules
+      - ..:/build
+      - devcontainer-node-modules:/build/node_modules
+      - devcontainer-web-modules:/build/web/node_modules
       - ${WORKSPACE_PATH:-../newworkspace}:/data
     environment:
       - WORKSPACE=/data

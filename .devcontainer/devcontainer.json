@@ -2,7 +2,7 @@
   "name": "SoulFlow Orchestrator",
   "dockerComposeFile": ["../docker-compose.yml", "docker-compose.devcontainer.yml"],
   "service": "devcontainer",
-  "workspaceFolder": "/app",
+  "workspaceFolder": "/build",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -10,7 +10,7 @@
         "esbenp.prettier-vscode"
       ],
       "settings": {
-        "typescript.tsdk": "/app/node_modules/typescript/lib"
+        "typescript.tsdk": "/build/node_modules/typescript/lib"
       }
     }
   },

@@ -24,6 +24,11 @@ services:
     image: soulflow-orchestrator
     container_name: ${PROJECT_NAME:-soulflow}-orchestrator
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      docker-proxy:
+        condition: service_started
     ports:
       - "${WEB_PORT:-4200}:4200"
     environment:
@@ -32,6 +37,8 @@ services:
       BUS_BACKEND: ${BUS_BACKEND:-redis}
       BUS_REDIS_URL: ${BUS_REDIS_URL:-redis://redis:6379}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      DOCKER_HOST: tcp://docker-proxy:2375
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       DEBUG: ${DEBUG:-false}
       SKIP_INSTANCE_LOCK: ${SKIP_INSTANCE_LOCK:-0}
       NODE_OPTIONS: "--max-old-space-size=${NODE_HEAP_MB:-768}"
@@ -53,12 +60,15 @@ services:
     depends_on:
       orchestrator:
         condition: service_started
+      redis:
+        condition: service_healthy
     container_name: ${PROJECT_NAME:-soulflow}-chunker
     restart: unless-stopped
     command: ["node", "dist/chunker/main.js"]
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_OPTIONS: "--max-old-space-size=${CHUNKER_HEAP_MB:-512}"
     deploy:
       resources:

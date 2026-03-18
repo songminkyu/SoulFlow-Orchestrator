@@ -1,4 +1,4 @@
 services:
   orchestrator:
     volumes:
-      - ../dist/web:/app/dist/web
+      - ../dist/web:${CONTAINER_WORKDIR:-/build}/dist/web

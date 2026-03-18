@@ -65,10 +65,10 @@ done
 get_preset() {
   local profile=$1
   case $profile in
-    dev)     BUILD_TARGET=dev;        NODE_ENV=development; DEBUG=true;  MEMORY=1G; CPUS=2; DEFAULT_WEB_PORT=4200; DEFAULT_REDIS_PORT=6379; NODE_HEAP_MB=768  ;;
-    test)    BUILD_TARGET=production; NODE_ENV=test;        DEBUG=true;  MEMORY=1G; CPUS=2; DEFAULT_WEB_PORT=4201; DEFAULT_REDIS_PORT=6380; NODE_HEAP_MB=768  ;;
-    staging) BUILD_TARGET=production; NODE_ENV=production;  DEBUG=false; MEMORY=1G; CPUS=2; DEFAULT_WEB_PORT=4202; DEFAULT_REDIS_PORT=6381; NODE_HEAP_MB=768  ;;
-    prod)    BUILD_TARGET=full;       NODE_ENV=production;  DEBUG=false; MEMORY=2G; CPUS=4; DEFAULT_WEB_PORT=4200; DEFAULT_REDIS_PORT=6379; NODE_HEAP_MB=1536 ;;
+    dev)     BUILD_TARGET=dev;        NODE_ENV=development; DEBUG=true;  MEMORY=1G; CPUS=2; DEFAULT_WEB_PORT=4200; DEFAULT_REDIS_PORT=6379; CONTAINER_WORKDIR=/build; NODE_HEAP_MB=768  ;;
+    test)    BUILD_TARGET=production; NODE_ENV=test;        DEBUG=true;  MEMORY=1G; CPUS=2; DEFAULT_WEB_PORT=4201; DEFAULT_REDIS_PORT=6380; CONTAINER_WORKDIR=/app;   NODE_HEAP_MB=768  ;;
+    staging) BUILD_TARGET=production; NODE_ENV=production;  DEBUG=false; MEMORY=1G; CPUS=2; DEFAULT_WEB_PORT=4202; DEFAULT_REDIS_PORT=6381; CONTAINER_WORKDIR=/app;   NODE_HEAP_MB=768  ;;
+    prod)    BUILD_TARGET=full;       NODE_ENV=production;  DEBUG=false; MEMORY=2G; CPUS=4; DEFAULT_WEB_PORT=4200; DEFAULT_REDIS_PORT=6379; CONTAINER_WORKDIR=/app;   NODE_HEAP_MB=1536 ;;
     *) echo -e "${RED}알 수 없는 프로필: $profile${NC}"; exit 1 ;;
   esac
 }
@@ -154,6 +154,7 @@ run_env() {
   export WEB_PORT="${WEB_PORT:-$DEFAULT_WEB_PORT}"
   export REDIS_PORT="${REDIS_PORT:-$DEFAULT_REDIS_PORT}"
   [ -n "$REDIS_URL" ] && export REDIS_URL
+  export CONTAINER_WORKDIR
   export SKIP_INSTANCE_LOCK="$SKIP_LOCK"
   export NODE_HEAP_MB
 
