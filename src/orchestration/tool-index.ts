@@ -17,6 +17,8 @@ import type { ToolSchema } from "../agent/tools/types.js";
 import type { EmbedFn } from "../agent/memory.service.js";
 import { TOOL_INDEX_PROFILE, build_fts5_tokenize_clause } from "../search/index.js";
 import { normalize_vec, VEC_DIMENSIONS } from "../utils/vec.js";
+import type { SemanticScorerPort } from "./semantic-scorer-port.js";
+import { apply_semantic_deltas } from "./semantic-scorer-port.js";
 
 /** 모든 모드에서 항상 포함되는 core 도구. */
 const CORE_TOOLS = new Set([
@@ -246,8 +248,20 @@ export class ToolIndex {
   /** 카테고리 → 도구 이름 목록. 카테고리 폴백 전용. */
   private mem_cats = new Map<string, string[]>();
 
+  /** K4: optional 시멘틱 scorer. null이면 FTS5/BM25 동작 그대로 유지. */
+  private semantic_scorer: SemanticScorerPort | null = null;
+
   /** 임베딩 함수를 주입하여 벡터 시멘틱 검색 활성화. */
   set_embed(fn: EmbedFn): void { this.embed_fn = fn; }
+
+  /**
+   * K4: 시멘틱 scorer 포트 주입.
+   * - null 주입 시 no-op으로 복귀 (기존 FTS5 동작 보존).
+   * - HybridPolicySemanticScorer를 주입하면 TR-3 RRF/MMR 파이프라인 활성화.
+   */
+  set_semantic_scorer(scorer: SemanticScorerPort | null): void {
+    this.semantic_scorer = scorer;
+  }
 
   /** 도구 스키마 + 카테고리 정보로 FTS5 인덱스를 빌드. 도구 목록이 변경되지 않으면 no-op. */
   build(schemas: ToolSchema[], category_map: Record<string, string>, db_path?: string): void {
@@ -465,6 +479,24 @@ export class ToolIndex {
           selected.add(name);
         }
       } catch { /* 벡터 검색 실패 시 역인덱스 결과만 사용 */ }
+    }
+
+    // 6) K4: SemanticScorerPort 보강 — scorer가 주입된 경우 delta 재점수 후 재정렬.
+    //    scorer가 null이면 완전 no-op (기존 동작 보존).
+    if (this.semantic_scorer !== null && selected.size > 0) {
+      try {
+        const candidates = [...selected];
+        const deltas = await this.semantic_scorer.score(request_text, candidates);
+        if (deltas.length > 0) {
+          // 현재 선택 집합을 동일 가중치 1.0으로 초기화 후 delta 적용
+          const base_scores = new Map<string, number>(candidates.map((n) => [n, 1.0]));
+          const boosted = apply_semantic_deltas(base_scores, deltas);
+          // 재정렬된 순서로 Set 재구성 (Set insertion order 활용)
+          const reordered = [...boosted.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n);
+          selected.clear();
+          for (const name of reordered) selected.add(name);
+        }
+      } catch { /* scorer 오류 시 기존 선택 집합 유지 */ }
     }
 
     return selected;

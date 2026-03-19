@@ -7,6 +7,8 @@
 import Database from "better-sqlite3";
 import type { SkillMetadata } from "../agent/skills.types.js";
 import { extract_intents, extract_file_extensions, extract_code_hints } from "./intent-patterns.js";
+import type { SemanticScorerPort } from "./semantic-scorer-port.js";
+import { apply_semantic_deltas } from "./semantic-scorer-port.js";
 
 export interface SkillIndexEntry {
   name: string;
@@ -32,6 +34,9 @@ export class SkillIndex {
 
   /** SQLite DB 핸들. 인메모리이므로 with_sqlite를 인스턴스로 유지. */
   private readonly db: import("better-sqlite3").Database;
+
+  /** K4: optional 시멘틱 scorer. null이면 FTS5/BM25 동작 그대로 유지. */
+  private semantic_scorer: SemanticScorerPort | null = null;
 
   constructor() {
     this.db = new Database(this.db_path);
@@ -187,6 +192,50 @@ export class SkillIndex {
       .sort((a, b) => b[1] - a[1])
       .slice(0, max)
       .map(([name]) => name);
+  }
+
+  /**
+   * K4: 시멘틱 scorer 포트 주입.
+   * - null 주입 시 no-op으로 복귀 (기존 FTS5 동작 보존).
+   * - HybridPolicySemanticScorer를 주입하면 TR-3 RRF/MMR 파이프라인 활성화.
+   */
+  set_semantic_scorer(scorer: SemanticScorerPort | null): void {
+    this.semantic_scorer = scorer;
+  }
+
+  /**
+   * K4: 시멘틱 보강 포함 스킬 선택 (async 경로).
+   *
+   * select()와 동일한 FTS5 + 4차원 스코어링을 수행한 후,
+   * semantic_scorer가 주입된 경우 delta 재점수를 추가로 적용.
+   *
+   * - scorer가 없으면 select()와 완전히 동일한 결과 반환.
+   * - scorer 오류 시 FTS5 결과로 폴백.
+   *
+   * 기존 sync select()를 대체하지 않으며, 필요한 경우에만 select_async()로 업그레이드.
+   */
+  async select_async(task: string, options: SkillSelectOptions = {}, limit = 6): Promise<string[]> {
+    const sync_results = this.select(task, options, limit);
+
+    if (this.semantic_scorer === null || sync_results.length === 0) {
+      return sync_results;
+    }
+
+    try {
+      const deltas = await this.semantic_scorer.score(task, sync_results);
+      if (deltas.length === 0) return sync_results;
+
+      // 동일 가중치 기준으로 초기화 후 delta 적용
+      const base_scores = new Map<string, number>(sync_results.map((n, idx) => [n, sync_results.length - idx]));
+      const boosted = apply_semantic_deltas(base_scores, deltas);
+      return [...boosted.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, limit)
+        .map(([name]) => name);
+    } catch {
+      // scorer 오류 시 FTS5 결과 그대로 반환
+      return sync_results;
+    }
   }
 
   get is_built(): boolean {
