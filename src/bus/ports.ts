@@ -114,3 +114,35 @@ export function to_realtime_port(bus: MessageBusLike): RealtimeEventPort {
     consume_progress: (options) => bus.consume_progress(options),
   };
 }
+
+/* ─── FC-3: Cloud Adapter 계약 ─── */
+
+/**
+ * FC-3 cloud adapter 계약은 LF-3에서 정의한 DurableEvent/RealtimeEvent 타입을 재사용.
+ * 중복 정의 없이 cloud 환경에서 필요한 저장소/릴레이 인터페이스만 추가.
+ */
+
+/** DurableEventStoreLike — 내구성 이벤트 저장소 포트. */
+export interface DurableEventStoreLike {
+  append(event: DurableEvent & { id: string; correlation_id?: string }): Promise<string>;
+  consume_batch(cursor: string | null, limit: number): Promise<[DurableEvent[], string | null]>;
+  ack(event_id: string, consumer_id: string): Promise<void>;
+  query_by_kind(kind: string, limit: number): Promise<DurableEvent[]>;
+  sweep(older_than_ms: number): Promise<number>;
+}
+
+/** RealtimeEvent 구독자 콜백. */
+export type RealtimeEventSubscriber = (event: { kind: string; payload: Record<string, unknown>; channel: string; team_id: string }) => void | Promise<void>;
+
+/** RealtimeEventRelayLike — 실시간 이벤트 브로드캐스트 포트. */
+export interface RealtimeEventRelayLike {
+  publish(event: { kind: string; payload: Record<string, unknown>; channel: string; team_id: string }): Promise<void>;
+  subscribe(team_id: string, channel: string | null, subscriber: RealtimeEventSubscriber): () => void;
+  close(): Promise<void>;
+}
+
+/** CloudCoordinationAdapterHint — cloud CoordinationStore 추가 계약. */
+export interface CloudCoordinationAdapterHint {
+  heartbeat(key: string, owner: string, extend_ms: number): Promise<boolean>;
+  list_global(): Promise<import("./coordination-store.js").CoordinationEntry[]>;
+}

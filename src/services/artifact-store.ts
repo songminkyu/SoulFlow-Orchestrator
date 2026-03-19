@@ -168,3 +168,21 @@ export class LocalArtifactStore implements ArtifactStoreLike {
 export function create_local_artifact_store(root: string): ArtifactStoreLike {
   return new LocalArtifactStore(root);
 }
+
+/* ─── FC-2: Cloud Adapter 계약 ─── */
+
+/**
+ * CloudArtifactAdapterHint — cloud ArtifactStore 구현 시
+ * 반드시 추가 구현해야 하는 계약.
+ *
+ * 기존 ArtifactStoreLike (PA-5)에 cloud 환경에서 필요한 메서드를 보강.
+ * 로컬 LocalArtifactStore는 이 인터페이스를 구현하지 않음 (선택적 확장).
+ */
+export interface CloudArtifactAdapterHint {
+  /** 아티팩트에 대한 임시 서명 URL을 생성한다. */
+  get_signed_url(key: string, expires_in_ms: number): Promise<string | null>;
+  /** 아티팩트를 다른 키로 서버 사이드 복사한다. */
+  copy(src_key: string, dst_key: string): Promise<ArtifactMeta | null>;
+  /** 스토리지 버킷/컨테이너 이름을 반환한다. */
+  get_bucket(): string;
+}
