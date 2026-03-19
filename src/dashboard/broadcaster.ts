@@ -31,6 +31,8 @@ export interface SseBroadcasterLike {
   broadcast_agent_event(event: AgentEvent, team_id?: string): void;
   /** 웹 채팅 세션에 rich 이벤트(도구, usage) 발행 — on_web_rich_event에서 호출. */
   broadcast_web_rich_event(chat_id: string, event: StreamEvent): void;
+  /** OB-6: 채널 배달 추적 이벤트 브로드캐스트. */
+  broadcast_delivery_event(status: "delivered" | "failed" | "mismatch", requested_channel: string, delivered_channel: string, duration_ms: number, team_id?: string): void;
   /** 세션별 StreamEvent 리스너 등록. 반환값은 해제 함수. */
   add_rich_stream_listener?(chat_id: string, fn: (event: StreamEvent) => void): () => void;
 }
@@ -48,6 +50,7 @@ export const NULL_BROADCASTER: SseBroadcasterLike = {
   broadcast_workflow_event() {},
   broadcast_agent_event() {},
   broadcast_web_rich_event() {},
+  broadcast_delivery_event() {},
 };
 
 /**
@@ -71,6 +74,7 @@ export class MutableBroadcaster implements SseBroadcasterLike {
   broadcast_workflow_event(...args: Parameters<SseBroadcasterLike["broadcast_workflow_event"]>): void { this.target.broadcast_workflow_event(...args); }
   broadcast_agent_event(...args: Parameters<SseBroadcasterLike["broadcast_agent_event"]>): void { this.target.broadcast_agent_event(...args); }
   broadcast_web_rich_event(...args: Parameters<SseBroadcasterLike["broadcast_web_rich_event"]>): void { this.target.broadcast_web_rich_event(...args); }
+  broadcast_delivery_event(...args: Parameters<SseBroadcasterLike["broadcast_delivery_event"]>): void { this.target.broadcast_delivery_event(...args); }
   add_rich_stream_listener(chat_id: string, fn: (event: StreamEvent) => void): () => void {
     return this.target.add_rich_stream_listener?.(chat_id, fn) ?? (() => undefined);
   }

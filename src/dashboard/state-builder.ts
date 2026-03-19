@@ -5,6 +5,7 @@ import type { ProcessEntry } from "../orchestration/process-tracker.js";
 import type { AgentEvent } from "../agent/agent.types.js";
 import { now_seoul_iso } from "../utils/common.js";
 import { project_summary } from "../observability/projector.js";
+import { extract_reconcile_read_model } from "../orchestration/reconcile-read-model.js";
 
 export async function build_merged_tasks(options: DashboardOptions, team_id?: string): Promise<Array<{
   taskId: string; title: string; status: string; currentStep?: string; exitReason?: string;
@@ -140,7 +141,30 @@ export async function build_dashboard_state(
     // OB-7 + TN: observability 전역 집계는 superadmin(team_id=undefined)만 노출
     observability: team_id === undefined && options.observability ? project_summary(options.observability) : null,
     validator_summary: options.validator_summary_ops?.get_latest() ?? undefined,
+    reconcile_summary: build_reconcile_failure_summary(options, team_id),
   };
+}
+
+/** PAR-6: 태스크 memory에서 reconcile/critic 실패 요약 추출. */
+function build_reconcile_failure_summary(
+  options: DashboardOptions,
+  team_id?: string,
+): { has_failures: boolean; total_conflicts: number; unresolved_count: number; task_count: number } {
+  const raw_tasks = options.agent.list_runtime_tasks(team_id);
+  let has_failures = false;
+  let total_conflicts = 0;
+  let unresolved_count = 0;
+  let task_count = 0;
+  for (const task of raw_tasks) {
+    if (!task.memory || typeof task.memory !== "object") continue;
+    const model = extract_reconcile_read_model(task.memory as Record<string, unknown>);
+    if (model.reconcile_summaries.length === 0 && model.critic_summaries.length === 0) continue;
+    task_count++;
+    if (model.has_failures) has_failures = true;
+    total_conflicts += model.total_conflicts;
+    unresolved_count += model.unresolved_count;
+  }
+  return { has_failures, total_conflicts, unresolved_count, task_count };
 }
 
 /** AgentEvent에서 SSE 전송에 필요한 필드만 추출. */

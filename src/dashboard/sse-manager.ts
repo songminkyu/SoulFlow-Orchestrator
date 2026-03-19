@@ -114,6 +114,13 @@ export class SseManager implements SseBroadcasterLike {
     };
   }
 
+  /** OB-6: 채널 배달 추적 이벤트. */
+  broadcast_delivery_event(status: "delivered" | "failed" | "mismatch", requested_channel: string, delivered_channel: string, duration_ms: number, team_id?: string): void {
+    this._count_broadcast("delivery");
+    if (this.clients.size === 0) return;
+    this._broadcast_scoped(`event: delivery\ndata: ${JSON.stringify({ status, requested_channel, delivered_channel, mismatch: requested_channel !== delivered_channel, duration_ms, at: now_iso() })}\n\n`, team_id);
+  }
+
   /** 에이전트 이벤트(도구, usage)를 세션 rich 리스너로 라우팅. */
   broadcast_web_rich_event(chat_id: string, event: WebStreamEvent): void {
     const entry = this.rich_listeners.get(chat_id);
