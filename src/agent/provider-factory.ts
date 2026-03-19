@@ -27,6 +27,7 @@ import { create_docker_pty_factory } from "./pty/docker-pty.js";
 import { resolve_secrets } from "./pty/secret-reader.js";
 import { ToolBridgeServer } from "./pty/tool-bridge-server.js";
 import { create_logger } from "../logger.js";
+import { create_pty_output_reducer } from "./pty/pty-output-reducer.js";
 import type { CliAuthService } from "./cli-auth.service.js";
 import type { McpClientManager } from "../mcp/client-manager.js";
 import type { CliAdapter, PtyFactory } from "./pty/types.js";
@@ -154,6 +155,7 @@ function create_cli_backend(
     auth_service: deps.cli_auth_service,
     profile_key_map: profile_key_map.size > 0 ? profile_key_map : undefined,
     tool_bridge,
+    pty_reducer: create_pty_output_reducer(),
   });
 }
 

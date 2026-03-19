@@ -553,3 +553,45 @@ describe("expire_stale_approvals (L357-372)", () => {
     expect(count).toBe(0);
   });
 });
+
+// ── T-2: ToolOutputReducer integration in ToolRegistry ──────────
+
+describe("ToolRegistry — reducer integration", () => {
+  it("reducer가 주입되면 execute() 성공 결과에 reduce()를 적용한다", async () => {
+    const reducer = {
+      reduce: vi.fn().mockReturnValue({
+        kind: "plain" as const,
+        raw_text: "exec_tool result",
+        prompt_text: "[reduced result]",
+        display_text: "exec_tool result",
+        storage_text: "exec_tool result",
+        meta: { raw_chars: 16, raw_lines: 1, truncated: true },
+      }),
+    };
+    const reg = new ToolRegistry({ reducer });
+    reg.register(make_mock_tool("exec_tool"));
+    const result = await reg.execute("exec_tool", {});
+    expect(result).toBe("[reduced result]");
+    expect(reducer.reduce).toHaveBeenCalledWith(
+      expect.objectContaining({ tool_name: "exec_tool", is_error: false }),
+    );
+  });
+
+  it("reducer가 주입되어도 에러 결과에는 적용하지 않는다", async () => {
+    const reducer = { reduce: vi.fn() };
+    const reg = new ToolRegistry({ reducer });
+    const tool = make_mock_tool("err_tool");
+    (tool.execute as ReturnType<typeof vi.fn>).mockResolvedValue("Error: something failed");
+    reg.register(tool);
+    const result = await reg.execute("err_tool", {});
+    expect(result).toContain("Error: something failed");
+    expect(reducer.reduce).not.toHaveBeenCalled();
+  });
+
+  it("reducer 미지정 시 원본 결과를 반환한다", async () => {
+    const reg = new ToolRegistry();
+    reg.register(make_mock_tool("plain_tool"));
+    const result = await reg.execute("plain_tool", {});
+    expect(result).toBe("plain_tool result");
+  });
+});

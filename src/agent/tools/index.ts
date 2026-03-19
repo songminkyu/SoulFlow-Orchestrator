@@ -34,6 +34,7 @@ import { get_shared_secret_vault } from "../../security/secret-vault-factory.js"
 import type { RuntimeExecutionPolicy } from "../../providers/types.js";
 import type { PreToolHook, PostToolHook } from "./types.js";
 import { build_approval_notifier } from "./approval-notifier.js";
+import { create_tool_output_reducer } from "../../orchestration/tool-output-reducer.js";
 import { GitTool } from "./git.js";
 import { ArchiveTool } from "./archive.js";
 import { ProcessManagerTool } from "./process-manager.js";
@@ -443,6 +444,7 @@ export function create_default_tool_registry(args?: ToolRegistryFactoryOptions):
     on_approval_request: args?.bus
       ? build_approval_notifier({ bus: args.bus, event_recorder: args.event_recorder })
       : undefined,
+    reducer: create_tool_output_reducer(),
   });
   if (args?.runtime_policy) {
     pre_hooks.unshift(create_policy_pre_hook(args.runtime_policy, registry));

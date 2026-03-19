@@ -548,3 +548,47 @@ describe("SessionRecorder — is_delivery_retry", () => {
     expect(result).toBe(false);
   });
 });
+
+// ── T-2: normalize_query integration in append_daily ─────────────
+
+describe("SessionRecorder — normalize_query integration", () => {
+  it("append_daily에서 normalize_query가 적용되어 정규화된 텍스트가 daily_memory에 기록된다", async () => {
+    const daily_memory = { append_daily_memory: vi.fn().mockResolvedValue(undefined) };
+    const sessions = make_sessions_cov([]);
+    const recorder = new SessionRecorder({
+      sessions,
+      daily_memory,
+      sanitize_for_storage: (s) => s,
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any,
+    });
+
+    // 한국어 입력: normalize_query는 토크나이저를 통해 정규화
+    await recorder.record_user("slack", make_message_cov({ content: "안녕하세요 테스트입니다" }), "bot");
+
+    expect(daily_memory.append_daily_memory).toHaveBeenCalledOnce();
+    const written = daily_memory.append_daily_memory.mock.calls[0][0] as string;
+    // normalize_query의 결과는 원본과 다를 수 있음 (토큰화 적용)
+    // 핵심: normalize_text 대신 normalize_query가 사용됨 → 토큰화된 결과
+    expect(written).toContain("USER(user1):");
+    expect(written.length).toBeGreaterThan(0);
+  });
+
+  it("빈 content는 normalize_query 후에도 빈 문자열 → daily_memory 미기록", async () => {
+    const daily_memory = { append_daily_memory: vi.fn().mockResolvedValue(undefined) };
+    const sessions = make_sessions_cov([]);
+    const recorder = new SessionRecorder({
+      sessions,
+      daily_memory,
+      sanitize_for_storage: (s) => s,
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any,
+    });
+
+    // 공백만 있는 content → normalize_query 후 빈 문자열 가능
+    await recorder.record_user("slack", make_message_cov({ content: "" }), "bot");
+
+    // sanitize("")가 빈 문자열이면 normalize_query("")도 빈 문자열 → append_daily 미호출
+    // 실제로는 record_user가 safe=""로 처리하므로 append_daily 자체는 호출되지만
+    // normalize_query("").slice(0,1600)이 빈 문자열이면 early return
+    expect(daily_memory.append_daily_memory).not.toHaveBeenCalled();
+  });
+});

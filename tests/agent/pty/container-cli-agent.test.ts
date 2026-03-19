@@ -805,3 +805,92 @@ describe("ContainerCliAgent — auth_error + profile 순환 (mock)", () => {
     expect(result.finish_reason).toBe("error");
   });
 });
+
+// ── T-2: PtyOutputReducer integration ────────────────────────────
+
+describe("ContainerCliAgent — pty_reducer integration (mock)", () => {
+  it("pty_reducer가 주입되면 output 이벤트에서 reduce()가 호출된다", async () => {
+    const pty_reducer = {
+      reduce: vi.fn().mockImplementation((msg: any) => ({
+        ...msg,
+        ...(msg.type === "tool_result" ? { output: "[reduced]" } : {}),
+      })),
+    };
+    const bus = make_bus();
+    bus.send_and_wait.mockImplementation(async (key: string) => {
+      bus.emit_output(key, { type: "tool_result", tool: "Bash", output: "very long output" });
+      return { type: "complete", result: "done" };
+    });
+    const adapter = make_mock_adapter();
+    const agent = new ContainerCliAgent({
+      id: "test-pty-reducer" as any,
+      bus: bus as any,
+      adapter,
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } as any,
+      pty_reducer: pty_reducer as any,
+    });
+    const events: any[] = [];
+    const result = await agent.run({
+      task: "t", task_id: "t-pty-reducer",
+      hooks: { on_event: (e) => events.push(e) },
+    });
+    expect(result.finish_reason).toBe("stop");
+    expect(pty_reducer.reduce).toHaveBeenCalled();
+    // tool_result 이벤트가 reduced output을 가져야 함
+    const tool_result_event = events.find(e => e.type === "tool_result");
+    expect(tool_result_event).toBeDefined();
+    expect(tool_result_event.result).toBe("[reduced]");
+  });
+
+  it("pty_reducer 미주입 시 원본 output 이벤트가 그대로 전달된다", async () => {
+    const bus = make_bus();
+    bus.send_and_wait.mockImplementation(async (key: string) => {
+      bus.emit_output(key, { type: "tool_result", tool: "Bash", output: "original output" });
+      return { type: "complete", result: "done" };
+    });
+    const adapter = make_mock_adapter();
+    const agent = new ContainerCliAgent({
+      id: "test-no-reducer" as any,
+      bus: bus as any,
+      adapter,
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } as any,
+    });
+    const events: any[] = [];
+    await agent.run({
+      task: "t", task_id: "t-no-reducer",
+      hooks: { on_event: (e) => events.push(e) },
+    });
+    const tool_result_event = events.find(e => e.type === "tool_result");
+    expect(tool_result_event).toBeDefined();
+    expect(tool_result_event.result).toBe("original output");
+  });
+
+  it("pty_reducer가 assistant_chunk도 처리한다", async () => {
+    const pty_reducer = {
+      reduce: vi.fn().mockImplementation((msg: any) => ({
+        ...msg,
+        ...(msg.type === "assistant_chunk" ? { content: "[guarded]" } : {}),
+      })),
+    };
+    const bus = make_bus();
+    bus.send_and_wait.mockImplementation(async (key: string) => {
+      bus.emit_output(key, { type: "assistant_chunk", content: "very long chunk..." });
+      return { type: "complete", result: "done" };
+    });
+    const adapter = make_mock_adapter();
+    const agent = new ContainerCliAgent({
+      id: "test-chunk-reducer" as any,
+      bus: bus as any,
+      adapter,
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } as any,
+      pty_reducer: pty_reducer as any,
+    });
+    const chunks: string[] = [];
+    await agent.run({
+      task: "t", task_id: "t-chunk-reducer",
+      hooks: { on_stream: (c) => chunks.push(c) },
+    });
+    expect(pty_reducer.reduce).toHaveBeenCalled();
+    expect(chunks).toContain("[guarded]");
+  });
+});

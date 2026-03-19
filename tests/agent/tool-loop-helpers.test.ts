@@ -186,3 +186,40 @@ describe("emit_usage", () => {
     expect(event.cost_usd).toBeUndefined();
   });
 });
+
+// ── T-2: ToolOutputReducer integration ───────────────────────────
+describe("execute_single_tool — ToolOutputReducer integration", () => {
+  it("reducer가 주어지면 성공 결과에 reduce()를 적용한다", async () => {
+    const map = build_executor_map([make_tool("echo", () => "long output text here")]);
+    const reducer = {
+      reduce: vi.fn().mockReturnValue({
+        kind: "plain" as const,
+        raw_text: "long output text here",
+        prompt_text: "[reduced]",
+        display_text: "long output text here",
+        storage_text: "long output text here",
+        meta: { raw_chars: 21, raw_lines: 1, truncated: true },
+      }),
+    };
+    const result = await execute_single_tool("echo", {}, map, DUMMY_CTX, undefined, reducer);
+    expect(result.text).toBe("[reduced]");
+    expect(result.is_error).toBe(false);
+    expect(reducer.reduce).toHaveBeenCalledWith(
+      expect.objectContaining({ tool_name: "echo", result_text: "long output text here", is_error: false }),
+    );
+  });
+
+  it("에러 결과에는 reducer를 적용하지 않는다", async () => {
+    const map = build_executor_map([make_tool("fail", () => { throw new Error("boom"); })]);
+    const reducer = { reduce: vi.fn() };
+    const result = await execute_single_tool("fail", {}, map, DUMMY_CTX, undefined, reducer);
+    expect(result.is_error).toBe(true);
+    expect(reducer.reduce).not.toHaveBeenCalled();
+  });
+
+  it("reducer 미지정 시 원본 텍스트를 유지한다", async () => {
+    const map = build_executor_map([make_tool("raw", () => "raw output")]);
+    const result = await execute_single_tool("raw", {}, map, DUMMY_CTX, undefined, undefined);
+    expect(result.text).toBe("raw output");
+  });
+});
