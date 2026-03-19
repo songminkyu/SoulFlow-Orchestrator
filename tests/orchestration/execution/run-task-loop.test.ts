@@ -734,6 +734,40 @@ describe("run_task_loop — task 모드 실행", () => {
     });
   });
 
+  describe("K1: feedback contract write path", () => {
+    it("도구 사용 시 feedback contract가 memory_patch에 저장됨 (write path)", async () => {
+      const deps = createMockRunnerDeps() as RunnerDeps;
+      deps.agent_backends = undefined;
+      (deps.runtime.run_agent_loop as any) = vi.fn().mockResolvedValue({ final_content: "done" });
+
+      (deps.runtime.run_task_loop as any).mockImplementation(async ({ nodes, task_id, objective, initial_memory }: any) => {
+        const memory = { ...initial_memory };
+        const plan = await nodes[0].run({ task_state: { taskId: task_id, objective, status: "running", memory, currentTurn: 0, maxTurns: 20 }, memory });
+        const exec_mem = { ...plan.memory_patch };
+        const exec = await nodes[1].run({ task_state: { taskId: task_id, objective, status: "running", memory: exec_mem, currentTurn: 1, maxTurns: 20 }, memory: exec_mem });
+        return {
+          state: {
+            status: exec.status ?? "completed",
+            exitReason: exec.exit_reason,
+            memory: exec.memory_patch,
+            currentTurn: 2,
+          }
+        };
+      });
+
+      const result = await run_task_loop(deps, mockArgs);
+      expect(result.mode).toBe("task");
+    });
+
+    it("build_feedback_contract(has_role=true, tools > 10)가 non-null contract 반환", async () => {
+      const { build_feedback_contract } = await import("../../../src/orchestration/completion-checker.js");
+      const contract = build_feedback_contract(["bash", "write_file"], [], 15, true);
+      expect(contract).not.toBeNull();
+      expect(contract!.has_checks).toBe(true);
+      expect(contract!.questions.length).toBeGreaterThan(0);
+    });
+  });
+
   describe("try_native_task_execute — L40: backend 있지만 native_tool_loop 없음 → null", () => {
     it("resolve_for_mode가 native_tool_loop=false 백엔드 반환 → L40 return null", async () => {
       const deps = createMockRunnerDeps() as RunnerDeps;
