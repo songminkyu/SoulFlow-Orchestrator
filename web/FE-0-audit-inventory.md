@@ -145,3 +145,174 @@
 | `"지도 렌더링 실패"` | map-embed.tsx:88 | 신규 키 필요 |
 | `"위치를 찾을 수 없습니다"` | map-embed.tsx:93 | 신규 키 필요 |
 | `"지도 로드 실패"` | map-embed.tsx:94 | 신규 키 필요 |
+
+---
+
+## Batch 2: prompting + workflows + channels + providers + oauth + setup + secrets
+
+### 요약 통계 (Batch 2)
+
+| 카테고리 | 건수 |
+|----------|------|
+| i18n (하드코딩 문자열) | 15 |
+| a11y (접근성 누락) | 10 |
+| empty/loading/error/retry 상태 누락 | 5 |
+| DRY/SOLID 위반 | 3 |
+| inline style 남용 | 3 |
+| backend binding 불일치 | 1 |
+| stale copy / outdated terminology | 1 |
+| missing badge/warning | 2 |
+| security (dangerouslySetInnerHTML) | 1 |
+| mobile viewport | 1 |
+| **합계** | **42** |
+
+### 파일별 발견 사항
+
+#### web/src/pages/prompting/index.tsx
+
+- [i18n] L25-31: 탭 라벨 `"Text"`, `"Image"`, `"Video"`, `"Agent"`, `"Gallery"`, `"Compare"`, `"Eval"` 모두 하드코딩 영문 문자열. `t("prompting.tab_text")` 등 locale key 필요.
+- [a11y] L45: `aria-label="Prompting Studio"` — 하드코딩 영문. locale key 사용 필요.
+- [a11y] L60: `role="tabpanel"`에 `aria-labelledby` 미지정. 활성 탭의 `id`를 참조해야 함. WAI-ARIA Tabs 패턴 불완전.
+
+#### web/src/pages/prompting/gallery-panel.tsx
+
+- [error] L31-35: `useQuery`에 `isError` 미처리. API 실패 시 빈 배열만 표시되고 에러 안내 없음.
+- 양호: i18n은 `useT()` + 키 기반으로 완비. EmptyState, SkeletonGrid, DeleteConfirmModal 등 4상태 처리 양호. SearchInput에 `placeholder`가 t() 기반.
+
+#### web/src/pages/prompting/image-panel.tsx
+
+- [i18n] L236: `Elapsed: {elapsed_s}s` — 하드코딩 영문 "Elapsed". locale key 필요.
+- [i18n] L238: `Total Cost: $...` — 하드코딩 영문 "Total Cost". locale key 필요.
+- [i18n] L262: `"Open"` — 하드코딩 영문 버튼 텍스트. `t("prompting.open")` 또는 `t("common.open")` 필요.
+- [i18n] L269: `"Save"` — 하드코딩 영문 버튼 텍스트. `prompting.save` 키가 이미 존재하나 미사용.
+- [i18n] L283: `"이미지가 여기에 표시됩니다."` — 하드코딩 한국어 문자열. locale key 필요.
+- [i18n] L196: `aria-label="Count"` — 하드코딩 영문. locale key 사용 필요.
+- [a11y] L161-166: 프롬프트 textarea에 `aria-label` 없음. `placeholder`만 있으나 접근성 라벨로는 불충분.
+- [inline-style] L197: count select에 inline style 6개 사용 (`border`, `borderRadius`, `height`, `padding`, `fontSize`, `fontWeight` 등). CSS 클래스로 분리 필요.
+- [inline-style] L229: 에러 영역에 inline style 5개 사용. 에러 표시 패턴을 공통 컴포넌트로 추출 가능.
+- [inline-style] L260: `<a>` 태그에 inline style (`color: "#fff"`, `borderColor`). CSS 클래스로 분리 필요.
+- [error] L68-69: catch 블록에서 `(err as Error)?.message` — 캐스팅이 불안전. 네트워크 에러 등 비 Error 객체 시 `undefined` 가능.
+
+#### web/src/pages/prompting/text-panel.tsx
+
+- [a11y] L148-154: 프롬프트 textarea에 `aria-label` 없음. `placeholder="{{prompt}}"` 는 접근성 라벨로 부적합.
+- [a11y] L193: 변수 입력 textarea에 개별 `aria-label` 없음. 변수명(`v`) 기반 레이블 필요.
+- [i18n] L108: `placeholder="default"` — 하드코딩 영문 "default". locale key 필요.
+- [inline-style] L184-203: 변수 입력 영역 전체에 inline style 다수 (padding, display, flexDirection, gap, fontSize 등). CSS 클래스 분리 필요.
+- 양호: i18n은 대부분 `t()` 기반으로 완비. RunResult 컴포넌트로 결과 표시 분리.
+
+#### web/src/pages/prompting/video-panel.tsx
+
+- [i18n] L43-45: `time_ago()` 함수에서 `"s ago"`, `"m ago"`, `"h ago"` — 하드코딩 영문 시간 단위. locale key 필요 (한국어 "초 전", "분 전", "시간 전").
+- [i18n] L279: `"생성 중 오류가 발생했습니다."` — 하드코딩 한국어 문자열. locale key 필요.
+- [i18n] L287: `"Video ID: {v.id}"` — 하드코딩 영문 레이블. locale key 필요.
+- [i18n] L293: `"Elapsed: ..."` — 하드코딩 영문. locale key 필요.
+- [i18n] L295: `"Cost: $..."` — 하드코딩 영문. locale key 필요.
+- [a11y] L236: `role="button"` 대신 `<button>` 사용이 시맨틱상 올바름. 현재 `<div>` 내 역할 부여.
+- [a11y] L267: `<video>` 태그에 접근성 대안 텍스트 없음 (aria-label 또는 `<track>` 미지정).
+- [error] L102-109: 에러 발생 시 catch 블록에서 에러 메시지를 무시하고 `status: "err"`만 설정. 사용자에게 구체적 에러 원인 전달 없음.
+
+#### web/src/pages/workflows/builder.tsx
+
+- [i18n] L41: `title="SVG 다운로드"` — 하드코딩 한국어 tooltip. locale key 필요.
+- [i18n] L46: `aria-label="닫기"` — 하드코딩 한국어. `t("workflows.close")` 사용 필요.
+- [i18n] L90: `title="Mermaid 소스 보기"` — 하드코딩 한국어 tooltip. locale key 필요.
+- [i18n] L93: `title="원본 크기로 보기"` — 하드코딩 한국어 tooltip. locale key 필요.
+- [i18n] L789: `"YAML"`, `"Flow"`, `"Seq"` (L789) — YAML 사이드 탭 라벨이 하드코딩. 기술 용어이므로 i18n 우선순위 낮음.
+- [security] L50, L105: `dangerouslySetInnerHTML={{ __html: svg }}` — Mermaid SVG를 자체 서버(`/api/workflow/diagram/preview`)에서 가져와 직접 삽입. XSS 취약점: 서버가 악의적 SVG를 반환하거나 MITM 공격 시 위험. DOMPurify 등 sanitization 미적용.
+- [a11y] L37: `DiagramFullscreenModal` overlay에 `role="presentation"` 사용. `role="dialog"` + `aria-modal="true"`가 적절.
+- [error] L77: Mermaid 다이어그램 렌더 실패 시 에러 메시지가 `"network_error"` 등 영문 키 문자열 그대로 표시. `t()` 미사용.
+- [DRY] L56-111: `YamlSideDiagramTab` 내 로딩/에러/렌더 패턴이 `flowchart`와 `sequence` 동일하게 반복. 다이어그램 타입만 다름.
+- [backend-binding] L69-74: `fetch("/api/workflow/diagram/preview")` — `api.post()` 대신 raw `fetch` 사용. 인증 헤더, 에러 핸들링, 베이스 URL 일관성이 `api` 클라이언트와 불일치.
+- [missing-badge] L752-759: 저장 성공/실패 배지(`saveStatusPulse`)가 2~3초 후 자동 소멸하나, 저장 중 네트워크 타임아웃 시 어떤 피드백도 없이 사라짐.
+- 양호: breadcrumb에 `aria-label="Breadcrumb"`, template name input에 `aria-label`, 버튼들에 `aria-busy`/`disabled` 처리, Undo/Redo 키보드 바인딩 완비.
+
+#### web/src/pages/workflows/builder-modals.tsx
+
+- [a11y] L78: `PhaseEditModal` 내 phase_id input에 `autoFocus`는 있으나 모달 진입 시 focus trap 미구현. Tab 키로 모달 밖으로 포커스 이탈 가능.
+- [DRY] L190, L319, L389, L484: 모든 모달의 Remove 버튼 라벨이 `t("workflows.remove_phase")`. Remove Trigger, Remove Channel 등 문맥에 맞지 않는 라벨. 각 도메인별 키 필요.
+- 양호: 모든 모달이 `role="dialog"`, `aria-modal="true"`, `aria-labelledby` 완비. 닫기 버튼에 `aria-label` 존재. `useModalEffects` 훅으로 ESC 키 처리 통합.
+
+#### web/src/pages/workflows/node-inspector.tsx
+
+- [a11y] L152: `inspector-section-toggle`에 `aria-expanded` 존재. 양호.
+- [a11y] L139: inspector 리사이즈 핸들에 접근성 라벨 없음. 키보드로 리사이즈 불가.
+- 양호: 전체적으로 i18n 완비 (`t()` 기반). Output 탭의 실행 상태 배지에 시각적 + SVG 아이콘 이중 표시. 패널 열림/닫힘 `aria-expanded` 적용.
+
+#### web/src/pages/channels/instance-modal.tsx
+
+- 양호: `FormModal`, `FormGroup` 공통 컴포넌트 활용, `useT()` 기반 i18n 완비. `aria-required` 적용. `ToggleSwitch`에 `aria-label` 전달. `hasChanges()` 감지로 불필요한 저장 방지. 에러 핸들링 `useAsyncState`로 통합.
+- [missing-badge] L127: 토큰 필드에 `required` 속성이 있으나, 편집 모드에서도 기존 토큰 변경 없이 저장 시 빈 문자열 전송됨. placeholder 안내만 있고 validation 분기가 미흡 (서버에서 걸러지겠지만 UX상 경고 없음).
+
+#### web/src/pages/providers/connection-modal.tsx
+
+- 양호: `FormModal`, `FormGroup` 공통 컴포넌트 활용, i18n 완비. `ToggleSwitch`에 `aria-label` 적용. `hasChanges()` 감지. 에러 핸들링 통합.
+
+#### web/src/pages/providers/provider-modal.tsx
+
+- [i18n] L23: `format_price()`에서 `return "Free"` — 하드코딩 영문. locale key 필요.
+- [a11y] L248: `className="sr-only"` 라디오 버튼 사용은 올바르나, `chip-label` 그룹에 `role="radiogroup"` + `aria-label` 미지정.
+- [error] L72-87: `useQuery` (modelList)에 `isError` 미처리. 모델 목록 로드 실패 시 사용자에게 안내 없이 일반 텍스트 input으로 폴백.
+- 양호: 대부분 i18n 완비. `Combobox` 컴포넌트 활용, `hasChanges()` 감지, `registeredTypes` 필터링으로 사용 가능한 프로바이더만 표시.
+
+#### web/src/pages/oauth/oauth-modal.tsx
+
+- 양호: `FormModal`, `FormGroup` 활용, i18n 완비. 스코프 체크박스 + 텍스트 입력 이중 인터페이스. `is_basic_auth` 조건부 필드.
+- [a11y] L117: enabled 체크박스가 `<label>` + `<input type="checkbox">` 직접 조합이나, `ToggleSwitch` 일관성 부재. 다른 모달과 UI 패턴 불일치.
+
+#### web/src/pages/oauth/preset-modal.tsx
+
+- 양호: `FormModal`, `FormGroup` 활용, i18n 완비. `hasChanges()` 감지. `useAsyncState` 에러 핸들링.
+- [a11y] L119-122: supports_refresh 체크박스가 `<label>` + `<input type="checkbox">` 패턴. `FormGroup` 밖에서 직접 렌더. 다른 FormGroup과 시각적 일관성 미흡.
+
+#### web/src/pages/setup.tsx
+
+- [a11y] L76: step dot에 `aria-label={t("setup.step_n", { n: s + 1 })}` 적용. 양호.
+- [a11y] L136-151: `<label>` + `<select>` 연결이 `<label>` 래핑 방식이나, `<label>` 내 `<div className="form-label">` 구조가 접근성 트리에서 불명확. `htmlFor`/`id` 명시 연결 권장.
+- [error] L28-32: `useQuery` (providerTypes)에 `isError` 미처리. 프로바이더 타입 로드 실패 시 빈 체크리스트만 표시되고 에러 안내 없음.
+- [mobile] L88-114: `setup__provider-list` 내 카드가 flex 기반이나, 모바일에서 카드 너비가 100%로 확장되는지 확인 필요 (CSS 미확인).
+- 양호: i18n 완비 (`t()` 기반 전면 적용). 3단계 위저드, 비활성 단계 dot, 완료 후 자동 리디렉트.
+
+#### web/src/pages/secrets.tsx
+
+- 양호: 4상태 (빈 목록, 검색결과 없음, 모바일 카드, 데스크톱 테이블) 완비. i18n 전면 `t()` 적용. `DeleteConfirmModal` 확인 모달. `SectionHeader` 공통 컴포넌트. `useIsMobile` 반응형 대응.
+- [error] L31: `useQuery` (secrets)에 `isError` 미처리. API 실패 시 빈 배열만 표시되고 에러 안내 없음.
+- [a11y] L107: `DataTable` 내 `<thead>` 헤더에 `scope="col"` 미지정.
+
+---
+
+### Batch 2 DRY/SOLID 위반 상세
+
+| # | 패턴 | 파일 | 추출 후보 |
+|---|------|------|-----------|
+| 3 | inline style 패턴 (에러 표시, 카운트 select, 변수 입력) | `image-panel.tsx`, `text-panel.tsx` | CSS 클래스 `.ps-error-banner`, `.ps-var-input-area` 분리 |
+| 4 | `time_ago()` 함수 (영문 하드코딩 시간) | `video-panel.tsx` L41-46 | 공통 유틸 `format_time_ago(ts, t)` 추출 + i18n 키 |
+| 5 | 모달 Remove 버튼 라벨 통일 | `builder-modals.tsx` L190,319,389,484 | 각 모달별 `t("workflows.remove_trigger")`, `t("workflows.remove_channel")` 등 분리 |
+
+---
+
+### Batch 2 i18n 누락 목록
+
+#### 하드코딩 문자열 (locale key 미사용)
+
+| 하드코딩 값 | 파일:라인 | 권장 키 |
+|-------------|-----------|---------|
+| `"Text"`, `"Image"`, ... (탭 라벨 7개) | prompting/index.tsx:25-31 | `prompting.tab_text`, `prompting.tab_image` 등 |
+| `"Prompting Studio"` | prompting/index.tsx:45 | `nav.prompting` (이미 존재) |
+| `"Elapsed: ..."` | prompting/image-panel.tsx:236 | `prompting.elapsed` (신규 필요) |
+| `"Total Cost: $..."` | prompting/image-panel.tsx:238 | `prompting.total_cost` (신규 필요) |
+| `"Open"` | prompting/image-panel.tsx:262 | `common.open` (신규 필요) |
+| `"Save"` | prompting/image-panel.tsx:269 | `prompting.save` (이미 존재) |
+| `"이미지가 여기에 표시됩니다."` | prompting/image-panel.tsx:283 | `prompting.image_empty` (신규 필요) |
+| `"Count"` | prompting/image-panel.tsx:196 | `prompting.count` (신규 필요) |
+| `"default"` | prompting/text-panel.tsx:108 | `common.default` (신규 필요) |
+| `"s ago"`, `"m ago"`, `"h ago"` | prompting/video-panel.tsx:43-45 | `common.time_seconds_ago`, `common.time_minutes_ago`, `common.time_hours_ago` |
+| `"생성 중 오류가 발생했습니다."` | prompting/video-panel.tsx:279 | `prompting.video_error` (신규 필요) |
+| `"Video ID: ..."` | prompting/video-panel.tsx:287 | `prompting.video_id` (신규 필요) |
+| `"Elapsed: ..."` | prompting/video-panel.tsx:293 | `prompting.elapsed` (공유 가능) |
+| `"Cost: $..."` | prompting/video-panel.tsx:295 | `prompting.cost` (신규 필요) |
+| `"SVG 다운로드"` | workflows/builder.tsx:41 | `workflows.download_svg` (신규 필요) |
+| `"닫기"` | workflows/builder.tsx:46 | `workflows.close` (이미 존재, 미사용) |
+| `"Mermaid 소스 보기"` | workflows/builder.tsx:90 | `workflows.view_mermaid_source` (신규 필요) |
+| `"원본 크기로 보기"` | workflows/builder.tsx:93 | `workflows.view_fullscreen` (신규 필요) |
+| `"Free"` | providers/provider-modal.tsx:23 | `providers.price_free` (신규 필요) |
