@@ -61,6 +61,7 @@ import { dispatch_webhook } from "./routes/webhook.js";
 import { handle_auth } from "./routes/auth.js";
 import { handle_admin } from "./routes/admin.js";
 import { handle_team_providers } from "./routes/team-providers.js";
+import { handle_mcp } from "./routes/mcp.js";
 import { extract_token } from "../auth/auth-middleware.js";
 import { TeamStore } from "../auth/team-store.js";
 import { resolve_tenant_context } from "../auth/tenant-context.js";
@@ -292,6 +293,7 @@ export class DashboardService implements ServiceLike {
     this.route_map.set("/api/workflow/runs", handle_workflow);
     this.route_map.set("/api/workflow/roles", handle_workflow);
     this.route_map.set("/api/workflow/templates", handle_workflow);
+    this.route_map.set("/api/workflow/definitions", handle_workflow);
     this.route_map.set("/api/workflow/suggest", handle_workflow);
     this.route_map.set("/api/workflow/suggest/stream", handle_workflow);
     this.route_map.set("/api/workflow/diagram", handle_workflow);
@@ -305,6 +307,7 @@ export class DashboardService implements ServiceLike {
     this.route_map.set("/api/stats", handle_health);
     this.route_map.set("/api/dlq", handle_health);
     this.route_map.set("/api/workflow/events", handle_health);
+    this.route_map.set("/api/mcp", handle_mcp);
     this.fallback_routes.push(handle_health);
   }
 

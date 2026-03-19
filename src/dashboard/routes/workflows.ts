@@ -135,6 +135,22 @@ export const handle_workflow: RouteHandler = async (ctx) => {
 
   // ── Templates (3-tier workspace_layers 기반) ──
 
+  // GET /api/workflow/definitions — 워크플로우 이름/설명 요약 목록 (FE-BE: 도구 정책 레이어용)
+  if (path === "/api/workflow/definitions" && method === "GET") {
+    const templates = load_workflow_templates_layered(workspace_layers);
+    const definitions = templates.map((t) => ({
+      /** WorkflowDefinition.title — UI 표시 이름. */
+      name: t.title,
+      slug: t.slug,
+      objective: t.objective,
+      phase_count: Array.isArray(t.phases) ? t.phases.length
+        : Array.isArray(t.nodes) ? t.nodes.length : 0,
+      aliases: t.aliases ?? [],
+    }));
+    json(res, 200, definitions);
+    return true;
+  }
+
   // GET /api/workflow/templates
   if (path === "/api/workflow/templates" && method === "GET") {
     const templates = load_workflow_templates_layered(workspace_layers);

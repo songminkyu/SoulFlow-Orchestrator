@@ -10,6 +10,7 @@ import { now_iso, error_message } from "../utils/common.js";
 import type { BudgetTracker } from "./guardrails/enforcement.js";
 import { is_over_budget } from "./guardrails/enforcement.js";
 import type { ToolOutputReducer } from "./tool-output-reducer.js";
+import type { ToolChoiceMode } from "../contracts.js";
 
 export type ToolCallEntry = { name: string; arguments?: Record<string, unknown> };
 export type ToolCallState = { suppress: boolean; file_requested?: boolean; done_sent?: boolean; tool_count: number };
@@ -33,6 +34,12 @@ export type ToolCallHandlerDeps = {
   metrics?: import("../observability/metrics.js").MetricsSinkLike | null;
   /** OB: 등록된 도구 이름 목록. 미등록 이름은 "unknown"으로 정규화하여 cardinality 폭증 방지. */
   known_tool_names?: ReadonlySet<string>;
+  /** FE-BE: 도구 선택 정책. 기본값 "auto". */
+  tool_choice?: ToolChoiceMode;
+  /** FE-BE: 허용 도구 allowlist. 설정 시 목록 외 도구는 실행 억제. */
+  pinned_tools?: ReadonlySet<string> | string[];
+  /** FE-BE: manual 모드 — 도구 실행 전 승인 요청 콜백. true 반환 시 실행, false 반환 시 억제. */
+  request_approval?: (tool_name: string, args: Record<string, unknown>) => Promise<boolean>;
 };
 
 export function create_tool_call_handler(
@@ -43,6 +50,11 @@ export function create_tool_call_handler(
   budget?: BudgetTracker,
 ): (args: { tool_calls: ToolCallEntry[] }) => Promise<string> {
   const max_chars = deps.max_tool_result_chars;
+  const tool_choice = deps.tool_choice ?? "auto";
+  const pinned = deps.pinned_tools
+    ? new Set(Array.isArray(deps.pinned_tools) ? deps.pinned_tools : [...deps.pinned_tools])
+    : null;
+
   const flush_stream = () => {
     if (!stream_ctx?.on_stream) return;
     const content = stream_ctx.buffer.flush();
@@ -51,12 +63,29 @@ export function create_tool_call_handler(
     }
   };
   return async ({ tool_calls }) => {
+    // FE-BE: "none" 모드 — 모든 tool_calls 억제
+    if (tool_choice === "none") {
+      return tool_calls.map((tc) => `[tool:${tc.name}] suppressed: tool_choice=none`).join("\n");
+    }
     const outputs: string[] = [];
     for (const tc of tool_calls) {
       // EG-4: budget 초과 시 이후 tool 실행 스킵
       if (budget && is_over_budget(budget)) {
         outputs.push(`[tool:${tc.name}] skipped: budget exceeded (${budget.used}/${budget.max})`);
         continue;
+      }
+      // FE-BE: pinned_tools allowlist 검사 (auto/manual 모드 공통)
+      if (pinned && !pinned.has(tc.name)) {
+        outputs.push(`[tool:${tc.name}] suppressed: not in pinned_tools`);
+        continue;
+      }
+      // FE-BE: "manual" 모드 — 실행 전 승인 요청
+      if (tool_choice === "manual" && deps.request_approval) {
+        const approved = await deps.request_approval(tc.name, tc.arguments || {});
+        if (!approved) {
+          outputs.push(`[tool:${tc.name}] suppressed: approval denied`);
+          continue;
+        }
       }
       if (tc.name === "request_file") state.file_requested = true;
       if (tc.name === "message" && is_done_phase((tc.arguments || {}) as Record<string, unknown>)) {

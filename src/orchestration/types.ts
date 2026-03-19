@@ -1,6 +1,7 @@
 import type { InboundMessage, ProgressEvent } from "../bus/types.js";
 import type { ChannelProvider } from "../channels/types.js";
 import type { CorrelationContext } from "../observability/correlation.js";
+import type { ToolChoiceMode } from "../contracts.js";
 
 export type ExecutionMode = "once" | "agent" | "task" | "phase";
 
@@ -52,6 +53,18 @@ export type OrchestrationRequest = {
   correlation?: CorrelationContext;
   /** OB-3: 부모 span ID. trace tree 구성용. */
   _parent_span_id?: string;
+  /**
+   * FE-BE: 도구 선택 정책. 기본값 "auto".
+   * - "auto": 기존 동작 유지.
+   * - "manual": 각 도구 실행 전 승인 요청.
+   * - "none": tool_calls 무시.
+   */
+  tool_choice?: ToolChoiceMode;
+  /**
+   * FE-BE: 허용 도구 allowlist (@mention 등 명시적 선택).
+   * 설정 시 allowlist에 없는 도구는 실행 억제.
+   */
+  pinned_tools?: string[];
 };
 
 /** 결과에 포함되는 토큰/비용 요약. */

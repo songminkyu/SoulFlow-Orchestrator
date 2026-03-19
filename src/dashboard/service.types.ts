@@ -48,6 +48,13 @@ export interface DashboardToolOps {
   tool_names(): string[];
   get_definitions(): Array<Record<string, unknown>>;
   list_mcp_servers(): Array<{ name: string; connected: boolean; tools: string[]; error?: string }>;
+  /** FE-BE: 서버별 전체 도구 메타데이터(name, description, input_schema) 포함 상세 목록. */
+  list_mcp_servers_detailed?(): Array<{
+    name: string;
+    connected: boolean;
+    tools: Array<{ name: string; description?: string; input_schema: Record<string, unknown> }>;
+    error?: string;
+  }>;
 }
 
 export interface DashboardTemplateOps {
