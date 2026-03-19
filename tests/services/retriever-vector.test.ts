@@ -68,7 +68,7 @@ describe("RetrieverTool vector — reference_store 주입", () => {
     const r = JSON.parse(await tool.execute({ action: "vector", query: "intro", collection: "docs" }));
 
     const first = r.results[0];
-    expect(first).toHaveProperty("id", "c1");
+    expect(first).toHaveProperty("chunk_id", "c1");
     expect(first).toHaveProperty("doc_path", "docs/guide.md");
     expect(first).toHaveProperty("heading", "Overview");
     expect(first).toHaveProperty("content");
@@ -96,7 +96,7 @@ describe("RetrieverTool vector — reference_store 주입", () => {
 
     const r = JSON.parse(await tool.execute({ action: "vector", query: "test", collection: "docs", min_score: 0.8 }));
     expect(r.count).toBe(1);
-    expect(r.results[0].id).toBe("c1");
+    expect(r.results[0].chunk_id).toBe("c1");
   });
 
   it("score 내림차순 정렬", async () => {
@@ -109,8 +109,8 @@ describe("RetrieverTool vector — reference_store 주입", () => {
     tool.set_reference_store(make_mock_store(chunks));
 
     const r = JSON.parse(await tool.execute({ action: "vector", query: "test", collection: "docs" }));
-    expect(r.results[0].id).toBe("high");
-    expect(r.results[2].id).toBe("low");
+    expect(r.results[0].chunk_id).toBe("high");
+    expect(r.results[2].chunk_id).toBe("low");
   });
 });
 
@@ -132,7 +132,7 @@ describe("RetrieverTool vector — 두 스토어 병합", () => {
     const r = JSON.parse(await tool.execute({ action: "vector", query: "test", collection: "docs" }));
     // r1이 중복이므로 실제 결과는 r1, s1 두 개
     expect(r.count).toBe(2);
-    const ids = r.results.map((x: { id: string }) => x.id);
+    const ids = r.results.map((x: { chunk_id: string }) => x.chunk_id);
     expect(ids).toContain("r1");
     expect(ids).toContain("s1");
   });
@@ -159,9 +159,9 @@ describe("RetrieverTool vector — 두 스토어 병합", () => {
 // ── to_retrieval_item 헬퍼 ──
 
 describe("to_retrieval_item", () => {
-  it("ReferenceSearchResult → RetrievalItem 변환 (chunk_id → id)", () => {
+  it("ReferenceSearchResult → RetrievalItem 변환 (chunk_id 보존)", () => {
     const item = to_retrieval_item({ chunk_id: "abc", doc_path: "x.md", heading: "H", content: "C", score: 0.5 });
-    expect(item.id).toBe("abc");
+    expect(item.chunk_id).toBe("abc");
     expect(item.doc_path).toBe("x.md");
     expect(item.heading).toBe("H");
     expect(item.content).toBe("C");

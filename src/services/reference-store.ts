@@ -100,7 +100,7 @@ export interface RetrievalEnvelope {
  */
 export function to_retrieval_item(
   result: ReferenceSearchResult,
-  media_type: string,
+  media_type: string = "text",
   media_path?: string,
 ): RetrievalItem {
   const modality: Modality =
@@ -140,28 +140,13 @@ export interface ReferenceStoreLike {
   get_stats(): { total_docs: number; total_chunks: number; last_sync: string | null };
 }
 
-/**
- * 벡터/레퍼런스 retrieval 결과의 표준 envelope 항목.
- * RetrieverTool vector action과 ReferenceStore/SkillRefStore가 동일한 형식을 사용한다.
- */
-export interface RetrievalItem {
-  /** 청크 고유 ID (citation 추적에 사용). */
-  id: string;
-  /** 원본 문서 경로. */
-  doc_path: string;
-  /** 섹션 제목 (없으면 빈 문자열). */
-  heading: string;
-  /** 검색된 청크 내용. */
-  content: string;
-  /** 유사도 점수 (0-1, 높을수록 유사). */
-  score: number;
-}
+// K2 RetrievalItem은 K3에서 modality 지원 버전으로 통합됨 (line 59)
 
 /**
  * RetrieverTool vector action의 표준 결과 envelope.
  * sqlite-vec 전용 타입은 이 인터페이스 밖으로 노출하지 않는다.
  */
-export interface RetrievalEnvelope {
+export interface VectorRetrievalEnvelope {
   results: RetrievalItem[];
   count: number;
   source: 'vector';
@@ -171,16 +156,7 @@ export interface RetrievalEnvelope {
   min_score: number;
 }
 
-/** ReferenceSearchResult를 RetrievalItem으로 변환하는 헬퍼. */
-export function to_retrieval_item(r: ReferenceSearchResult): RetrievalItem {
-  return {
-    id: r.chunk_id,
-    doc_path: r.doc_path,
-    heading: r.heading,
-    content: r.content,
-    score: r.score,
-  };
-}
+// K2 to_retrieval_item은 K3에서 modality 지원 버전으로 확장됨 (line 101)
 
 const INIT_SQL = `
   CREATE TABLE IF NOT EXISTS ref_documents (

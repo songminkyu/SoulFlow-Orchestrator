@@ -4,7 +4,7 @@ import { Tool } from "./base.js";
 import type { JsonSchema, ToolExecutionContext } from "./types.js";
 import { make_abort_signal } from "../../utils/common.js";
 import { HTTP_FETCH_TIMEOUT_MS } from "../../utils/timeouts.js";
-import type { ReferenceStoreLike, RetrievalEnvelope } from "../../services/reference-store.js";
+import type { ReferenceStoreLike, VectorRetrievalEnvelope } from "../../services/reference-store.js";
 import { to_retrieval_item } from "../../services/reference-store.js";
 
 export class RetrieverTool extends Tool {
@@ -99,7 +99,7 @@ export class RetrieverTool extends Tool {
     if (!collection) return "Error: collection is required for vector action";
 
     const min_score = Number(params.min_score) || 0;
-    const base: Omit<RetrievalEnvelope, "results" | "count"> = {
+    const base: Omit<VectorRetrievalEnvelope, "results" | "count"> = {
       source: "vector",
       query,
       collection,
@@ -119,17 +119,17 @@ export class RetrieverTool extends Tool {
 
     const seen = new Set<string>();
     const merged = [...ref_raw, ...skill_raw]
-      .map(to_retrieval_item)
+      .map((r) => to_retrieval_item(r))
       .filter((item) => {
         if (item.score < min_score) return false;
-        if (seen.has(item.id)) return false;
-        seen.add(item.id);
+        if (seen.has(item.chunk_id)) return false;
+        seen.add(item.chunk_id);
         return true;
       })
       .sort((a, b) => b.score - a.score)
       .slice(0, top_k);
 
-    const envelope: RetrievalEnvelope = { ...base, results: merged, count: merged.length };
+    const envelope: VectorRetrievalEnvelope = { ...base, results: merged, count: merged.length };
     return JSON.stringify(envelope);
   }
 
