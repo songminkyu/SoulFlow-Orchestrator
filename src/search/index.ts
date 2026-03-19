@@ -25,3 +25,17 @@ export {
   CHINESE_RULES,
   detect_language_rule,
 } from "./languages/index.js";
+
+export type {
+  LexicalCandidate,
+  VectorAugmentPort,
+  MergeStrategy,
+  HybridRetrievalOptions,
+  HybridRetrievalPolicy,
+} from "./hybrid-retrieval-policy.js";
+
+export {
+  DefaultHybridRetrievalPolicy,
+  create_lexical_only_policy,
+  create_hybrid_policy,
+} from "./hybrid-retrieval-policy.js";
