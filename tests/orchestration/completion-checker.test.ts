@@ -1,5 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { generate_completion_checks, format_follow_up } from "../../src/orchestration/completion-checker.js";
+import { describe, it, expect, vi } from "vitest";
+import {
+  generate_completion_checks,
+  format_follow_up,
+  build_feedback_contract,
+  format_feedback_for_loop,
+} from "../../src/orchestration/completion-checker.js";
 import type { SkillMetadata } from "../../src/agent/skills.types.js";
 
 function make_skill(checks: string[], name = "test"): SkillMetadata {
@@ -112,5 +117,74 @@ describe("format_follow_up", () => {
     expect(result).toContain("📋 **완료 체크리스트**");
     expect(result).toContain("- [ ] 체크 1");
     expect(result).toContain("- [ ] 체크 2");
+  });
+});
+
+// ── K1: FeedbackContract 테스트 ──
+
+describe("build_feedback_contract", () => {
+  it("self-check trigger 시 FeedbackContract 생성 (has_role=true + 도구 있음)", () => {
+    const fixed_time = "2026-01-01T00:00:00.000Z";
+    const now_iso = vi.fn(() => fixed_time);
+    const contract = build_feedback_contract(
+      ["write_file"], [], 0, true, now_iso,
+    );
+    expect(contract).not.toBeNull();
+    expect(contract!.has_checks).toBe(true);
+    expect(contract!.questions.length).toBeGreaterThan(0);
+    expect(contract!.generated_at).toBe(fixed_time);
+    expect(contract!.tools_snapshot).toEqual(["write_file"]);
+  });
+
+  it("체크 없는 경우 null 반환 (has_role=false)", () => {
+    const contract = build_feedback_contract(["write_file"], [], 0, false);
+    expect(contract).toBeNull();
+  });
+
+  it("도구 없고 스킬 없으면 null 반환", () => {
+    const contract = build_feedback_contract([], [], 0, true);
+    expect(contract).toBeNull();
+  });
+
+  it("tools_snapshot이 원본 배열의 불변 복사본", () => {
+    const tools = ["bash", "web_search"];
+    const contract = build_feedback_contract(tools, [], 0, true);
+    expect(contract).not.toBeNull();
+    // 원본 배열 변경이 snapshot에 영향 없어야 함
+    tools.push("extra_tool");
+    expect(contract!.tools_snapshot).not.toContain("extra_tool");
+  });
+
+  it("스킬 checks[]가 있으면 has_role=true 시 contract에 포함", () => {
+    const skill = make_skill(["파일이 정상인지 확인했나요?"]);
+    const contract = build_feedback_contract([], [skill], 0, true);
+    expect(contract).not.toBeNull();
+    expect(contract!.questions).toContain("파일이 정상인지 확인했나요?");
+  });
+});
+
+describe("format_feedback_for_loop", () => {
+  it("contract를 에이전트용 텍스트로 변환", () => {
+    const contract = {
+      generated_at: "2026-01-01T00:00:00.000Z",
+      questions: ["에러가 없었나요?", "보안 이슈가 없나요?"],
+      has_checks: true,
+      tools_snapshot: ["bash"],
+    };
+    const text = format_feedback_for_loop(contract);
+    expect(text).toContain("[Self-Check]");
+    expect(text).toContain("- 에러가 없었나요?");
+    expect(text).toContain("- 보안 이슈가 없나요?");
+  });
+
+  it("questions가 비어있으면 헤더만 반환", () => {
+    const contract = {
+      generated_at: "2026-01-01T00:00:00.000Z",
+      questions: [],
+      has_checks: false,
+      tools_snapshot: [],
+    };
+    const text = format_feedback_for_loop(contract);
+    expect(text).toBe("[Self-Check]");
   });
 });

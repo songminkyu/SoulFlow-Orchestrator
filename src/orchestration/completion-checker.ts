@@ -1,7 +1,7 @@
 /**
- * CompletionChecker — 갈래 A: out-of-band 체크 기록.
- * 에이전트 작업 완료 후 follow-up 체크 질문을 생성.
- * SessionMessage.tools_used를 소스로 사용.
+ * CompletionChecker — 갈래 A: out-of-band 체크 기록 + 갈래 K1: in-loop feedback contract.
+ * 에이전트 작업 완료 후 follow-up 체크 질문을 생성하고,
+ * task loop에 다시 전달할 수 있는 deterministic feedback contract를 생성.
  */
 
 import type { SkillMetadata } from "../agent/skills.types.js";
@@ -91,6 +91,57 @@ export function format_follow_up(questions: string[]): string {
   const lines = ["📋 **완료 체크리스트**", ""];
   for (const q of questions) {
     lines.push(`- [ ] ${q}`);
+  }
+  return lines.join("\n");
+}
+
+/**
+ * In-loop feedback contract.
+ * post_tool_use 이후 self-check 체크 항목을 deterministic 데이터 구조로 표현.
+ * prompt injection이 아니라 task loop의 memory에 저장되어 다음 턴에 반영됨.
+ */
+export type CompletionFeedbackContract = {
+  /** contract를 생성한 시점의 ISO 타임스탬프 (재실행 구분용). */
+  generated_at: string;
+  /** 체크 질문 목록. has_checks=false이면 빈 배열. */
+  questions: string[];
+  /** 체크 항목이 하나 이상 존재하면 true. */
+  has_checks: boolean;
+  /** contract 생성 시 누적된 도구 사용 목록 (불변 스냅샷). */
+  tools_snapshot: string[];
+};
+
+/**
+ * tools_used, matched_skills, tool_calls_count를 받아 FeedbackContract를 생성.
+ * has_checks=false이면 null 반환 (피드백 없음 경로 보존).
+ */
+export function build_feedback_contract(
+  tools_used: string[],
+  matched_skills: SkillMetadata[],
+  tool_calls_count: number,
+  has_role: boolean = false,
+  now_iso: () => string = () => new Date().toISOString(),
+): CompletionFeedbackContract | null {
+  const { questions, has_checks } = generate_completion_checks(
+    tools_used, matched_skills, tool_calls_count, has_role,
+  );
+  if (!has_checks) return null;
+  return {
+    generated_at: now_iso(),
+    questions,
+    has_checks,
+    tools_snapshot: [...tools_used],
+  };
+}
+
+/**
+ * FeedbackContract를 task loop seed_prompt에 삽입할 텍스트로 변환.
+ * 기존 out-of-band format_follow_up과 달리 에이전트가 읽는 형식.
+ */
+export function format_feedback_for_loop(contract: CompletionFeedbackContract): string {
+  const lines = ["[Self-Check]"];
+  for (const q of contract.questions) {
+    lines.push(`- ${q}`);
   }
   return lines.join("\n");
 }

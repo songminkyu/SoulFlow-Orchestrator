@@ -25,6 +25,11 @@ import { streaming_cfg_for } from "./runner-deps.js";
 import type { OrchestrationResult } from "../types.js";
 import { NOOP_OBSERVABILITY } from "../../observability/context.js";
 import { instrument } from "../../observability/instrument.js";
+import {
+  build_feedback_contract,
+  format_feedback_for_loop,
+  type CompletionFeedbackContract,
+} from "../completion-checker.js";
 
 /** task execute 노드에서 네이티브 백엔드로 실행 시도. 성공 시 AgentRunResult, 불가 시 null. */
 export async function try_native_task_execute(
@@ -126,7 +131,12 @@ async function _run_task_loop_inner(
       run: async ({ task_state, memory }) => {
         const task_tool_ctx: ToolExecutionContext = { ...args.tool_ctx, task_id };
         const objective = task_state.objective || String(memory.objective || args.task_with_media);
-        const seed_prompt = String(memory.seed_prompt || args.context_block);
+        // K1: 이전 턴의 feedback contract가 있으면 seed_prompt에 선행 삽입
+        const base_seed = String(memory.seed_prompt || args.context_block);
+        const prior_feedback = memory.completion_feedback as CompletionFeedbackContract | undefined;
+        const seed_prompt = prior_feedback
+          ? `${format_feedback_for_loop(prior_feedback)}\n\n${base_seed}`
+          : base_seed;
 
         // native backend 우선: 전체 tool loop를 백엔드에 위임
         const native_result = await try_native_task_execute(deps, args, stream, task_tool_ctx, task_id, objective, seed_prompt, undefined, tools_used);
@@ -144,7 +154,13 @@ async function _run_task_loop_inner(
           if (final.includes("__request_user_choice__")) {
             return { status: "waiting_user_input" as const, memory_patch: { ...memory, last_output: final }, current_step: "execute", exit_reason: "waiting_user_input" };
           }
-          return { memory_patch: { ...memory, last_output: final }, next_step_index: 2, current_step: "execute" };
+          // K1: native 경로 — feedback contract를 memory에 저장하여 다음 턴에 반영
+          const feedback = build_feedback_contract(tools_used, [], total_tool_count + native_result.tool_calls_count);
+          return {
+            memory_patch: { ...memory, last_output: final, ...(feedback ? { completion_feedback: feedback } : {}) },
+            next_step_index: 2,
+            current_step: "execute",
+          };
         }
 
         // legacy headless 경로
@@ -203,11 +219,18 @@ async function _run_task_loop_inner(
           return { status: "waiting_user_input" as const, memory_patch: { ...memory, last_output: final }, current_step: "execute", exit_reason: "waiting_user_input" };
         }
         total_tool_count += state.tool_count;
-        return { memory_patch: { ...memory, last_output: final }, next_step_index: 2, current_step: "execute" };
+        // K1: legacy 경로 — feedback contract를 memory에 저장하여 다음 턴에 반영
+        const feedback = build_feedback_contract(tools_used, [], total_tool_count);
+        return {
+          memory_patch: { ...memory, last_output: final, ...(feedback ? { completion_feedback: feedback } : {}) },
+          next_step_index: 2,
+          current_step: "execute",
+        };
       },
     },
     {
       id: "finalize",
+      // K1: completion_feedback를 memory에서 유지하여 호출자가 읽을 수 있도록 함
       run: async ({ memory }) => ({ status: "completed", memory_patch: memory, current_step: "finalize", exit_reason: "workflow_completed" }),
     },
   ];

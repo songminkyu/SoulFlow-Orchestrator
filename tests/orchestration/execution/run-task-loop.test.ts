@@ -577,6 +577,7 @@ describe("run_task_loop — task 모드 실행", () => {
       const result = await run_task_loop(deps, mockArgs);
       expect(result.suppress_reply).toBe(true);
     });
+
   });
 
   describe("이벤트 로깅", () => {
@@ -624,6 +625,110 @@ describe("run_task_loop — task 모드 실행", () => {
         expect.objectContaining({
           phase: "approval",
           summary: "waiting_approval",
+        })
+      );
+    });
+  });
+
+  // ── K1: feedback contract 테스트 ──
+
+  describe("K1: feedback contract — legacy 경로", () => {
+    function make_node_runner_capturing_memory() {
+      return vi.fn().mockImplementation(async ({ nodes, task_id, objective, initial_memory }: any) => {
+        const memory = { ...initial_memory };
+        const plan = await nodes[0].run({ task_state: { taskId: task_id, objective, status: "running", memory, currentTurn: 0, maxTurns: 20 }, memory });
+        const exec = await nodes[1].run({ task_state: { taskId: task_id, objective, status: "running", memory: plan.memory_patch, currentTurn: 1, maxTurns: 20 }, memory: plan.memory_patch });
+        let final_mem = exec.memory_patch;
+        if (exec.next_step_index === 2) {
+          const fin = await nodes[2].run({ task_state: { taskId: task_id, objective, status: "running", memory: exec.memory_patch, currentTurn: 2, maxTurns: 20 }, memory: exec.memory_patch });
+          final_mem = fin.memory_patch;
+        }
+        return {
+          state: {
+            status: exec.status ?? "completed",
+            exitReason: exec.exit_reason,
+            memory: final_mem,
+            currentTurn: 3,
+          }
+        };
+      });
+    }
+
+    it("도구 사용 없을 때 feedback contract 생성 안 됨 (null)", async () => {
+      const deps = createMockRunnerDeps() as RunnerDeps;
+      deps.agent_backends = undefined;
+      (deps.runtime.run_agent_loop as any) = vi.fn().mockResolvedValue({ final_content: "done" });
+      (deps.runtime.run_task_loop as any).mockImplementation(make_node_runner_capturing_memory());
+
+      const result = await run_task_loop(deps, mockArgs);
+      // 도구를 사용하지 않았으므로 feedback이 없어도 정상 실행
+      expect(result.mode).toBe("task");
+    });
+
+    it("이전 feedback contract가 있으면 seed_prompt에 반영됨", async () => {
+      const deps = createMockRunnerDeps() as RunnerDeps;
+      deps.agent_backends = undefined;
+      const run_agent_loop_spy = vi.fn().mockResolvedValue({ final_content: "done" });
+      (deps.runtime.run_agent_loop as any) = run_agent_loop_spy;
+
+      // initial_memory에 completion_feedback 주입 (이전 턴에 생성된 것처럼)
+      const prior_feedback = {
+        generated_at: "2026-01-01T00:00:00.000Z",
+        questions: ["에러가 없었나요?"],
+        has_checks: true,
+        tools_snapshot: ["bash"],
+      };
+
+      (deps.runtime.run_task_loop as any).mockImplementation(async ({ nodes, task_id, objective, initial_memory }: any) => {
+        const memory = { ...initial_memory, completion_feedback: prior_feedback };
+        const plan = await nodes[0].run({ task_state: { taskId: task_id, objective, status: "running", memory, currentTurn: 0, maxTurns: 20 }, memory });
+        const exec = await nodes[1].run({ task_state: { taskId: task_id, objective, status: "running", memory: plan.memory_patch, currentTurn: 1, maxTurns: 20 }, memory: plan.memory_patch });
+        return {
+          state: {
+            status: exec.status ?? "completed",
+            exitReason: exec.exit_reason,
+            memory: exec.memory_patch,
+            currentTurn: 2,
+          }
+        };
+      });
+
+      await run_task_loop(deps, mockArgs);
+
+      // run_agent_loop가 호출될 때 current_message에 [Self-Check]가 포함되어야 함
+      expect(run_agent_loop_spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          current_message: expect.stringContaining("[Self-Check]"),
+        })
+      );
+    });
+
+    it("feedback 없는 기존 경로 정상 유지 (prior_feedback 없으면 seed_prompt 그대로)", async () => {
+      const deps = createMockRunnerDeps() as RunnerDeps;
+      deps.agent_backends = undefined;
+      const run_agent_loop_spy = vi.fn().mockResolvedValue({ final_content: "done" });
+      (deps.runtime.run_agent_loop as any) = run_agent_loop_spy;
+
+      (deps.runtime.run_task_loop as any).mockImplementation(async ({ nodes, task_id, objective, initial_memory }: any) => {
+        const memory = { ...initial_memory }; // completion_feedback 없음
+        const plan = await nodes[0].run({ task_state: { taskId: task_id, objective, status: "running", memory, currentTurn: 0, maxTurns: 20 }, memory });
+        const exec = await nodes[1].run({ task_state: { taskId: task_id, objective, status: "running", memory: plan.memory_patch, currentTurn: 1, maxTurns: 20 }, memory: plan.memory_patch });
+        return {
+          state: {
+            status: exec.status ?? "completed",
+            exitReason: exec.exit_reason,
+            memory: exec.memory_patch,
+            currentTurn: 2,
+          }
+        };
+      });
+
+      await run_task_loop(deps, mockArgs);
+
+      // [Self-Check] 없어야 함
+      expect(run_agent_loop_spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          current_message: expect.not.stringContaining("[Self-Check]"),
         })
       );
     });
