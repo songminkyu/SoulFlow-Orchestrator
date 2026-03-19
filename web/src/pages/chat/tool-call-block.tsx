@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { ToolCallEntry, ThinkingEntry } from "../../hooks/use-ndjson-stream";
 import { useT } from "../../i18n";
+import { RichResultRenderer } from "../../components/rich-result-renderer";
 
 const ICONS: [RegExp, string][] = [
   [/^web_search|^search_web/, "🔍"],
@@ -29,6 +30,13 @@ function tool_icon(name: string): string {
     if (re.test(name)) return icon;
   }
   return "🔧";
+}
+
+/** tool_name에서 action 부분 추출: "web_search" -> "search", "read_file" -> "read file". */
+function parse_tool_action(name: string): { category: string; action: string } {
+  const parts = name.split("_");
+  if (parts.length <= 1) return { category: name, action: "" };
+  return { category: parts[0]!, action: parts.slice(1).join(" ") };
 }
 
 /** Thinking 섹션 — 기본 접힘, 클릭 시 고정 높이 블록 표시. */
@@ -122,7 +130,10 @@ export function ToolCallList({ calls }: { calls: ToolCallEntry[] }) {
 function ToolCallBlock({ entry }: { entry: ToolCallEntry }) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [responseOpen, setResponseOpen] = useState(true);
   const status_cls = entry.done ? (entry.is_error ? "error" : "done") : "pending";
+  const { category, action } = parse_tool_action(entry.name);
 
   return (
     <div className={`tool-call tool-call--${status_cls}`}>
@@ -141,7 +152,10 @@ function ToolCallBlock({ entry }: { entry: ToolCallEntry }) {
               : <span className="tool-call__check" aria-hidden="true">✓</span>}
         </span>
         <span className="tool-call__icon" aria-hidden="true">{tool_icon(entry.name)}</span>
-        <span className="tool-call__name">{entry.name}</span>
+        <span className="tool-call__name">
+          <span className="tool-call__category">{category}</span>
+          {action && <span className="tool-call__action"> &gt; {action}</span>}
+        </span>
         {entry.done && (
           <span className="tool-call__expand-icon" aria-hidden="true">{expanded ? "▲" : "▼"}</span>
         )}
@@ -149,20 +163,40 @@ function ToolCallBlock({ entry }: { entry: ToolCallEntry }) {
 
       {expanded && entry.done && (
         <div className="tool-call__detail">
+          {/* Request (params) 접이식 패널 */}
           {entry.params && Object.keys(entry.params).length > 0 && (
             <section className="tool-call__section">
-              <div className="tool-call__section-label">{t("chat.tool_params")}</div>
-              <pre className="tool-call__pre">{JSON.stringify(entry.params, null, 2)}</pre>
+              <button
+                className="tool-call__section-toggle"
+                onClick={() => setRequestOpen((v) => !v)}
+                aria-expanded={requestOpen}
+                aria-label={t("tool_call.request")}
+              >
+                <span className="tool-call__section-label">{t("tool_call.request")}</span>
+                <span className="tool-call__section-chevron" aria-hidden="true">{requestOpen ? "▲" : "▼"}</span>
+              </button>
+              {requestOpen && (
+                <RichResultRenderer content={JSON.stringify(entry.params, null, 2)} kind="json" />
+              )}
             </section>
           )}
+          {/* Response (result) 접이식 패널 */}
           {entry.result && (
             <section className="tool-call__section">
-              <div className="tool-call__section-label">{entry.is_error ? t("chat.tool_error") : t("chat.tool_result")}</div>
-              <pre className={`tool-call__pre${entry.is_error ? " tool-call__pre--error" : ""}`}>
-                {entry.result.length > 1200
-                  ? `${entry.result.slice(0, 1200)}\n… (${t("chat.truncated", { count: entry.result.length - 1200 })})`
-                  : entry.result}
-              </pre>
+              <button
+                className="tool-call__section-toggle"
+                onClick={() => setResponseOpen((v) => !v)}
+                aria-expanded={responseOpen}
+                aria-label={entry.is_error ? t("chat.tool_error") : t("tool_call.response")}
+              >
+                <span className="tool-call__section-label">
+                  {entry.is_error ? t("chat.tool_error") : t("tool_call.response")}
+                </span>
+                <span className="tool-call__section-chevron" aria-hidden="true">{responseOpen ? "▲" : "▼"}</span>
+              </button>
+              {responseOpen && (
+                <RichResultRenderer content={entry.result} isError={entry.is_error} />
+              )}
             </section>
           )}
         </div>

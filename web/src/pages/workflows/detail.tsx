@@ -5,6 +5,7 @@ import { api } from "../../api/client";
 import { ApprovalBanner } from "../../components/approval-banner";
 import { Badge } from "../../components/badge";
 import { MessageBubble } from "../../components/message-bubble";
+import { StatusView } from "../../components/status-contract";
 import { useToast } from "../../components/toast";
 import { useApprovals } from "../../hooks/use-approvals";
 import { useT } from "../../i18n";
@@ -186,9 +187,11 @@ export default function WorkflowDetailPage() {
   if (isLoading || !wf) {
     return (
       <div className="page">
-        <div className="skeleton skeleton-card" style={{ height: 40, width: 120, marginBottom: "var(--sp-3)" }} />
-        <div className="skeleton skeleton-card" style={{ height: 200, marginBottom: "var(--sp-4)" }} />
-        <div className="skeleton skeleton-card" style={{ height: 200 }} />
+        <StatusView state="loading">
+          <div className="skeleton skeleton-card" style={{ height: 40, width: 120, marginBottom: "var(--sp-3)" }} />
+          <div className="skeleton skeleton-card" style={{ height: 200, marginBottom: "var(--sp-4)" }} />
+          <div className="skeleton skeleton-card" style={{ height: 200 }} />
+        </StatusView>
       </div>
     );
   }

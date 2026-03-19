@@ -47,7 +47,9 @@ function DiagramFullscreenModal({ svg, title, onClose }: { svg: string; title: s
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-        <div className="diagram-fullscreen-content" dangerouslySetInnerHTML={{ __html: svg }} />
+        <div className="diagram-fullscreen-content" ref={(el) => {
+          if (el) { el.textContent = ""; const parser = new DOMParser(); const doc = parser.parseFromString(svg, "image/svg+xml"); const svgEl = doc.querySelector("svg"); if (svgEl) el.appendChild(document.importNode(svgEl, true)); }
+        }} />
       </div>
     </div>
   );
@@ -63,15 +65,15 @@ function YamlSideDiagramTab({ workflow, type }: { workflow: WorkflowDef; type: "
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    setSvg(null); setError(null);
+    // 비동기 콜백 내에서 상태 초기화 후 fetch — effect 동기 본문에서 setState 호출 회피
     timerRef.current = setTimeout(async () => {
+      setSvg(null);
+      setError(null);
       try {
-        const res = await fetch("/api/workflow/diagram/preview", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ source, format: "svg" }),
-        });
-        const data = await res.json() as { ok: boolean; output?: string; error?: string };
+        const data = await api.post<{ ok: boolean; output?: string; error?: string }>(
+          "/api/workflow/diagram/preview",
+          { source, format: "svg" },
+        );
         if (data.ok && data.output) setSvg(data.output);
         else setError(data.error ?? "render_failed");
       } catch { setError("network_error"); }
@@ -102,7 +104,9 @@ function YamlSideDiagramTab({ workflow, type }: { workflow: WorkflowDef; type: "
         : <>
             {error && <div className="yaml-diagram-tab__error">{error}</div>}
             {!error && !svg && <div className="yaml-diagram-tab__loading"><span className="spinner" /></div>}
-            {svg && <div className="yaml-diagram-tab__svg" dangerouslySetInnerHTML={{ __html: svg }} />}
+            {svg && <div className="yaml-diagram-tab__svg" ref={(el) => {
+              if (el) { el.textContent = ""; const parser = new DOMParser(); const doc = parser.parseFromString(svg, "image/svg+xml"); const svgEl = doc.querySelector("svg"); if (svgEl) el.appendChild(document.importNode(svgEl, true)); }
+            }} />}
           </>
       }
       {fullscreen && svg && <DiagramFullscreenModal svg={svg} title={modal_title} onClose={() => setFullscreen(false)} />}

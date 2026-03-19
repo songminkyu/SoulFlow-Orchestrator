@@ -149,7 +149,7 @@ export function NodeInspector({
       <div className="inspector-body">
         {hasInput && (
           <div className="inspector-section-block">
-            <button className="inspector-section-toggle" aria-expanded={inputOpen} onClick={() => setInputOpen(!inputOpen)}>
+            <button className="inspector-section-toggle" aria-expanded={inputOpen} aria-label={t("workflows.section_input")} onClick={() => setInputOpen(!inputOpen)}>
               <span><svg className={`inspector-chevron${inputOpen ? "" : " inspector-chevron--closed"}`} width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>{t("workflows.section_input")}</span>
               <span className="inspector-section-count">{t("workflows.n_fields", { n: String(input_schema.length) })}</span>
             </button>
@@ -165,7 +165,7 @@ export function NodeInspector({
         )}
 
         <div className="inspector-section-block">
-          <button className="inspector-section-toggle" aria-expanded={paramsOpen} onClick={() => setParamsOpen(!paramsOpen)}>
+          <button className="inspector-section-toggle" aria-expanded={paramsOpen} aria-label={t("workflows.section_params")} onClick={() => setParamsOpen(!paramsOpen)}>
             <span><svg className={`inspector-chevron${paramsOpen ? "" : " inspector-chevron--closed"}`} width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>{t("workflows.section_params")}</span>
           </button>
           {paramsOpen && (
@@ -205,7 +205,7 @@ export function NodeInspector({
         </div>
 
         <div className="inspector-section-block">
-          <button className="inspector-section-toggle" aria-expanded={outputOpen} onClick={() => setOutputOpen(!outputOpen)}>
+          <button className="inspector-section-toggle" aria-expanded={outputOpen} aria-label={t("workflows.section_output")} onClick={() => setOutputOpen(!outputOpen)}>
             <span><svg className={`inspector-chevron${outputOpen ? "" : " inspector-chevron--closed"}`} width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>{t("workflows.section_output")}</span>
             {execution_state?.status === "completed" && <span className="tab-badge tab-badge--ok"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>}
             {execution_state?.status === "failed" && <span className="tab-badge tab-badge--err"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>}
