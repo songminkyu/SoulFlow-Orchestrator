@@ -4080,5 +4080,15 @@
   "status.loading": "Loading...",
   "status.error": "An error occurred",
   "status.empty": "No data available",
-  "status.retry": "Retry"
+  "status.retry": "Retry",
+  "tool_choice.auto": "Auto",
+  "tool_choice.manual": "Manual",
+  "tool_choice.none": "None",
+  "mention.search_placeholder": "Search mentions...",
+  "mention.agents": "Agents",
+  "mention.tools": "Tools",
+  "mention.workflows": "Workflows",
+  "mention.no_results": "No results",
+  "model_selector.search": "Search models...",
+  "model_selector.select": "Select model"
 }
