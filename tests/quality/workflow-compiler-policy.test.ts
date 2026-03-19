@@ -141,3 +141,94 @@ describe("audit_workflow_nodes — 정상 워크플로우 통과", () => {
     expect(r.violations).toHaveLength(0);
   });
 });
+
+// ── fanout helpers ────────────────────────────────────────────────────────────
+
+function make_fanout(id: string, reconcile_node_id: string): WorkflowNodeDefinition {
+  return {
+    node_id: id,
+    title: id,
+    node_type: "fanout",
+    branches: [{ branch_id: "b1", node_ids: ["n1"] }],
+    reconcile_node_id,
+  } as WorkflowNodeDefinition;
+}
+
+function make_reconcile(id: string): WorkflowNodeDefinition {
+  return {
+    node_id: id,
+    title: id,
+    node_type: "reconcile",
+    source_node_ids: ["b1"],
+    policy: "majority_vote",
+  } as WorkflowNodeDefinition;
+}
+
+// ── fanout_without_reconcile ───────────────────────────────────────────────────
+
+describe("audit_workflow_nodes — fanout_without_reconcile 위반", () => {
+  it("fanout만 있고 대응 reconcile 없음 → fanout_without_reconcile [major]", () => {
+    const nodes: WorkflowNodeDefinition[] = [
+      make_trigger("t"),
+      make_fanout("f1", "missing_reconcile"),
+    ];
+    const r = audit_workflow_nodes(nodes);
+    expect(r.violations.some((v) => v.code === "fanout_without_reconcile")).toBe(true);
+    expect(r.passed).toBe(false);
+  });
+
+  it("fanout + 대응 reconcile 존재 → 위반 없음", () => {
+    const nodes: WorkflowNodeDefinition[] = [
+      make_trigger("t"),
+      make_fanout("f1", "rec1"),
+      make_reconcile("rec1"),
+    ];
+    const r = audit_workflow_nodes(nodes);
+    expect(r.violations.some((v) => v.code === "fanout_without_reconcile")).toBe(false);
+  });
+
+  it("require_fanout_reconcile=false 이면 검사 안 함", () => {
+    const policy: WorkflowCompilerPolicy = { ...DEFAULT_COMPILER_POLICY, require_fanout_reconcile: false };
+    const nodes: WorkflowNodeDefinition[] = [
+      make_trigger("t"),
+      make_fanout("f1", "not_existing"),
+    ];
+    const r = audit_workflow_nodes(nodes, policy);
+    expect(r.violations.some((v) => v.code === "fanout_without_reconcile")).toBe(false);
+  });
+
+  it("여러 fanout 중 일부만 reconcile 없음 → 해당 fanout만 위반", () => {
+    const nodes: WorkflowNodeDefinition[] = [
+      make_trigger("t"),
+      make_fanout("f1", "rec1"),   // OK
+      make_fanout("f2", "missing"), // 위반
+      make_reconcile("rec1"),
+    ];
+    const r = audit_workflow_nodes(nodes);
+    const violations = r.violations.filter((v) => v.code === "fanout_without_reconcile");
+    expect(violations).toHaveLength(1);
+    expect(violations[0].detail).toContain("f2");
+  });
+
+  it("fanout 없으면 fanout_without_reconcile 없음", () => {
+    const nodes: WorkflowNodeDefinition[] = [make_trigger("t"), make_http("h"), make_phase("p")];
+    const r = audit_workflow_nodes(nodes);
+    expect(r.violations.some((v) => v.code === "fanout_without_reconcile")).toBe(false);
+  });
+});
+
+// ── fanout + reconcile 정상 워크플로우 통과 ───────────────────────────────────
+
+describe("audit_workflow_nodes — fanout+reconcile 정상 워크플로우", () => {
+  it("trigger + fanout + reconcile + phase(≤50%) → passed: true", () => {
+    const nodes: WorkflowNodeDefinition[] = [
+      make_trigger("t"),
+      make_fanout("f1", "rec1"),
+      make_reconcile("rec1"),
+      make_http("h1"),
+    ];
+    const r = audit_workflow_nodes(nodes);
+    expect(r.passed).toBe(true);
+    expect(r.violations.some((v) => v.code === "fanout_without_reconcile")).toBe(false);
+  });
+});

@@ -43,6 +43,7 @@ import { cache_handler } from "./cache.js";
 import { retry_handler } from "./retry.js";
 import { batch_handler } from "./batch.js";
 import { reconcile_handler } from "./reconcile.js";
+import { fanout_handler } from "./fanout.js";
 import { critic_gate_handler } from "./critic-gate.js";
 import { assert_handler } from "./assert.js";
 import { git_handler } from "./git.js";
@@ -183,6 +184,7 @@ const ALL_HANDLERS = [
   cache_handler,
   retry_handler,
   batch_handler,
+  fanout_handler,
   reconcile_handler,
   critic_gate_handler,
   assert_handler,

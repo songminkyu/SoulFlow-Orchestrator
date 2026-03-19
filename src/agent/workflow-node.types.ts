@@ -647,6 +647,32 @@ export interface BatchNodeDefinition extends NodeBase {
   on_item_error?: "continue" | "halt";
 }
 
+// ── Fanout Node ──────────────────────────────────────
+
+/** PAR-4: fanout 브랜치 단일 정의. */
+export interface FanoutBranchDefinition {
+  /** 브랜치 식별자 (고유). */
+  branch_id: string;
+  /** 이 브랜치에서 실행할 노드 ID 목록. */
+  node_ids: string[];
+}
+
+/**
+ * PAR-4: 병렬 팬아웃 노드 — 다수 브랜치를 동시 스폰하고 결과를 수집.
+ * reconcile_node_id가 가리키는 ReconcileNode가 합의 포인트.
+ */
+export interface FanoutNodeDefinition extends NodeBase {
+  node_type: "fanout";
+  /** 동시 실행할 브랜치 목록. */
+  branches: FanoutBranchDefinition[];
+  /** 수렴 노드 ID (ReconcileNode). */
+  reconcile_node_id: string;
+  /** 동시 실행 최대 수 (기본: branches.length, 즉 전부 병렬). */
+  max_concurrency?: number;
+  /** 개별 브랜치 타임아웃 (ms). */
+  branch_timeout_ms?: number;
+}
+
 // ── Reconcile Node ───────────────────────────────────
 
 /** PAR-2: 병렬 에이전트 결과를 결정론적 정책으로 합의하는 노드. */
@@ -1959,7 +1985,7 @@ export type OrcheNodeType = "http" | "code" | "if" | "merge" | "set" | "split"
   | "embedding" | "vector_store"
   | "notify" | "aggregate" | "send_file" | "error_handler" | "webhook"
   | "hitl" | "approval" | "form" | "tool_invoke" | "gate" | "escalation"
-  | "cache" | "retry" | "batch" | "reconcile" | "critic_gate" | "assert"
+  | "cache" | "retry" | "batch" | "fanout" | "reconcile" | "critic_gate" | "assert"
   | "git" | "shell" | "web_search" | "web_scrape" | "archive" | "process"
   | "docker" | "web_table" | "network" | "web_form" | "system_info" | "package_manager"
   | "data_format" | "encoding" | "regex" | "diff" | "screenshot" | "database"
@@ -2038,6 +2064,7 @@ export type OrcheNodeDefinition =
   | CacheNodeDefinition
   | RetryNodeDefinition
   | BatchNodeDefinition
+  | FanoutNodeDefinition
   | ReconcileNodeDefinition
   | CriticGateNodeDefinition
   | AssertNodeDefinition

@@ -41,6 +41,10 @@ import { create_direct_executor } from "../orchestration/execution/direct-execut
 import { create_prompt_profile_compiler } from "../orchestration/prompt-profile-compiler.js";
 import { create_role_policy_resolver } from "../orchestration/role-policy-resolver.js";
 import { create_protocol_resolver } from "../orchestration/protocol-resolver.js";
+import type { ArtifactStoreLike } from "../services/artifact-store.js";
+import { create_local_artifact_store } from "../services/artifact-store.js";
+import type { CoordinationStoreLike } from "../bus/coordination-store.js";
+import { create_local_coordination_store } from "../bus/coordination-store.js";
 
 export interface OrchestrationBundleDeps {
   ctx: TeamWorkspace;
@@ -77,12 +81,20 @@ export interface OrchestrationBundleDeps {
   logger: ReturnType<typeof create_logger>;
   observability?: ObservabilityLike | null;
   usage_store?: import("../orchestration/agent-hooks-builder.js").UsageRecorderLike | null;
+  /** PA-5: 아티팩트 저장 포트. 미지정 시 bootstrap이 로컬 어댑터를 생성. */
+  artifact_store?: ArtifactStoreLike | null;
+  /** PA-5: 에이전트 협업 상태 조율 포트. 미지정 시 bootstrap이 로컬 어댑터를 생성. */
+  coordination_store?: CoordinationStoreLike | null;
 }
 
 export interface OrchestrationBundleResult {
   orchestration: OrchestrationService;
   cron: CronService;
   create_task_fn: ReturnType<typeof create_task_service>;
+  /** PA-5: 아티팩트 저장 포트 (로컬 파일시스템 어댑터). */
+  artifact_store: ArtifactStoreLike;
+  /** PA-5: 에이전트 협업 상태 조율 포트 (인메모리 어댑터). */
+  coordination_store: CoordinationStoreLike;
   oauth_fetch_service: (
     service_id: string,
     opts: { url: string; method: string; headers?: Record<string, string>; body?: unknown },
@@ -190,6 +202,7 @@ export async function create_orchestration_bundle(deps: OrchestrationBundleDeps)
           chat_id: opts.chat_id,
           content: opts.objective,
           at: now_iso(),
+          team_id: opts.channel,
         },
         alias: opts.title || "default",
         provider: opts.channel,
@@ -298,7 +311,7 @@ export async function create_orchestration_bundle(deps: OrchestrationBundleDeps)
         const substituted = substitute_variables(template, { ...template.variables, channel });
         const run_id = make_run_id("wf-cron");
         const result = await orchestration.execute({
-          message: { id: run_id, provider: channel, channel, sender_id: "cron", chat_id, content: substituted.objective || substituted.title, at: now_iso() },
+          message: { id: run_id, provider: channel, channel, sender_id: "cron", chat_id, content: substituted.objective || substituted.title, at: now_iso(), team_id: channel },
           alias: app_config.channel.defaultAlias,
           provider: channel,
           media_inputs: [],
@@ -314,5 +327,9 @@ export async function create_orchestration_bundle(deps: OrchestrationBundleDeps)
     on_change: (type, job_id, team_id) => broadcaster.broadcast_cron_event(type, job_id, team_id),
   });
 
-  return { orchestration, cron, create_task_fn, oauth_fetch_service };
+  // PA-5: 아티팩트 및 협업 상태 포트 생성 (bootstrap이 로컬 어댑터를 기본값으로 제공)
+  const artifact_store: ArtifactStoreLike = deps.artifact_store ?? create_local_artifact_store(join(deps.data_dir, "artifacts"));
+  const coordination_store: CoordinationStoreLike = deps.coordination_store ?? create_local_coordination_store();
+
+  return { orchestration, cron, create_task_fn, oauth_fetch_service, artifact_store, coordination_store };
 }

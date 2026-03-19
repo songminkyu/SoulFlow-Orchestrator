@@ -12,10 +12,11 @@
 import type { WorkflowNodeDefinition } from "../agent/workflow-node.types.js";
 
 export type CompilerViolationCode =
-  | "agent_heavy"           // phase 노드 비율 초과 — direct 노드 부족
-  | "inline_role_prompt"    // context_template에 role baseline 재창작 (긴 인라인 프롬프트)
-  | "missing_entry_point"   // trigger 노드 없음
-  | "no_direct_nodes";      // http/code/llm 등 직접 실행 노드 전혀 없음
+  | "agent_heavy"              // phase 노드 비율 초과 — direct 노드 부족
+  | "inline_role_prompt"       // context_template에 role baseline 재창작 (긴 인라인 프롬프트)
+  | "missing_entry_point"      // trigger 노드 없음
+  | "no_direct_nodes"          // http/code/llm 등 직접 실행 노드 전혀 없음
+  | "fanout_without_reconcile"; // fanout 노드에 대응하는 reconcile 노드 없음
 
 export interface CompilerViolation {
   code: CompilerViolationCode;
@@ -37,6 +38,8 @@ export interface WorkflowCompilerPolicy {
   max_inline_prompt_chars: number;
   /** trigger 노드 필수 여부. 기본 true. */
   require_entry_point: boolean;
+  /** fanout 노드마다 대응하는 reconcile 노드 필수 여부. 기본 true. */
+  require_fanout_reconcile: boolean;
 }
 
 /** 합리적인 기본 정책: agent ≤ 50%, 인라인 프롬프트 300자 이하, 진입점 필수. */
@@ -44,6 +47,7 @@ export const DEFAULT_COMPILER_POLICY: WorkflowCompilerPolicy = {
   max_agent_ratio: 0.5,
   max_inline_prompt_chars: 300,
   require_entry_point: true,
+  require_fanout_reconcile: true,
 };
 
 /** 직접 실행 노드 타입 — agent(phase) 외의 실질적 작업 노드. */
@@ -97,6 +101,28 @@ export function audit_workflow_nodes(
         severity: "minor",
         detail: `node "${node.node_id}" context_template ${tmpl.length}자 > ${policy.max_inline_prompt_chars}자 한도`,
       });
+    }
+  }
+
+  // PAR-4: fanout 노드마다 대응하는 reconcile 노드 존재 여부 검사
+  if (policy.require_fanout_reconcile) {
+    const reconcile_ids = new Set(
+      nodes
+        .filter((n) => n.node_type === "reconcile")
+        .map((n) => n.node_id),
+    );
+    for (const node of nodes) {
+      if (node.node_type !== "fanout") continue;
+      // WorkflowNodeDefinition 유니온에서 fanout 타입으로 좁히기
+      const fanout_raw = node as WorkflowNodeDefinition & { reconcile_node_id?: string };
+      const reconcile_id = fanout_raw.reconcile_node_id ?? "";
+      if (!reconcile_id || !reconcile_ids.has(reconcile_id)) {
+        violations.push({
+          code: "fanout_without_reconcile",
+          severity: "major",
+          detail: `fanout "${node.node_id}" reconcile_node_id "${reconcile_id}" 에 대응하는 reconcile 노드 없음`,
+        });
+      }
     }
   }
 
