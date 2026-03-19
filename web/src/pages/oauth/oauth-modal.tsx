@@ -97,9 +97,9 @@ export function OAuthModal({ mode, presets, onClose, onSaved }: {
     >
       <FormGroup label={t("oauth.service_type")}>
         {isEdit ? (
-          <input className="form-input" value={active_preset?.label || serviceType} disabled />
+          <input className="form-input" value={active_preset?.label || serviceType} disabled aria-label={t("oauth.service_type")} />
         ) : (
-          <select className="form-input" value={serviceType} onChange={(e) => handle_service_change(e.target.value)}>
+          <select className="form-input" value={serviceType} onChange={(e) => handle_service_change(e.target.value)} aria-label={t("oauth.service_type")}>
             {presets.map((p) => (
               <option key={p.service_type} value={p.service_type}>{p.label}</option>
             ))}
@@ -108,13 +108,13 @@ export function OAuthModal({ mode, presets, onClose, onSaved }: {
       </FormGroup>
 
       <FormGroup label={t("oauth.label")} required>
-        <input autoFocus className="form-input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder={serviceType} required aria-required="true" />
+        <input autoFocus className="form-input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder={serviceType} required aria-required="true" aria-label={t("oauth.label")} />
       </FormGroup>
 
       {isEdit && (
         <div className="form-group">
           <label className="form-label">
-            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} aria-label={t("common.enabled")} />
             {" "}{t("common.enabled")}
           </label>
         </div>
@@ -123,11 +123,11 @@ export function OAuthModal({ mode, presets, onClose, onSaved }: {
       {!isEdit && (
         <>
           <FormGroup label={t("oauth.client_id")} required>
-            <input className="form-input" value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder={t("oauth.client_id_placeholder")} required aria-required="true" autoComplete="off" />
+            <input className="form-input" value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder={t("oauth.client_id_placeholder")} required aria-required="true" aria-label={t("oauth.client_id")} autoComplete="off" />
           </FormGroup>
           {!is_basic_auth && (
             <FormGroup label={t("oauth.client_secret")} optional>
-              <input className="form-input" type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} placeholder={t("oauth.client_secret_placeholder")} autoComplete="off" />
+              <input className="form-input" type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} placeholder={t("oauth.client_secret_placeholder")} aria-label={t("oauth.client_secret")} autoComplete="off" />
             </FormGroup>
           )}
           {is_basic_auth && <p className="form-hint">{t("oauth.client_secret_hint")}</p>}
@@ -150,17 +150,17 @@ export function OAuthModal({ mode, presets, onClose, onSaved }: {
           <div className="checkbox-group mb-2">
             {available_scopes.map((s) => (
               <label key={s} className="checkbox-label">
-                <input type="checkbox" checked={is_scope_selected(s)} onChange={() => toggle_scope(s)} />
+                <input type="checkbox" checked={is_scope_selected(s)} onChange={() => toggle_scope(s)} aria-label={s} />
                 {s}
               </label>
             ))}
           </div>
         )}
-        <input className="form-input" value={scopeText} onChange={(e) => setScopeText(e.target.value)} placeholder={t("oauth.scopes_hint")} />
+        <input className="form-input" value={scopeText} onChange={(e) => setScopeText(e.target.value)} placeholder={t("oauth.scopes_hint")} aria-label={t("oauth.scopes")} />
       </FormGroup>
 
       <FormGroup label={t("oauth.allowed_hosts")} hint={t("oauth.allowed_hosts_hint")}>
-        <input className="form-input" value={allowedHostsText} onChange={(e) => setAllowedHostsText(e.target.value)} placeholder="api.github.com, api.example.com" />
+        <input className="form-input" value={allowedHostsText} onChange={(e) => setAllowedHostsText(e.target.value)} placeholder="api.github.com, api.example.com" aria-label={t("oauth.allowed_hosts")} />
       </FormGroup>
     </FormModal>
   );

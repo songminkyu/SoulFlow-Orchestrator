@@ -83,41 +83,41 @@ export function PresetModal({ initial, onClose, onSaved }: {
       submitDisabled={!hasChanges()}
     >
       <FormGroup label={t("oauth.service_type")}>
-        <input autoFocus={!isEdit} className="form-input" value={serviceType} onChange={(e) => !isEdit && setServiceType(e.target.value)} placeholder="e.g. notion, dropbox" disabled={isEdit} required={!isEdit} />
+        <input autoFocus={!isEdit} className="form-input" value={serviceType} onChange={(e) => !isEdit && setServiceType(e.target.value)} placeholder="e.g. notion, dropbox" disabled={isEdit} required={!isEdit} aria-label={t("oauth.service_type")} />
       </FormGroup>
       <FormGroup label={t("oauth.label")}>
-        <input className="form-input" value={label} onChange={(e) => !isEdit && setLabel(e.target.value)} placeholder="e.g. Notion" disabled={isEdit} required={!isEdit} />
+        <input className="form-input" value={label} onChange={(e) => !isEdit && setLabel(e.target.value)} placeholder="e.g. Notion" disabled={isEdit} required={!isEdit} aria-label={t("oauth.label")} />
       </FormGroup>
       <FormGroup label={t("oauth.auth_url")}>
-        <input autoFocus={isEdit} className="form-input" value={authUrl} onChange={(e) => setAuthUrl(e.target.value)} placeholder="https://..." required />
+        <input autoFocus={isEdit} className="form-input" value={authUrl} onChange={(e) => setAuthUrl(e.target.value)} placeholder="https://..." required aria-label={t("oauth.auth_url")} />
       </FormGroup>
       <FormGroup label={t("oauth.token_url")}>
-        <input className="form-input" value={tokenUrl} onChange={(e) => setTokenUrl(e.target.value)} placeholder="https://..." required />
+        <input className="form-input" value={tokenUrl} onChange={(e) => setTokenUrl(e.target.value)} placeholder="https://..." required aria-label={t("oauth.token_url")} />
       </FormGroup>
       <FormGroup label={t("oauth.token_auth_method")}>
-        <select className="form-input" value={tokenAuthMethod} onChange={(e) => setTokenAuthMethod(e.target.value as "body" | "basic")}>
+        <select className="form-input" value={tokenAuthMethod} onChange={(e) => setTokenAuthMethod(e.target.value as "body" | "basic")} aria-label={t("oauth.token_auth_method")}>
           <option value="body">{t("oauth.token_auth_body")}</option>
           <option value="basic">{t("oauth.token_auth_basic")}</option>
         </select>
       </FormGroup>
       <FormGroup label={t("oauth.scope_separator")}>
-        <select className="form-input" value={scopeSeparator} onChange={(e) => setScopeSeparator(e.target.value as " " | ",")}>
+        <select className="form-input" value={scopeSeparator} onChange={(e) => setScopeSeparator(e.target.value as " " | ",")} aria-label={t("oauth.scope_separator")}>
           <option value=" ">{t("oauth.scope_sep_space")}</option>
           <option value=",">{t("oauth.scope_sep_comma")}</option>
         </select>
       </FormGroup>
       <FormGroup label={t("oauth.test_url")}>
-        <input className="form-input" value={testUrl} onChange={(e) => setTestUrl(e.target.value)} placeholder="https://... (optional)" />
+        <input className="form-input" value={testUrl} onChange={(e) => setTestUrl(e.target.value)} placeholder="https://... (optional)" aria-label={t("oauth.test_url")} />
       </FormGroup>
       <FormGroup label={t("oauth.scopes_available")}>
-        <input className="form-input" value={scopesAvailable} onChange={(e) => setScopesAvailable(e.target.value)} placeholder={t("oauth.scopes_hint")} />
+        <input className="form-input" value={scopesAvailable} onChange={(e) => setScopesAvailable(e.target.value)} placeholder={t("oauth.scopes_hint")} aria-label={t("oauth.scopes_available")} />
       </FormGroup>
       <FormGroup label={t("oauth.default_scopes")}>
-        <input className="form-input" value={defaultScopes} onChange={(e) => setDefaultScopes(e.target.value)} placeholder={t("oauth.scopes_hint")} />
+        <input className="form-input" value={defaultScopes} onChange={(e) => setDefaultScopes(e.target.value)} placeholder={t("oauth.scopes_hint")} aria-label={t("oauth.default_scopes")} />
       </FormGroup>
       <div className="form-group">
         <label className="form-label">
-          <input type="checkbox" checked={supportsRefresh} onChange={(e) => setSupportsRefresh(e.target.checked)} />
+          <input type="checkbox" checked={supportsRefresh} onChange={(e) => setSupportsRefresh(e.target.checked)} aria-label={t("oauth.supports_refresh")} />
           {" "}{t("oauth.supports_refresh")}
         </label>
       </div>

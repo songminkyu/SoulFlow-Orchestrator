@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { Badge } from "../../components/badge";
 import { SectionHeader } from "../../components/section-header";
+import { SurfaceGuard } from "../../components/surface-guard";
+import { StatusView } from "../../components/status-contract";
+import { VisibilityBadge } from "../../components/visibility-badge";
 import { useToast } from "../../components/toast";
 import {
   useAuthUser, useAdminUsers, useAdminTeams, useTeamMembers,
@@ -17,20 +20,21 @@ import type { ChannelInstance } from "../channels/types";
 import { MonitoringPanel } from "./monitoring-panel";
 import { useT } from "../../i18n";
 
-type AdminTab = "teams" | "users" | "providers" | "channels" | "monitoring";
+type AdminTab = "teams" | "users" | "providers" | "channels" | "monitoring" | "security";
 
-const TAB_IDS: AdminTab[] = ["teams", "users", "providers", "channels", "monitoring"];
+const TAB_IDS: AdminTab[] = ["teams", "users", "providers", "channels", "monitoring", "security"];
 const TAB_KEYS: Record<AdminTab, string> = {
   teams: "admin.tab.teams",
   users: "admin.tab.users",
   providers: "admin.tab.providers",
   channels: "admin.tab.channels",
   monitoring: "admin.tab.monitoring",
+  security: "admin.tab.security",
 };
 
 export default function AdminPage() {
   const navigate = useNavigate();
-  const { data: auth_user, isLoading } = useAuthUser();
+  const { data: auth_user, isLoading, isError, refetch } = useAuthUser();
   const [tab, setTab] = useState<AdminTab>("teams");
   const t = useT();
 
@@ -39,40 +43,42 @@ export default function AdminPage() {
     if (!auth_user || auth_user.role !== "superadmin") navigate("/", { replace: true });
   }, [auth_user, isLoading, navigate]);
 
-  if (isLoading || !auth_user) {
-    return (
-      <div className="page">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="skeleton skeleton--row" style={{ marginBottom: "12px" }} />
-        ))}
-      </div>
-    );
-  }
+  const viewStatus = isLoading ? "loading" as const
+    : isError ? "error" as const
+    : !auth_user ? "loading" as const
+    : "success" as const;
 
   return (
-    <div className="page">
-      <SectionHeader title={t("admin.title")} />
+    <SurfaceGuard requiredTier="operator" fallback={<div className="page"><p>{t("common.access_denied")}</p></div>}>
+      <div className="page" data-testid="admin-page">
+        <SectionHeader title={t("admin.title")}>
+          <VisibilityBadge tier="operator" />
+        </SectionHeader>
 
-      <div className="settings__filters" role="tablist" style={{ marginBottom: "16px" }}>
-        {TAB_IDS.map((id) => (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={tab === id}
-            className={`btn btn--sm ${tab === id ? "btn--primary" : ""}`}
-            onClick={() => setTab(id)}
-          >
-            {t(TAB_KEYS[id])}
-          </button>
-        ))}
+        <StatusView status={viewStatus} onRetry={() => void refetch()}>
+          <div className="settings__filters" role="tablist" style={{ marginBottom: "16px" }}>
+            {TAB_IDS.map((id) => (
+              <button
+                key={id}
+                role="tab"
+                aria-selected={tab === id}
+                className={`btn btn--sm ${tab === id ? "btn--primary" : ""}`}
+                onClick={() => setTab(id)}
+              >
+                {t(TAB_KEYS[id])}
+              </button>
+            ))}
+          </div>
+
+          {tab === "teams" && <TeamsPanel />}
+          {tab === "users" && <UsersPanel />}
+          {tab === "providers" && <GlobalProvidersPanel />}
+          {tab === "channels" && <ChannelsPanel />}
+          {tab === "monitoring" && <MonitoringPanel />}
+          {tab === "security" && <SecurityPanel />}
+        </StatusView>
       </div>
-
-      {tab === "teams" && <TeamsPanel />}
-      {tab === "users" && <UsersPanel />}
-      {tab === "providers" && <GlobalProvidersPanel />}
-      {tab === "channels" && <ChannelsPanel />}
-      {tab === "monitoring" && <MonitoringPanel />}
-    </div>
+    </SurfaceGuard>
   );
 }
 
@@ -580,5 +586,84 @@ function ChannelsPanel() {
         </div>
       )}
     </section>
+  );
+}
+
+// -- Security Panel ────────────────────────────────────────────────────────────
+
+function SecurityPanel() {
+  const t = useT();
+  const { data: status, isLoading, isError, refetch } = useQuery<{
+    webhook_secret_set: boolean;
+    trust_zone: string;
+    security_regressions: number;
+    latency_p95_ms: number | null;
+    failure_rate: number | null;
+  }>({
+    queryKey: ["admin-security-summary"],
+    queryFn: () => api.get("/api/admin/security/summary"),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+
+  const viewStatus = isLoading ? "loading" as const
+    : isError ? "error" as const
+    : !status ? "empty" as const
+    : "success" as const;
+
+  return (
+    <StatusView status={viewStatus} onRetry={() => void refetch()} emptyMessage={t("admin.security_summary")}>
+      {status && (
+        <div data-testid="security-panel">
+          {/* Security Regression Summary */}
+          <section className="panel mb-3">
+            <SectionHeader title={t("admin.security_summary")} />
+            <div className="stat-grid">
+              <div className="stat-card">
+                <div className="stat-card__value">{status.security_regressions}</div>
+                <div className="stat-card__label">{t("admin.security_regressions")}</div>
+              </div>
+            </div>
+          </section>
+
+          {/* Webhook Status + Trust Zone */}
+          <section className="panel mb-3">
+            <SectionHeader title={t("admin.webhook_status")} />
+            <div className="grid-stack">
+              <div className="kv mt-0 mb-0">
+                <Badge
+                  status={status.webhook_secret_set ? t("admin.webhook_secret_set") : t("admin.webhook_secret_missing")}
+                  variant={status.webhook_secret_set ? "ok" : "err"}
+                />
+                <span className="text-xs text-muted">{t("admin.webhook_status")}</span>
+              </div>
+              <div className="kv mt-0 mb-0">
+                <Badge status={status.trust_zone} variant={status.trust_zone === "internal" ? "ok" : "warn"} />
+                <span className="text-xs text-muted">{t("admin.trust_zone")}</span>
+              </div>
+            </div>
+          </section>
+
+          {/* Latency + Failure Summary */}
+          <section className="panel mb-3">
+            <SectionHeader title={t("admin.latency_summary")} />
+            <div className="stat-grid">
+              {status.latency_p95_ms != null && (
+                <div className="stat-card">
+                  <div className="stat-card__value">{status.latency_p95_ms}<span className="text-xs text-muted"> ms</span></div>
+                  <div className="stat-card__label">p95 {t("admin.latency_label")}</div>
+                </div>
+              )}
+              {status.failure_rate != null && (
+                <div className="stat-card">
+                  <div className="stat-card__value">{(status.failure_rate * 100).toFixed(1)}%</div>
+                  <div className="stat-card__label">{t("admin.failure_rate")}</div>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+    </StatusView>
   );
 }

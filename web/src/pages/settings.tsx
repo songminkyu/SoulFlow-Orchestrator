@@ -5,6 +5,9 @@ import { Badge } from "../components/badge";
 import { EmptyState } from "../components/empty-state";
 import { SearchInput } from "../components/search-input";
 import { SectionHeader } from "../components/section-header";
+import { SurfaceGuard } from "../components/surface-guard";
+import { StatusView } from "../components/status-contract";
+import { VisibilityBadge } from "../components/visibility-badge";
 import { ToggleSwitch } from "../components/toggle-switch";
 import { useToast } from "../components/toast";
 import { useT } from "../i18n";
@@ -35,8 +38,11 @@ interface ConfigResponse {
 
 const CHANNEL_SECTIONS = new Set(["slack", "discord", "telegram", "channel", "channel.streaming", "channel.grouping", "channel.dispatch", "channel.dedupe"]);
 
+/** operator 이상만 볼 수 있는 섹션 */
+const OPERATOR_SECTIONS = new Set(["security", "auth", "secrets", "vault"]);
+
 export default function SettingsPage() {
-  const { data, isLoading } = useQuery<ConfigResponse>({
+  const { data, isLoading, isError, refetch } = useQuery<ConfigResponse>({
     queryKey: ["config"],
     queryFn: () => api.get("/api/config"),
     staleTime: 30_000,
@@ -46,26 +52,13 @@ export default function SettingsPage() {
 
   const t = useT();
 
-  if (isLoading || !data) return (
-    <div className="page">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="skeleton skeleton--row" style={{ marginBottom: "12px" }} />
-      ))}
-    </div>
-  );
-
-  const sections = (data.sections ?? []).filter((s) => !CHANNEL_SECTIONS.has(s.id));
-  const q = search.toLowerCase();
-  const filtered_sections = sections
-    .filter((s) => !active || s.id === active)
-    .map((s) => ({
-      ...s,
-      fields: q ? s.fields.filter((f) => f.path.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)) : s.fields,
-    }))
-    .filter((s) => s.fields.length > 0);
+  const viewStatus = isLoading ? "loading" as const
+    : isError ? "error" as const
+    : !data ? "empty" as const
+    : "success" as const;
 
   return (
-    <div className="page">
+    <div className="page" data-testid="settings-page">
       <SectionHeader title={t("settings.title")}>
         <SearchInput
           value={search}
@@ -80,44 +73,72 @@ export default function SettingsPage() {
         {t("settings.description")}
       </p>
 
-      <div className="settings__filters" role="tablist">
-        <button
-          role="tab"
-          aria-selected={!active}
-          className={`btn btn--sm ${!active ? "btn--primary" : ""}`}
-          onClick={() => setActive(null)}
-        >
-          {t("settings.all")}
-        </button>
-        {sections.map((s) => (
-          <button
-            key={s.id}
-            role="tab"
-            aria-selected={active === s.id}
-            className={`btn btn--sm ${active === s.id ? "btn--primary" : ""}`}
-            onClick={() => setActive(s.id)}
-          >
-            {t(`cfg.section.${s.id}`)}
-            <span className="settings__filter-count">{s.fields.length}</span>
-          </button>
-        ))}
-      </div>
+      <StatusView status={viewStatus} onRetry={() => void refetch()}>
+        {data && (() => {
+          const sections = (data.sections ?? []).filter((s) => !CHANNEL_SECTIONS.has(s.id));
+          const q = search.toLowerCase();
+          const filtered_sections = sections
+            .filter((s) => !active || s.id === active)
+            .map((s) => ({
+              ...s,
+              fields: q ? s.fields.filter((f) => f.path.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)) : s.fields,
+            }))
+            .filter((s) => s.fields.length > 0);
 
-      {filtered_sections.map((s) => (
-        <SectionPanel key={s.id} section={s} />
-      ))}
-      {search && filtered_sections.length === 0 && (
-        <EmptyState type="no-results" title={t("settings.no_match")} />
-      )}
+          return (
+            <>
+              <div className="settings__filters" role="tablist">
+                <button
+                  role="tab"
+                  aria-selected={!active}
+                  className={`btn btn--sm ${!active ? "btn--primary" : ""}`}
+                  onClick={() => setActive(null)}
+                >
+                  {t("settings.all")}
+                </button>
+                {sections.map((s) => (
+                  <button
+                    key={s.id}
+                    role="tab"
+                    aria-selected={active === s.id}
+                    className={`btn btn--sm ${active === s.id ? "btn--primary" : ""}`}
+                    onClick={() => setActive(s.id)}
+                  >
+                    {t(`cfg.section.${s.id}`)}
+                    <span className="settings__filter-count">{s.fields.length}</span>
+                  </button>
+                ))}
+              </div>
+
+              {filtered_sections.map((s) =>
+                OPERATOR_SECTIONS.has(s.id) ? (
+                  <SurfaceGuard key={s.id} requiredTier="operator">
+                    <SectionPanel section={s} />
+                  </SurfaceGuard>
+                ) : (
+                  <SectionPanel key={s.id} section={s} />
+                ),
+              )}
+              {search && filtered_sections.length === 0 && (
+                <EmptyState type="no-results" title={t("settings.no_match")} />
+              )}
+            </>
+          );
+        })()}
+      </StatusView>
     </div>
   );
 }
 
 function SectionPanel({ section }: { section: SectionInfo }) {
   const t = useT();
+  const isOperatorSection = OPERATOR_SECTIONS.has(section.id);
   return (
-    <section className="panel mb-3">
-      <h2>{t(`cfg.section.${section.id}`)}</h2>
+    <section className="panel mb-3" data-testid={`settings-section-${section.id}`}>
+      <div className="li-flex" style={{ alignItems: "center", gap: "8px" }}>
+        <h2>{t(`cfg.section.${section.id}`)}</h2>
+        {isOperatorSection && <VisibilityBadge tier="operator" />}
+      </div>
       <div className="settings__field-list">
         {section.fields.map((f) => (
           <FieldCard key={f.path} field={f} sectionFields={section.fields} />

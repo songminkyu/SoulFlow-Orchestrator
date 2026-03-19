@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { FormModal } from "../../components/modal";
 import { FormGroup } from "../../components/form-group";
+import { StatusView } from "../../components/status-contract";
 import { ToggleSwitch } from "../../components/toggle-switch";
 import { useT } from "../../i18n";
 import { useAsyncState } from "../../hooks/use-async-state";
@@ -20,7 +21,7 @@ export function ConnectionModal({ mode, onClose, onSaved }: ConnectionModalProps
   const initial = isEdit ? mode.connection : null;
   const t = useT();
 
-  const { data: types = [] } = useQuery<string[]>({
+  const { data: types = [], isError: typesError, refetch: refetchTypes } = useQuery<string[]>({
     queryKey: ["agent-provider-types"],
     queryFn: () => api.get("/api/agents/providers/types"),
     staleTime: 60_000,
@@ -78,7 +79,9 @@ export function ConnectionModal({ mode, onClose, onSaved }: ConnectionModalProps
       submitDisabled={!hasChanges()}
     >
       <FormGroup label={t("providers.provider_type")}>
-        {isEdit ? (
+        {typesError ? (
+          <StatusView status="error" errorMessage={t("providers.types_load_error")} onRetry={() => void refetchTypes()} />
+        ) : isEdit ? (
           <input className="form-input" value={TYPE_LABELS[providerType] || providerType} disabled title={t("common.cannot_edit_after_creation")} />
         ) : (
           <select className="form-input" value={providerType} onChange={(e) => setProviderType(e.target.value)}>

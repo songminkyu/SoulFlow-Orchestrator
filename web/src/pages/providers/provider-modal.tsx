@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { FormModal } from "../../components/modal";
 import { FormGroup } from "../../components/form-group";
+import { StatusView } from "../../components/status-contract";
 import { Combobox, type ComboboxOption } from "../../components/combobox";
 import { ToggleSwitch } from "../../components/toggle-switch";
 import { useT } from "../../i18n";
@@ -18,11 +19,14 @@ interface ProviderModalProps {
   onSaved: () => void;
 }
 
-function format_price(price?: number): string {
-  if (price == null) return "—";
-  if (price === 0) return "Free";
-  if (price < 0.01) return `$${price.toFixed(4)}`;
-  return `$${price.toFixed(2)}`;
+/** format_price는 useT() 콜백이 필요하므로 컴포넌트 내부에서 호출 */
+function create_format_price(free_label: string) {
+  return function format_price(price?: number): string {
+    if (price == null) return "\u2014";
+    if (price === 0) return free_label;
+    if (price < 0.01) return `$${price.toFixed(4)}`;
+    return `$${price.toFixed(2)}`;
+  };
 }
 
 export function ProviderModal({ mode, connections, onClose, onSaved }: ProviderModalProps) {
@@ -68,8 +72,10 @@ export function ProviderModal({ mode, connections, onClose, onSaved }: ProviderM
   const [siteUrl, setSiteUrl] = useState(typeof s.site_url === "string" ? s.site_url : "");
   const [appName, setAppName] = useState(typeof s.app_name === "string" ? s.app_name : "");
 
+  const format_price = useMemo(() => create_format_price(t("providers.price_free")), [t]);
+
   const canFetchModels = TYPES_WITH_MODELS.has(resolvedType);
-  const { data: modelList, isLoading: modelsLoading } = useQuery<ModelInfo[]>({
+  const { data: modelList, isLoading: modelsLoading, isError: modelsError, refetch: refetchModels } = useQuery<ModelInfo[]>({
     queryKey: ["provider-models", connectionId || resolvedType, apiBase],
     queryFn: () => {
       // connection이 있으면 connection별 모델 API 사용
@@ -102,7 +108,7 @@ export function ProviderModal({ mode, connections, onClose, onSaved }: ProviderM
       if (m.context_length) parts.push(`${Math.round(m.context_length / 1000)}K`);
       return { value: m.id, label: m.name, detail: parts.join(" · ") || undefined };
     }),
-  [filteredModels]);
+  [filteredModels, format_price]);
 
   const toggle_mode = (m: string) => {
     const next = new Set(selectedModes);
@@ -303,7 +309,9 @@ export function ProviderModal({ mode, connections, onClose, onSaved }: ProviderM
         )}
 
         <FormGroup label={t("providers.model")}>
-          {canFetchModels && modelOptions.length > 0 ? (
+          {modelsError ? (
+            <StatusView status="error" errorMessage={t("providers.models_load_error")} onRetry={() => void refetchModels()} />
+          ) : canFetchModels && modelOptions.length > 0 ? (
             <Combobox
               options={modelOptions}
               value={model}
@@ -315,7 +323,7 @@ export function ProviderModal({ mode, connections, onClose, onSaved }: ProviderM
           ) : (
             <input className="form-input" value={model} onChange={(e) => setModel(e.target.value)} placeholder={resolvedType === "openrouter" ? "anthropic/claude-sonnet-4" : "gpt-4o"} />
           )}
-          {canFetchModels && !modelsLoading && modelList && modelList.length > 0 && modelOptions.length === 0 && (
+          {canFetchModels && !modelsLoading && !modelsError && modelList && modelList.length > 0 && modelOptions.length === 0 && (
             <span className="form-hint text-warn">{t("providers.no_models_for_purpose")}</span>
           )}
           <span className="form-hint">{t("providers.model_hint")}</span>

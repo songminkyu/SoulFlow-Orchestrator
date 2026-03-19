@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { EmptyState } from "../components/empty-state";
+import { StatusView } from "../components/status-contract";
 import { useToast } from "../components/toast";
 import { SearchInput } from "../components/search-input";
 import { SectionHeader } from "../components/section-header";
@@ -28,7 +29,7 @@ export default function SecretsPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const run_action = useAsyncAction();
-  const { data } = useQuery<{ names: string[] }>({ queryKey: ["secrets"], queryFn: () => api.get("/api/secrets"), refetchInterval: 30_000, staleTime: 10_000 });
+  const { data, isLoading: secretsLoading, isError: secretsError, refetch: refetchSecrets } = useQuery<{ names: string[] }>({ queryKey: ["secrets"], queryFn: () => api.get("/api/secrets"), refetchInterval: 30_000, staleTime: 10_000 });
   const names = data?.names ?? [];
 
   const [adding, setAdding] = useState(false);
@@ -81,6 +82,10 @@ export default function SecretsPage() {
         </div>
       </SectionHeader>
 
+      <StatusView
+        status={secretsLoading ? "loading" : secretsError ? "error" : "success"}
+        onRetry={() => void refetchSecrets()}
+      >
       {!names.length ? (
         <EmptyState icon="🔐" title={t("secrets.no_secrets")}
           actions={<button className="btn btn--sm btn--ok" onClick={() => setAdding(true)}>{t("secrets.add")}</button>}
@@ -125,6 +130,7 @@ export default function SecretsPage() {
           </DataTable>
         )
       )}
+      </StatusView>
 
       <DeleteConfirmModal
         open={!!deleteTarget}

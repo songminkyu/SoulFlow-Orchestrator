@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
+import { StatusView } from "../components/status-contract";
 import { useT } from "../i18n";
 import { useAsyncState } from "../hooks/use-async-state";
 import { PROVIDER_TYPE_LABELS as TYPE_LABELS } from "../utils/constants";
@@ -25,7 +26,7 @@ export default function SetupPage() {
   const [personaName, setPersonaName] = useState("");
   const { pending: submitting, run: run_finish } = useAsyncState();
 
-  const { data: providerTypes = [] } = useQuery({
+  const { data: providerTypes = [], isLoading: typesLoading, isError: typesError, refetch: refetchTypes } = useQuery({
     queryKey: ["provider-types"],
     queryFn: () => api.get<string[]>("/api/agents/providers/types"),
     staleTime: 300_000,
@@ -85,6 +86,11 @@ export default function SetupPage() {
           <p className="text-sm text-muted mb-3">
             {t("setup.step.providers.desc")}
           </p>
+          <StatusView
+            status={typesLoading ? "loading" : typesError ? "error" : providerTypes.length === 0 ? "empty" : "success"}
+            onRetry={() => void refetchTypes()}
+            emptyMessage={t("setup.no_providers")}
+          >
           <div className="setup__provider-list">
             {providerTypes.map((type) => {
               const entry = providers[type];
@@ -112,6 +118,7 @@ export default function SetupPage() {
               );
             })}
           </div>
+          </StatusView>
           <div className="setup__nav setup__nav--end">
             <button className="btn btn--primary" disabled={selected.length === 0} onClick={() => {
               const first = selected[0]?.[0] || "";
