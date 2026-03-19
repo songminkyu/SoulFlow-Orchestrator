@@ -512,7 +512,6 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
           can_send={!running && input.trim().length > 0 && !!model.provider_id}
           onSend={() => void handle_send()}
           placeholder={t("prompting.chat_placeholder")}
-          popupPlacement="up"
         />
       </main>
     </div>

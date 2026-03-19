@@ -63,7 +63,6 @@ export function WorkflowPromptBar({ name, workflow, onApply, initialPrompt }: {
   const [loading, setLoading] = useState(false);
   const [value, setValue] = useState(initialPrompt ?? "");
   const auto_fired = useRef(false);
-  const [selectedProvider, setSelectedProvider] = useState("");
   const [selectedModel, setSelectedModel] = useState("");
   const [streamText, setStreamText] = useState("");
   const [patchLog, setPatchLog] = useState<string[]>([]);
@@ -100,7 +99,6 @@ export function WorkflowPromptBar({ name, workflow, onApply, initialPrompt }: {
         // 항상 현재 in-memory 워크플로우를 전달 (name만 보내면 파일 재로드로 이전 변경사항 소실)
         if (wf) body.workflow = wf;
         if (name) body.name = name;
-        if (selectedProvider) body.provider_instance_id = selectedProvider;
         if (selectedModel) body.model = selectedModel;
 
         const response = await fetch("/api/workflow/suggest/stream", {
@@ -216,11 +214,8 @@ export function WorkflowPromptBar({ name, workflow, onApply, initialPrompt }: {
         can_send={!!value.trim() && !loading}
         onSend={send}
         placeholder={t("workflows.prompt_placeholder")}
-        selectedProvider={selectedProvider}
         selectedModel={selectedModel}
-        onProviderChange={setSelectedProvider}
         onModelChange={setSelectedModel}
-        popupPlacement="down"
         className="workflow-prompt-bar__prompt"
       />
     </div>
@@ -237,7 +232,6 @@ export function NodeRunInputBar({ nodeId, onSubmit, onCancel }: {
 }) {
   const t = useT();
   const [value, setValue] = useState("");
-  const [selectedProvider, setSelectedProvider] = useState("");
   const [selectedModel, setSelectedModel] = useState("");
   return (
     <div className="node-run-input-bar">
@@ -250,13 +244,10 @@ export function NodeRunInputBar({ nodeId, onSubmit, onCancel }: {
         setInput={setValue}
         sending={false}
         can_send={!!value.trim()}
-        onSend={() => { if (value.trim()) onSubmit(value.trim(), selectedProvider || undefined, selectedModel || undefined); }}
+        onSend={() => { if (value.trim()) onSubmit(value.trim(), undefined, selectedModel || undefined); }}
         placeholder={t("workflows.run_objective_placeholder")}
-        selectedProvider={selectedProvider}
         selectedModel={selectedModel}
-        onProviderChange={setSelectedProvider}
         onModelChange={setSelectedModel}
-        popupPlacement="down"
       />
     </div>
   );

@@ -187,7 +187,7 @@ export default function WorkflowDetailPage() {
   if (isLoading || !wf) {
     return (
       <div className="page">
-        <StatusView state="loading">
+        <StatusView status="loading">
           <div className="skeleton skeleton-card" style={{ height: 40, width: 120, marginBottom: "var(--sp-3)" }} />
           <div className="skeleton skeleton-card" style={{ height: 200, marginBottom: "var(--sp-4)" }} />
           <div className="skeleton skeleton-card" style={{ height: 200 }} />
