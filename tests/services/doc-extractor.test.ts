@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import AdmZip from "adm-zip";
-import { extract_doc_text, BINARY_DOC_EXTENSIONS } from "@src/utils/doc-extractor.js";
+import {
+  extract_doc_text,
+  BINARY_DOC_EXTENSIONS,
+  VIDEO_EXTENSIONS,
+  extract_video_metadata,
+} from "@src/utils/doc-extractor.js";
 
 describe("BINARY_DOC_EXTENSIONS", () => {
   it("pdf/docx/pptx/hwpx 포함", () => {
@@ -262,5 +267,65 @@ describe("extract_doc_text — L73: DOCX 텍스트 추출", () => {
     const result = await extract_doc_text(buf, ".docx");
     expect(typeof result).toBe("string");
     // mammoth이 텍스트를 추출하거나 빈 문자열을 반환해도 L73 실행됨
+  });
+});
+
+// ══════════════════════════════════════════
+// K3: Video Metadata Support
+// ══════════════════════════════════════════
+
+describe("K3: VIDEO_EXTENSIONS", () => {
+  it("mp4/webm/mov/avi/mkv 포함", () => {
+    expect(VIDEO_EXTENSIONS.has(".mp4")).toBe(true);
+    expect(VIDEO_EXTENSIONS.has(".webm")).toBe(true);
+    expect(VIDEO_EXTENSIONS.has(".mov")).toBe(true);
+    expect(VIDEO_EXTENSIONS.has(".avi")).toBe(true);
+    expect(VIDEO_EXTENSIONS.has(".mkv")).toBe(true);
+  });
+
+  it("이미지/텍스트 확장자 미포함", () => {
+    expect(VIDEO_EXTENSIONS.has(".png")).toBe(false);
+    expect(VIDEO_EXTENSIONS.has(".md")).toBe(false);
+    expect(VIDEO_EXTENSIONS.has(".pdf")).toBe(false);
+  });
+});
+
+describe("K3: extract_video_metadata", () => {
+  it("mp4 파일 → mime_type=video/mp4", () => {
+    const meta = extract_video_metadata("intro.mp4", 1024);
+    expect(meta.mime_type).toBe("video/mp4");
+    expect(meta.file_path).toBe("intro.mp4");
+    expect(meta.file_size).toBe(1024);
+    expect(meta.label).toContain("intro.mp4");
+  });
+
+  it("webm 파일 → mime_type=video/webm", () => {
+    const meta = extract_video_metadata("demo.webm", 2048);
+    expect(meta.mime_type).toBe("video/webm");
+  });
+
+  it("mov 파일 → mime_type=video/quicktime", () => {
+    const meta = extract_video_metadata("clip.mov", 512);
+    expect(meta.mime_type).toBe("video/quicktime");
+  });
+
+  it("avi 파일 → mime_type=video/x-msvideo", () => {
+    const meta = extract_video_metadata("old.avi", 4096);
+    expect(meta.mime_type).toBe("video/x-msvideo");
+  });
+
+  it("mkv 파일 → mime_type=video/x-matroska", () => {
+    const meta = extract_video_metadata("movie.mkv", 8192);
+    expect(meta.mime_type).toBe("video/x-matroska");
+  });
+
+  it("알 수 없는 확장자 → mime_type=video/octet-stream fallback", () => {
+    const meta = extract_video_metadata("unknown.xyz", 0);
+    expect(meta.mime_type).toBe("video/octet-stream");
+  });
+
+  it("label 필드에 파일 경로 포함", () => {
+    const meta = extract_video_metadata("subfolder/video.mp4", 100);
+    expect(meta.label).toContain("subfolder/video.mp4");
   });
 });

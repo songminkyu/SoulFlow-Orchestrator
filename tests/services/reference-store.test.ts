@@ -3,7 +3,12 @@
  * sqlite-vec 벡터 임베딩 경로는 embed_fn 없이 건너뜀.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { ReferenceStore } from "../../src/services/reference-store.js";
+import {
+  ReferenceStore,
+  to_retrieval_item,
+  make_retrieval_envelope,
+} from "../../src/services/reference-store.js";
+import type { RetrievalItem, RetrievalEnvelope } from "../../src/services/reference-store.js";
 import { mkdtemp, rm, writeFile, mkdir, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -249,7 +254,7 @@ describe("ReferenceStore", () => {
     await writeFile(join(refs_dir, "embed.md"), "# Embed Test\n\nContent to embed.");
 
     let embed_called = false;
-    store.set_embed(async (_texts, _opts) => {
+    store.set_embed(async (_texts) => {
       embed_called = true;
       // VEC_DIMENSIONS=256 맞춤 빈 벡터 반환
       return { embeddings: _texts.map(() => new Array(256).fill(0.1)) };
@@ -565,5 +570,161 @@ describe("ReferenceStore — search 정렬·limit", () => {
     if (results.length >= 2) {
       expect(results[0].score).toBeGreaterThanOrEqual(results[1].score);
     }
+  });
+});
+
+// ══════════════════════════════════════════
+// K3: Multimodal Reference Contract
+// ══════════════════════════════════════════
+
+describe("K3: to_retrieval_item — modality 변환", () => {
+  const base_result = {
+    chunk_id: "chunk-001",
+    doc_path: "guide.md",
+    heading: "Introduction",
+    content: "This is a test document.",
+    score: 0.85,
+  };
+
+  it("media_type='text' → modality='text', media_path 없음", () => {
+    const item = to_retrieval_item(base_result, "text");
+    expect(item.modality).toBe("text");
+    expect(item.media_path).toBeUndefined();
+  });
+
+  it("media_type='image' → modality='image', media_path 전달됨", () => {
+    const item = to_retrieval_item(base_result, "image", "images/photo.png");
+    expect(item.modality).toBe("image");
+    expect(item.media_path).toBe("images/photo.png");
+  });
+
+  it("media_type='video' → modality='video', media_path 전달됨", () => {
+    const item = to_retrieval_item(base_result, "video", "videos/intro.mp4");
+    expect(item.modality).toBe("video");
+    expect(item.media_path).toBe("videos/intro.mp4");
+  });
+
+  it("알 수 없는 media_type → modality='text' fallback", () => {
+    const item = to_retrieval_item(base_result, "unknown_type");
+    expect(item.modality).toBe("text");
+  });
+
+  it("to_retrieval_item: 기존 ReferenceSearchResult 필드 모두 보존", () => {
+    const item = to_retrieval_item(base_result, "text");
+    expect(item.chunk_id).toBe(base_result.chunk_id);
+    expect(item.doc_path).toBe(base_result.doc_path);
+    expect(item.heading).toBe(base_result.heading);
+    expect(item.content).toBe(base_result.content);
+    expect(item.score).toBe(base_result.score);
+  });
+});
+
+describe("K3: make_retrieval_envelope — modality 구분", () => {
+  const text_item: RetrievalItem = {
+    chunk_id: "t1",
+    doc_path: "doc.md",
+    heading: "Intro",
+    content: "Text content",
+    score: 0.9,
+    modality: "text",
+  };
+  const image_item: RetrievalItem = {
+    chunk_id: "i1",
+    doc_path: "photo.png",
+    heading: "",
+    content: "[이미지: photo.png]",
+    score: 0.7,
+    modality: "image",
+    media_path: "photo.png",
+  };
+  const video_item: RetrievalItem = {
+    chunk_id: "v1",
+    doc_path: "intro.mp4",
+    heading: "",
+    content: "[비디오: intro.mp4]",
+    score: 0.6,
+    modality: "video",
+    media_path: "intro.mp4",
+  };
+
+  it("빈 배열 → 모든 슬롯 빈 배열, total=0", () => {
+    const envelope: RetrievalEnvelope = make_retrieval_envelope([]);
+    expect(envelope.items).toHaveLength(0);
+    expect(envelope.text_items).toHaveLength(0);
+    expect(envelope.image_items).toHaveLength(0);
+    expect(envelope.video_items).toHaveLength(0);
+    expect(envelope.total).toBe(0);
+  });
+
+  it("text_items 슬롯에 텍스트 아이템만 포함", () => {
+    const envelope = make_retrieval_envelope([text_item, image_item, video_item]);
+    expect(envelope.text_items).toHaveLength(1);
+    expect(envelope.text_items[0].chunk_id).toBe("t1");
+  });
+
+  it("image_items 슬롯에 이미지 아이템만 포함", () => {
+    const envelope = make_retrieval_envelope([text_item, image_item, video_item]);
+    expect(envelope.image_items).toHaveLength(1);
+    expect(envelope.image_items[0].chunk_id).toBe("i1");
+  });
+
+  it("video_items 슬롯에 비디오 아이템만 포함", () => {
+    const envelope = make_retrieval_envelope([text_item, image_item, video_item]);
+    expect(envelope.video_items).toHaveLength(1);
+    expect(envelope.video_items[0].chunk_id).toBe("v1");
+  });
+
+  it("items 배열에 모든 modality 포함, total=3", () => {
+    const envelope = make_retrieval_envelope([text_item, image_item, video_item]);
+    expect(envelope.items).toHaveLength(3);
+    expect(envelope.total).toBe(3);
+  });
+});
+
+describe("K3: 기존 text/document retrieval 회귀 방지", () => {
+  let dir: string;
+  let store: ReferenceStore;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "k3-regression-"));
+    store = new ReferenceStore(dir);
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  });
+
+  it("ReferenceStore.search 반환값이 기존 ReferenceSearchResult 구조 유지", async () => {
+    const refs_dir = join(dir, "references");
+    await mkdir(refs_dir, { recursive: true });
+    await writeFile(join(refs_dir, "k3.md"), "# K3 Test\n\nMultimodal contract test document.");
+    await store.sync();
+    const results = await store.search("multimodal contract");
+    expect(Array.isArray(results)).toBe(true);
+    if (results.length > 0) {
+      const r = results[0];
+      expect(r).toHaveProperty("chunk_id");
+      expect(r).toHaveProperty("doc_path");
+      expect(r).toHaveProperty("heading");
+      expect(r).toHaveProperty("content");
+      expect(r).toHaveProperty("score");
+      // K3 타입은 추가되었지만 기존 필드가 깨지면 안 됨
+      expect(typeof r.score).toBe("number");
+    }
+  });
+
+  it("to_retrieval_item이 ReferenceSearchResult를 변환해도 기존 search 동작 무관", async () => {
+    const fake_search_result = {
+      chunk_id: "abc",
+      doc_path: "test.md",
+      heading: "Test",
+      content: "Some text",
+      score: 0.5,
+    };
+    // 기존 search 결과를 K3 envelope로 변환
+    const item = to_retrieval_item(fake_search_result, "text");
+    const envelope = make_retrieval_envelope([item]);
+    expect(envelope.text_items).toHaveLength(1);
+    expect(envelope.text_items[0].doc_path).toBe("test.md");
   });
 });

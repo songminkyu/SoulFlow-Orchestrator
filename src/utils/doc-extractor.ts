@@ -11,6 +11,51 @@ const MAX_EXTRACT_CHARS = 200_000;
 /** 지원 확장자 목록 (소문자). */
 export const BINARY_DOC_EXTENSIONS = new Set([".pdf", ".docx", ".pptx", ".hwpx"]);
 
+/** 비디오 파일 확장자 목록 (소문자). K3 multimodal contract — metadata-first. */
+export const VIDEO_EXTENSIONS = new Set([".mp4", ".webm", ".mov", ".avi", ".mkv"]);
+
+/** 비디오 레퍼런스 메타데이터. 실제 비디오 이해(video understanding) 모델은 후속 트랙으로 남김. */
+export interface VideoMetadata {
+  /** 원본 파일 경로 (refs_dir 기준 상대 경로). */
+  file_path: string;
+  /** MIME 타입 (파일 확장자 기반 추론). */
+  mime_type: string;
+  /** 파일 크기 (바이트). */
+  file_size: number;
+  /** 사람이 읽기 쉬운 레이블 (alt_text 대체용). */
+  label: string;
+}
+
+/**
+ * 비디오 파일 메타데이터 추출. K3 metadata-first 원칙.
+ * 실제 프레임 분석 / 트랜스크립션은 후속 트랙에서 구현.
+ *
+ * @param file_path - refs_dir 기준 상대 경로
+ * @param file_size - 파일 크기 (바이트)
+ */
+export function extract_video_metadata(file_path: string, file_size: number): VideoMetadata {
+  const ext = file_path.split(".").pop()?.toLowerCase() ?? "";
+  const mime_type = resolve_video_mime(ext);
+  return {
+    file_path,
+    mime_type,
+    file_size,
+    label: `[비디오: ${file_path}]`,
+  };
+}
+
+/** 확장자 → MIME 타입 매핑. */
+function resolve_video_mime(ext: string): string {
+  switch (ext) {
+    case "mp4":  return "video/mp4";
+    case "webm": return "video/webm";
+    case "mov":  return "video/quicktime";
+    case "avi":  return "video/x-msvideo";
+    case "mkv":  return "video/x-matroska";
+    default:     return "video/octet-stream";
+  }
+}
+
 /**
  * 버퍼 + 확장자로 텍스트 추출.
  * 실패 시 빈 문자열 반환 (호출자가 skip 처리).

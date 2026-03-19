@@ -47,6 +47,91 @@ export interface ReferenceSearchResult {
   score: number;
 }
 
+// ── K3: Multimodal Reference Contract ────────────────────────────────────────
+
+/** 레퍼런스 아이템의 모달리티 (텍스트/이미지/비디오). */
+export type Modality = "text" | "image" | "video";
+
+/**
+ * 통합 retrieval 결과 항목. text/image/video를 동일 추상화 축으로 표현.
+ * text retrieval과 multimodal retrieval이 동일 인터페이스를 공유.
+ */
+export interface RetrievalItem {
+  /** 청크 고유 ID. */
+  chunk_id: string;
+  /** 원본 문서 경로 (refs_dir 기준 상대 경로). */
+  doc_path: string;
+  /** 섹션 제목 (텍스트 청크) 또는 alt_text (이미지/비디오). */
+  heading: string;
+  /** 텍스트 청크 내용 또는 대체 텍스트 표현. */
+  content: string;
+  /** 유사도 점수 (높을수록 관련성 높음). */
+  score: number;
+  /** 모달리티 구분 — retrieval contract와 generation contract를 섞지 않음. */
+  modality: Modality;
+  /** 미디어 파일 경로 (image/video). text는 undefined. */
+  media_path?: string;
+}
+
+/**
+ * retrieval 결과 envelope. modality별로 분리된 슬롯으로 소비자가 선택 처리 가능.
+ * text/document retrieval이 깨지지 않도록 items 배열은 항상 존재.
+ */
+export interface RetrievalEnvelope {
+  /** 전체 결과 (modality 혼합 가능). */
+  items: RetrievalItem[];
+  /** 텍스트 전용 결과 (빠른 필터 접근). */
+  text_items: RetrievalItem[];
+  /** 이미지 전용 결과. */
+  image_items: RetrievalItem[];
+  /** 비디오 전용 결과. */
+  video_items: RetrievalItem[];
+  /** 총 결과 수. */
+  total: number;
+}
+
+/**
+ * ReferenceSearchResult를 RetrievalItem으로 변환.
+ * ref_documents.media_type 컬럼 값을 기반으로 modality를 결정.
+ *
+ * @param result - 기존 ReferenceSearchResult
+ * @param media_type - ref_documents 테이블의 media_type 값 ('text' | 'image' | 'video')
+ * @param media_path - 미디어 파일 경로 (image/video인 경우)
+ */
+export function to_retrieval_item(
+  result: ReferenceSearchResult,
+  media_type: string,
+  media_path?: string,
+): RetrievalItem {
+  const modality: Modality =
+    media_type === "image" ? "image"
+    : media_type === "video" ? "video"
+    : "text";
+  return {
+    chunk_id: result.chunk_id,
+    doc_path: result.doc_path,
+    heading: result.heading,
+    content: result.content,
+    score: result.score,
+    modality,
+    ...(media_path !== undefined ? { media_path } : {}),
+  };
+}
+
+/**
+ * RetrievalItem 배열을 RetrievalEnvelope로 패키징.
+ * 소비자가 모달리티별로 선택 처리할 수 있도록 분리된 슬롯 제공.
+ */
+export function make_retrieval_envelope(items: RetrievalItem[]): RetrievalEnvelope {
+  return {
+    items,
+    text_items: items.filter((i) => i.modality === "text"),
+    image_items: items.filter((i) => i.modality === "image"),
+    video_items: items.filter((i) => i.modality === "video"),
+    total: items.length,
+  };
+}
+
 export interface ReferenceStoreLike {
   set_embed(fn: EmbedFn): void;
   sync(opts?: { force?: boolean }): Promise<{ added: number; updated: number; removed: number }>;
