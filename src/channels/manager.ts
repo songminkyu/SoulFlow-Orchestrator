@@ -354,6 +354,7 @@ export class ChannelManager implements ServiceLike {
       chat_id: info.chat_id,
       content: "",
       at: now_iso(),
+      team_id: provider,
     };
     this.logger.info("task resumed after dashboard approval", { task_id: info.task_id });
     await this.invoke_and_reply(provider, msg, this.config.defaultAlias, info.task_id);
@@ -562,6 +563,8 @@ export class ChannelManager implements ServiceLike {
             if (this.is_duplicate(msg)) continue;
             this.mark_seen(msg);
             had_new_messages = true;
+            // H-2: team_id 미설정 시 provider를 tenant 범위로 사용 (cross-tenant 격리의 최소 기준)
+            if (!msg.team_id) (msg as Record<string, unknown>)["team_id"] = msg.provider;
             this.bus.publish_inbound(msg).catch((e) =>
               this.logger.debug("publish_inbound failed", { error: error_message(e) }),
             );
@@ -746,7 +749,8 @@ export class ChannelManager implements ServiceLike {
         user_dir_override: workspace_override,
         on_stream: (chunk) => renderer.on_text_chunk(chunk),
         on_progress: (event) => {
-          this.bus.publish_progress({ ...event, team_id: msg_team_id }).catch((e) =>
+          // H-2: message.team_id는 validation 통과 보장 (bus publish 전 주입됨)
+          this.bus.publish_progress({ ...event, team_id: message.team_id }).catch((e) =>
             this.logger.debug("progress_publish_failed", { error: error_message(e) }),
           );
         },
@@ -953,6 +957,7 @@ export class ChannelManager implements ServiceLike {
         chat_id: task.chatId,
         content,
         at: now_iso(),
+        team_id: provider,
         metadata: { kind: "task_expired", task_id: task.taskId },
       };
       this.dispatch.send(provider, outbound).catch((e) =>
@@ -984,6 +989,8 @@ export class ChannelManager implements ServiceLike {
         id: `${id_prefix || provider}-${Date.now()}`, provider, instance_id: message.instance_id || provider, channel: provider, sender_id,
         chat_id: message.chat_id, content, media, at: now_iso(),
         reply_to: resolve_reply_to(provider, message), thread_id: message.thread_id, metadata,
+        // H-2: 인바운드 메시지의 team_id 전파 (tenant 격리 유지)
+        team_id: message.team_id,
       };
       if (provider === "web") {
         await this.bus.publish_outbound(outbound);
@@ -1149,6 +1156,8 @@ export class ChannelManager implements ServiceLike {
           const recovery_seen_key = `${provider}:${chat_id}:${recovery_id}`;
           if (this.seen.has(recovery_seen_key)) continue;
 
+          // H-2: session key에서 team_id 추출 (5부분 키: provider:team_id:chat_id:alias:thread)
+          const orphan_team_id = parts.length >= 5 ? (parts[1] ?? provider) : provider;
           this.logger.info("recovering orphaned message", { provider, chat_id, sender_id, recovery_id });
           const recovery_msg: InboundMessage = {
             id: recovery_id,
@@ -1160,6 +1169,7 @@ export class ChannelManager implements ServiceLike {
             at: String(last.timestamp || now_iso()),
             thread_id: thread === "main" ? undefined : thread,
             metadata: { kind: "orphan_recovery", is_recovery: true, message_id: recovery_id },
+            team_id: orphan_team_id,
           };
           this.mark_seen(recovery_msg);
           await this.bus.publish_inbound(recovery_msg);
@@ -1210,6 +1220,7 @@ export class ChannelManager implements ServiceLike {
         at: now_iso(),
         reply_to,
         thread_id: row.thread_id,
+        team_id: row.team_id,
         metadata: { kind: "control_reaction", action: "stop" },
       }).catch((e) =>
         this.logger.debug("control reaction reply failed", { error: error_message(e) }),

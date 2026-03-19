@@ -45,6 +45,8 @@ export type ToolExecutionContext = {
   chat_id?: string;
   sender_id?: string;
   reply_to?: string;
+  /** H-2: 멀티테넌트 격리 — 도구 실행 컨텍스트의 team_id. */
+  team_id?: string;
 };
 
 export interface ToolLike {

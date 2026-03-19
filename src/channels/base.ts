@@ -103,6 +103,7 @@ export abstract class BaseChannel implements ChatChannel {
       chat_id,
       content: line,
       at: now_iso(),
+      team_id: this.provider,
       metadata: {
         kind: "command",
       },
@@ -124,6 +125,7 @@ export abstract class BaseChannel implements ChatChannel {
       chat_id,
       content,
       at: now_iso(),
+      team_id: this.provider,
       metadata: {
         kind: "file_request",
         request_id,
@@ -154,6 +156,7 @@ export abstract class BaseChannel implements ChatChannel {
       chat_id,
       content,
       at: now_iso(),
+      team_id: this.provider,
       metadata: {
         kind: "agent_mention",
         from_alias,

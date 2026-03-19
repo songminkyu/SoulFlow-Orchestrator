@@ -56,6 +56,8 @@ function to_inbound_message(channel: DiscordChannel, raw: Record<string, unknown
     thread_id: typeof raw.channel_id === "string" ? raw.channel_id : undefined,
     media,
     metadata: { discord: raw, command, mentions, from_is_bot, message_id: String(raw.id || "") },
+    // H-2: Discord guild_id를 tenant 식별자로 사용, 미존재 시 provider 사용
+    team_id: String((raw as Record<string, unknown>).guild_id || "discord"),
   };
 }
 

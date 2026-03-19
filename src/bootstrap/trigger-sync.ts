@@ -47,7 +47,7 @@ export async function run_trigger_sync(deps: TriggerSyncDeps): Promise<void> {
           ? `${substituted.objective || substituted.title}\n\n[trigger data]\n${JSON.stringify(trigger_data, null, 2)}`
           : substituted.objective || substituted.title;
         const result = await orchestration.execute({
-          message: { id: run_id, provider: channel, channel, sender_id: "trigger", chat_id, content, at: now_iso() },
+          message: { id: run_id, provider: channel, channel, sender_id: "trigger", chat_id, content, at: now_iso(), team_id: channel },
           alias: app_config.channel.defaultAlias,
           provider: channel,
           media_inputs: [],

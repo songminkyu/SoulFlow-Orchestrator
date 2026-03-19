@@ -146,7 +146,7 @@ async function _run_phase_loop_inner(
   }
 
   const bus = deps.bus;
-  const channel_callbacks = bus ? build_phase_channel_callbacks(deps, bus, workflow_id, req.provider, req.message.chat_id) : {};
+  const channel_callbacks = bus ? build_phase_channel_callbacks(deps, bus, workflow_id, req.provider, req.message.chat_id, req.message.team_id) : {};
 
   const result = await exec({
     workflow_id,
@@ -162,7 +162,7 @@ async function _run_phase_loop_inner(
     invoke_tool: (tool_id, params, ctx) => deps.runtime.execute_tool(tool_id, params, ctx ? { channel: ctx.channel, chat_id: ctx.chat_id, sender_id: ctx.sender_id, task_id: ctx.workflow_id } : undefined),
     ...channel_callbacks,
     on_phase_change: (state) => {
-      req.on_progress?.({ task_id: workflow_id, step: state.current_phase + 1, total_steps: state.phases.length, description: `phase ${state.current_phase + 1}/${state.phases.length}`, provider: req.provider, chat_id: req.message.chat_id, at: now_iso() });
+      req.on_progress?.({ task_id: workflow_id, step: state.current_phase + 1, total_steps: state.phases.length, description: `phase ${state.current_phase + 1}/${state.phases.length}`, provider: req.provider, chat_id: req.message.chat_id, at: now_iso(), team_id: req.message.team_id });
     },
   }, {
     subagents,
@@ -306,6 +306,7 @@ function build_phase_channel_callbacks(
   workflow_id: string,
   origin_channel: string,
   origin_chat_id: string,
+  origin_team_id?: string,
 ) {
   const logger = deps.logger;
   const hitl = deps.hitl_store;
@@ -319,6 +320,7 @@ function build_phase_channel_callbacks(
         id: msg_id, provider: channel, channel,
         sender_id: "system", chat_id, content: req.content,
         at: now_iso(),
+        team_id: origin_team_id || channel,
         metadata: { workflow_id, type: "workflow_notification", ...(req.structured ? { structured: req.structured } : {}) },
       });
       return { ok: true, message_id: msg_id };
@@ -336,6 +338,7 @@ function build_phase_channel_callbacks(
       id: `wf-ask-${short_id(8)}`, provider: channel, channel,
       sender_id: "system", chat_id, content: req.content,
       at: now_iso(),
+      team_id: origin_team_id || channel,
       metadata: { workflow_id, type: "workflow_ask_channel", ...(req.structured ? { structured: req.structured } : {}) },
     }).catch((e) => logger.error("workflow_ask_channel_send_failed", { workflow_id, error: error_message(e) }));
 

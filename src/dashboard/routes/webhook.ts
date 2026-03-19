@@ -70,12 +70,12 @@ function verify_timestamp(req: IncomingMessage): boolean {
  * /hooks/wake — 기존 세션 wake.
  * POST body: { session_key, message, provider?, chat_id? }
  */
-async function handle_wake(deps: WebhookDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
+async function handle_wake(deps: WebhookDeps, req: IncomingMessage, res: ServerResponse, pre_body?: Record<string, unknown> | null): Promise<void> {
   if (req.method !== "POST") {
     deps.json(res, 405, { ok: false, error: "method_not_allowed" });
     return;
   }
-  const body = await deps.read_body(req);
+  const body = pre_body !== undefined ? pre_body : await deps.read_body(req);
   const session_key = String(body?.session_key || "").trim();
   const message = String(body?.message || "").trim();
   if (!session_key) {
@@ -94,6 +94,7 @@ async function handle_wake(deps: WebhookDeps, req: IncomingMessage, res: ServerR
     chat_id,
     content: message || `[webhook wake: ${session_key}]`,
     at: now_iso(),
+    team_id: provider,
     metadata: {
       kind: "webhook_wake",
       session_key,
@@ -108,12 +109,12 @@ async function handle_wake(deps: WebhookDeps, req: IncomingMessage, res: ServerR
  * /hooks/agent — 직접 에이전트 호출.
  * POST body: { task, provider?, chat_id?, alias? }
  */
-async function handle_agent_hook(deps: WebhookDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
+async function handle_agent_hook(deps: WebhookDeps, req: IncomingMessage, res: ServerResponse, pre_body?: Record<string, unknown> | null): Promise<void> {
   if (req.method !== "POST") {
     deps.json(res, 405, { ok: false, error: "method_not_allowed" });
     return;
   }
-  const body = await deps.read_body(req);
+  const body = pre_body !== undefined ? pre_body : await deps.read_body(req);
   const task = String(body?.task || "").trim();
   if (!task) {
     deps.json(res, 400, { ok: false, error: "task_required" });
@@ -133,6 +134,7 @@ async function handle_agent_hook(deps: WebhookDeps, req: IncomingMessage, res: S
     chat_id,
     content: task,
     at: now_iso(),
+    team_id: provider,
     metadata: {
       kind: "webhook_agent",
       source: "webhook",
@@ -149,6 +151,7 @@ async function handle_agent_hook(deps: WebhookDeps, req: IncomingMessage, res: S
  */
 async function handle_passive(
   deps: WebhookDeps, req: IncomingMessage, res: ServerResponse, hook_path: string, url: URL,
+  pre_body?: Record<string, unknown> | null,
 ): Promise<void> {
   const headers: Record<string, string> = {};
   for (const [k, v] of Object.entries(req.headers)) {
@@ -159,7 +162,7 @@ async function handle_passive(
 
   let body: unknown = null;
   if (req.method !== "GET") {
-    body = await deps.read_body(req);
+    body = pre_body !== undefined ? pre_body : await deps.read_body(req);
   }
 
   deps.webhook_store.push(hook_path, {
@@ -186,6 +189,8 @@ export async function dispatch_webhook(
 
   let bearer_ok = false;
   let hmac_ok = false;
+  // HMAC 경로에서 스트림을 소비한 경우, raw buffer에서 파싱한 body를 재사용
+  let pre_body: Record<string, unknown> | null | undefined;
 
   // Bearer 토큰 인증 시도
   bearer_ok = verify_token(req, deps.webhook_secret, deps.auth_enabled);
@@ -194,6 +199,12 @@ export async function dispatch_webhook(
   if (sig_header && deps.webhook_secret && deps.read_raw_body) {
     const raw = await deps.read_raw_body(req);
     hmac_ok = verify_hmac_signature(raw, deps.webhook_secret, sig_header);
+    // 스트림이 이미 소비됐으므로 raw buffer에서 JSON 파싱 (Bearer fallback 시에도 필요)
+    try {
+      pre_body = JSON.parse(raw.toString("utf-8")) as Record<string, unknown>;
+    } catch {
+      pre_body = null;
+    }
   }
 
   // 둘 중 하나라도 통과해야 함 (OR 로직)
@@ -211,16 +222,16 @@ export async function dispatch_webhook(
   const sub_path = url.pathname.slice(6); // "/hooks/wake" → "/wake"
 
   if (sub_path === "/wake") {
-    await handle_wake(deps, req, res);
+    await handle_wake(deps, req, res, pre_body);
     return true;
   }
 
   if (sub_path === "/agent") {
-    await handle_agent_hook(deps, req, res);
+    await handle_agent_hook(deps, req, res, pre_body);
     return true;
   }
 
   // 나머지는 패시브 데이터 저장소
-  await handle_passive(deps, req, res, sub_path, url);
+  await handle_passive(deps, req, res, sub_path, url, pre_body);
   return true;
 }

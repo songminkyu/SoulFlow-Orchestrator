@@ -43,7 +43,7 @@ type AgentHooksOptions = {
   buffer: StreamBuffer;
   on_stream?: (chunk: string) => void;
   runtime_policy: RuntimeExecutionPolicy;
-  channel_context?: { channel: string; chat_id: string; task_id?: string };
+  channel_context?: { channel: string; chat_id: string; task_id?: string; team_id?: string };
   on_tool_block?: (block: string) => void;
   backend_id?: AgentBackendId;
   on_progress?: OrchestrationRequest["on_progress"];
@@ -85,6 +85,7 @@ export function build_agent_hooks(
         provider: channel_context.channel,
         chat_id: channel_context.chat_id,
         at: event.at,
+        team_id: channel_context.team_id || channel_context.channel,
       });
     }
     if (cd_event) {

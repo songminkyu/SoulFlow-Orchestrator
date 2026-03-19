@@ -84,6 +84,7 @@ export function create_runtime_support(deps: RuntimeSupportDeps): RuntimeSupport
             chat_id: default_chat_id,
             content: `💓 Heartbeat:\n${message}`,
             at: now_iso(),
+            team_id: primary_provider,
             metadata: { kind: "heartbeat_notify" },
           });
         }

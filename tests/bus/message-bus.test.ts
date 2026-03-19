@@ -8,11 +8,11 @@ import type { InboundMessage, OutboundMessage, ProgressEvent } from "../../src/b
 const TS = "2024-01-01T00:00:00Z";
 
 const make_inbound = (id: string, content = "test"): InboundMessage => ({
-  id, provider: "test", channel: "c", sender_id: "s", chat_id: "t", content, at: TS,
+  id, provider: "test", channel: "c", sender_id: "s", chat_id: "t", content, at: TS, team_id: "team-1",
 });
 
 const make_outbound = (id: string, content = "test"): OutboundMessage => ({
-  id, provider: "test", channel: "c", sender_id: "s", chat_id: "t", content, at: TS,
+  id, provider: "test", channel: "c", sender_id: "s", chat_id: "t", content, at: TS, team_id: "team-1",
 });
 
 describe("InMemoryMessageBus", () => {
@@ -38,7 +38,7 @@ describe("InMemoryMessageBus", () => {
 
   it("publish_progress → consume_progress", async () => {
     const bus = new InMemoryMessageBus();
-    const event: ProgressEvent = { task_id: "t1", step: 1, description: "working", provider: "test", chat_id: "t", at: TS };
+    const event: ProgressEvent = { task_id: "t1", step: 1, description: "working", provider: "test", chat_id: "t", at: TS, team_id: "team-1" };
     await bus.publish_progress(event);
     const p = await bus.consume_progress();
     expect(p).toBeDefined();

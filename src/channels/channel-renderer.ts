@@ -255,6 +255,7 @@ export class NativeChannelRenderer implements ChannelRendererLike {
         id: `stream-${Date.now()}`, provider, channel: provider, sender_id: alias,
         chat_id: message.chat_id, content: text, at: now_iso(),
         reply_to: resolve_reply_to(provider, message), thread_id: message.thread_id,
+        team_id: message.team_id,
         metadata: { kind: "agent_stream", agent_alias: alias, render_mode: profile.mode, render_parse_mode: null },
       });
       if (result.ok && result.message_id) this._message_id = result.message_id;
@@ -268,6 +269,7 @@ export class NativeChannelRenderer implements ChannelRendererLike {
       id: `status-${Date.now()}`, provider, channel: provider, sender_id: alias,
       chat_id: message.chat_id, content: status_text, at: now_iso(),
       reply_to: resolve_reply_to(provider, message), thread_id: message.thread_id,
+      team_id: message.team_id,
       metadata: { kind: "agent_status", agent_alias: alias },
     });
     if (result.ok && result.message_id) {
@@ -300,6 +302,7 @@ export class NativeChannelRenderer implements ChannelRendererLike {
       id: `blocks-${Date.now()}`, provider, channel: provider, sender_id: alias,
       chat_id: message.chat_id, content: text, at: now_iso(),
       reply_to: resolve_reply_to(provider, message), thread_id: message.thread_id,
+      team_id: message.team_id,
       metadata: { kind: "agent_blocks", agent_alias: alias, render_parse_mode },
     });
   }

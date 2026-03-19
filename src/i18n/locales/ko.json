@@ -1,6 +1,7 @@
 {
   "a11y.skip_to_content": "본문으로 건너뛰기",
   "auth.logout": "로그아웃",
+  "auth.session_invalidated": "비밀번호가 변경되었습니다. 다시 로그인해 주세요.",
   "agents.active_loops": "활성 루프 ({count})",
   "agents.agent_loops": "에이전트 루프 ({count})",
   "agents.cancel_confirm_desc": "{label}을(를) 취소하시겠습니까?",
@@ -4057,6 +4058,7 @@
   "team.err_id_required": "팀 ID가 필요합니다",
   "team.err_not_member": "이 팀의 멤버가 아닙니다",
   "team.err_switch_failed": "팀 전환에 실패했습니다",
+  "team.err_cross_team_denied": "이 리소스는 다른 팀에 속합니다",
   "team.no_teams": "소속 팀 없음",
   "team.switch_title": "팀 전환",
   "team.switching": "전환 중…",

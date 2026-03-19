@@ -95,6 +95,8 @@ function to_inbound_message(
       message_id: dedupe_id,
       telegram_message_id: as_string(raw.message_id || ""),
     },
+    // H-2: Telegram은 global provider 범위로 tenant 식별 (bot 단위)
+    team_id: "telegram",
   };
 }
 
@@ -151,6 +153,7 @@ function to_reaction_message(
         emoji: emoji_list,
       },
     },
+    team_id: "telegram",
   };
 }
 

@@ -10,7 +10,8 @@
       "WebFetch(*)",
       "WebSearch",
       "mcp__soulflow__*",
-      "mcp__plugin_playwright_playwright__*"
+      "mcp__plugin_playwright_playwright__*",
+      "mcp__consensus-loop__*"
     ],
     "defaultMode": "acceptEdits"
   },

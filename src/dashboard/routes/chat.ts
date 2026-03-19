@@ -43,6 +43,8 @@ function build_publish_payload(session: ChatSession, parsed: ParsedBody, pctx: P
     id: `web_msg_${short_id(8)}`,
     provider: "web" as const, channel: "web", sender_id: pctx.user_id || "web_user",
     chat_id: session.id, content: parsed.text, at: now_iso(),
+    // H-2: team_id를 상위 필드로 설정 (bus 검증 통과)
+    team_id: pctx.team_id || "web",
     media: parsed.media.length > 0
       ? parsed.media.map((m) => ({ type: m.type as import("../../bus/types.js").MediaItemType, url: m.url, mime: m.mime, name: m.name }))
       : undefined,
@@ -263,6 +265,8 @@ export async function handle_chat(ctx: RouteContext): Promise<boolean> {
       chat_id: parsed.chat_id,
       content: text,
       at: now_iso(),
+      // H-2: parsed.team_id 우선, 없으면 provider 범위
+      team_id: parsed.team_id || parsed.provider,
       metadata: { mirror: true, source_session_key: key, ...(parsed.team_id ? { team_id: parsed.team_id } : {}) },
     });
     json(res, 200, { ok: true });

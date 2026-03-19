@@ -56,6 +56,8 @@ function to_inbound_message(channel: SlackChannel, raw: Record<string, unknown>,
     thread_id: typeof raw.thread_ts === "string" ? raw.thread_ts : undefined,
     media,
     metadata: { slack: raw, command, mentions, from_is_bot, message_id: String(raw.ts || "") },
+    // H-2: Slack team_id는 workspace별로 metadata.slack.team에서 추출, 미존재 시 provider 사용
+    team_id: String((raw as Record<string, unknown>).team || "slack"),
   };
 }
 

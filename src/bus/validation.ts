@@ -1,10 +1,11 @@
 /**
  * H-1: EventBus payload 런타임 검증.
- * H-2: team_id 존재 검증 (tenant 격리 기반).
- * H-3: correlation_id 존재 검증 (trace 연속성 기반).
+ * H-2: team_id 미존재 시 BusValidationError throw (tenant 격리 강제화).
+ * H-3: correlation_id 미존재 시 crypto.randomUUID()로 자동 생성 (trace 연속성 보장).
  *
  * publish 시점에서 호출하여 잘못된 메시지가 큐에 진입하는 것을 차단한다.
  */
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { create_logger } from "../logger.js";
 
@@ -43,7 +44,7 @@ export const MessageSchema = z.object({
   thread_id: z.string().optional(),
   media: z.array(MediaItemSchema).max(MAX_MEDIA_ITEMS).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
-  team_id: z.string().optional(),
+  team_id: z.string().min(1),
   correlation_id: z.string().optional(),
 });
 
@@ -58,7 +59,8 @@ export const ProgressEventSchema = z.object({
   provider: z.string().min(1),
   chat_id: z.string().min(1),
   at: z.string().min(1),
-  team_id: z.string().optional(),
+  team_id: z.string().min(1),
+  correlation_id: z.string().optional(),
 });
 
 /* ── 검증 함수 ── */
@@ -75,10 +77,15 @@ export class BusValidationError extends Error {
 
 /**
  * Message payload 검증. 실패 시 BusValidationError throw.
- * H-2: team_id 미존재 시 경고 로그 (단계적 필수화 대비).
- * H-3: correlation_id 미존재 시 경고 로그.
+ * H-2: team_id 미존재 시 BusValidationError throw (tenant 격리 강제화).
+ * H-3: correlation_id 미존재 시 crypto.randomUUID()로 자동 생성.
+ *
+ * 반환값: 정규화된 메시지 (correlation_id 자동 주입).
  */
-export function validate_message(direction: "inbound" | "outbound", message: unknown): void {
+export function validate_message(
+  direction: "inbound" | "outbound",
+  message: unknown,
+): asserts message is { correlation_id: string } {
   const result = MessageSchema.safeParse(message);
   if (!result.success) {
     throw new BusValidationError(direction, result.error.issues);
@@ -92,23 +99,19 @@ export function validate_message(direction: "inbound" | "outbound", message: unk
       path: [],
     }]);
   }
-  const msg = result.data;
-  if (!msg.team_id) {
-    log.warn("message missing team_id — tenant isolation incomplete", {
-      direction,
-      id: msg.id,
-      channel: msg.channel,
-    });
-  }
-  if (!msg.correlation_id) {
-    log.warn("message missing correlation_id — trace continuity broken", {
-      direction,
-      id: msg.id,
-    });
+  // H-3: correlation_id 미존재 시 자동 생성하여 메시지에 주입
+  const msg = message as Record<string, unknown>;
+  if (!result.data.correlation_id) {
+    msg["correlation_id"] = randomUUID();
+    log.debug("correlation_id auto-generated", { direction, id: result.data.id });
   }
 }
 
-/** ProgressEvent payload 검증. */
+/**
+ * ProgressEvent payload 검증.
+ * H-2: team_id 미존재 시 BusValidationError throw.
+ * H-3: correlation_id 미존재 시 자동 생성 (task_id 기반 연결 추적 가능).
+ */
 export function validate_progress(event: unknown): void {
   const result = ProgressEventSchema.safeParse(event);
   if (!result.success) {
@@ -121,5 +124,11 @@ export function validate_progress(event: unknown): void {
       message: `total payload exceeds ${MAX_PAYLOAD_BYTES} bytes (actual: ${payload_bytes})`,
       path: [],
     }]);
+  }
+  // H-3: correlation_id 미존재 시 자동 생성
+  const ev = event as Record<string, unknown>;
+  if (!result.data.correlation_id) {
+    ev["correlation_id"] = randomUUID();
+    log.debug("progress correlation_id auto-generated", { task_id: result.data.task_id });
   }
 }

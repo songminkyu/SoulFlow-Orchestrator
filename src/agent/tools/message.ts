@@ -152,6 +152,7 @@ export class MessageTool extends Tool {
       at: now_iso(),
       reply_to: params.reply_to ? String(params.reply_to) : (context.reply_to || undefined),
       media: media_items,
+      team_id: context.team_id || channel,
       metadata: {
         kind: "workflow_event",
         orchestrator_event: normalized_event,

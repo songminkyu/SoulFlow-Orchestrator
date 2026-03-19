@@ -84,6 +84,7 @@ export function create_cron_job_handler(deps: CronRuntimeHandlerDeps): CronOnJob
         chat_id: fallback_target.chat_id,
         content,
         at: now_iso(),
+        team_id: fallback_target.provider,
         metadata,
       });
     };

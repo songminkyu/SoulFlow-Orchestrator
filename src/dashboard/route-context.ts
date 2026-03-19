@@ -115,6 +115,30 @@ export function check_team_ownership(ctx: RouteContext, resource_team_id: string
   return resource_team_id === filter;
 }
 
+/**
+ * G-12: cross-team 리소스 접근 거부.
+ * 리소스의 team_id가 요청자와 불일치할 때 403 + cross_team_denied 구조체 응답.
+ * superadmin/싱글유저 모드에서는 항상 통과(true).
+ * false 반환 시 호출자는 즉시 return true.
+ */
+export function deny_cross_team(
+  ctx: RouteContext,
+  resource_team_id: string | undefined,
+): boolean {
+  const filter = get_filter_team_id(ctx);
+  // superadmin 또는 auth 비활성 → 통과
+  if (filter === undefined) return true;
+  if (resource_team_id === filter) return true;
+  ctx.json(ctx.res, 403, {
+    error: {
+      code: "cross_team_denied",
+      team_id: filter,
+      resource_team_id: resource_team_id ?? "",
+    },
+  });
+  return false;
+}
+
 export function require_superadmin_for_write(ctx: RouteContext): boolean {
   if (!ctx.options.auth_svc) return true;
   const method = ctx.req.method ?? "";

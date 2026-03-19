@@ -239,6 +239,7 @@ export function create_workflow_ops(deps: {
           id: `wf-ask-${short_id(8)}`, provider: target_channel, channel: target_channel,
           sender_id: "system", chat_id: target_chat_id, content: formatted,
           at: now_iso(),
+          team_id: target_team_id || target_channel,
           metadata: { workflow_id, type: "workflow_ask_user" },
         }).catch((e) => logger.error("workflow_ask_user_send_failed", { workflow_id, error: error_message(e) }));
       }
@@ -260,6 +261,7 @@ export function create_workflow_ops(deps: {
           id: msg_id, provider: channel, channel,
           sender_id: "system", chat_id, content: req.content,
           at: now_iso(),
+          team_id: channel,
           metadata: { workflow_id, type: "workflow_notification", ...(req.structured ? { structured: req.structured } : {}) },
         });
         return { ok: true, message_id: msg_id };
@@ -293,6 +295,7 @@ export function create_workflow_ops(deps: {
           id: `wf-ask-${short_id(8)}`, provider: channel, channel,
           sender_id: "system", chat_id, content: req.content,
           at: now_iso(),
+          team_id: channel,
           metadata: { workflow_id, type: "workflow_ask_channel", ...(req.structured ? { structured: req.structured } : {}) },
         }).catch((e) => logger.error("workflow_ask_channel_send_failed", { workflow_id, error: error_message(e) }));
       }

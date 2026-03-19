@@ -68,6 +68,16 @@ export function RootLayout() {
       .catch(() => {});
   }, [location.pathname, navigate, auth_status, auth_user]);
 
+  // G-12: 전역 cross-team 거부 이벤트 리스너 — 임의 API 호출에서의 403 cross_team_denied 전역 감지
+  useEffect(() => {
+    const handler = () => {
+      toast(t("team.err_cross_team_denied"), "err");
+    };
+    window.addEventListener("cross-team-denied", handler);
+    return () => window.removeEventListener("cross-team-denied", handler);
+  }, [toast, t]);
+
+
   // FE-2: SSE 신선도 감지 — 연결 중이지만 이벤트가 멈추면 "stale" 표시
   const last_event_at = useRef<number>(0);
   const [sse_stale, set_sse_stale] = useState(false);

@@ -65,6 +65,7 @@ export class FileRequestTool extends Tool {
       chat_id,
       content,
       at: now_iso(),
+      team_id: context.team_id || channel,
       metadata: {
         kind: "file_request",
         request_id,

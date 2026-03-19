@@ -145,6 +145,7 @@ export class ApprovalService {
       at: now_iso(),
       reply_to: this.resolve_reply_to(provider, message),
       thread_id: message.thread_id,
+      team_id: message.team_id,
       metadata: {
         kind: "approval_result",
         request_id: selected.request_id,

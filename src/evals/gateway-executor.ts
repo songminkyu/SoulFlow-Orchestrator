@@ -81,6 +81,7 @@ export function create_gateway_executor(): EvalExecutorLike {
             chat_id: "eval-chat",
             content: input.text,
             at: new Date().toISOString(),
+            team_id: input.provider,
           };
           const normalized = normalize_ingress(message, input.provider);
           return { output: normalized.text };

@@ -408,7 +408,7 @@ export class DashboardService implements ServiceLike {
         }
         // H-7: 비밀번호 변경 이전에 발급된 JWT 거부 — 세션 무효화
         if (!this.options.auth_svc.is_token_valid_for_user(payload.sub, payload.iat)) {
-          this._json(res, 401, { error: { code: "session_invalidated", message: "Password changed, please re-login" } });
+          this._json(res, 401, { error: "session_invalidated" });
           return;
         }
         // 1단계: wdir 구조 무결성 — DB 불필요, O(1)

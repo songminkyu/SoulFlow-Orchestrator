@@ -1,7 +1,7 @@
 /**
  * H-1: EventBus payload 런타임 검증 테스트.
- * H-2: team_id 존재 검증.
- * H-3: correlation_id 존재 검증.
+ * H-2: team_id 미존재 시 BusValidationError throw.
+ * H-3: correlation_id 미존재 시 자동 생성.
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -72,12 +72,28 @@ describe("validate_message", () => {
     expect(() => validate_message("inbound", valid_message({ metadata: huge_metadata }))).toThrow(BusValidationError);
   });
 
-  it("H-2: team_id 없어도 통과 (경고만)", () => {
-    expect(() => validate_message("inbound", valid_message({ team_id: undefined }))).not.toThrow();
+  it("H-2: team_id 없으면 BusValidationError throw", () => {
+    expect(() => validate_message("inbound", valid_message({ team_id: undefined }))).toThrow(BusValidationError);
   });
 
-  it("H-3: correlation_id 없어도 통과 (경고만)", () => {
-    expect(() => validate_message("outbound", valid_message({ correlation_id: undefined }))).not.toThrow();
+  it("H-2: team_id 빈 문자열이면 BusValidationError throw", () => {
+    expect(() => validate_message("inbound", valid_message({ team_id: "" }))).toThrow(BusValidationError);
+  });
+
+  it("H-3: correlation_id 없으면 자동 생성 (메시지에 주입됨)", () => {
+    const msg = valid_message({ correlation_id: undefined });
+    expect(msg.correlation_id).toBeUndefined();
+    expect(() => validate_message("inbound", msg)).not.toThrow();
+    // validate_message가 msg 객체에 correlation_id를 직접 주입
+    expect((msg as Record<string, unknown>)["correlation_id"]).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  it("H-3: correlation_id가 있으면 기존 값 유지", () => {
+    const msg = valid_message({ correlation_id: "existing-trace-id" });
+    validate_message("inbound", msg);
+    expect((msg as Record<string, unknown>)["correlation_id"]).toBe("existing-trace-id");
   });
 
   it("완전히 잘못된 입력 거부", () => {
@@ -110,5 +126,27 @@ describe("validate_progress", () => {
 
   it("필수 필드 누락 시 거부", () => {
     expect(() => validate_progress({})).toThrow(BusValidationError);
+  });
+
+  it("H-2: team_id 없으면 BusValidationError throw", () => {
+    expect(() => validate_progress(valid_progress({ team_id: undefined }))).toThrow(BusValidationError);
+  });
+
+  it("H-2: team_id 빈 문자열이면 BusValidationError throw", () => {
+    expect(() => validate_progress(valid_progress({ team_id: "" }))).toThrow(BusValidationError);
+  });
+
+  it("H-3: correlation_id 없으면 자동 생성 (이벤트에 주입됨)", () => {
+    const ev = valid_progress({ correlation_id: undefined });
+    expect(() => validate_progress(ev)).not.toThrow();
+    expect((ev as Record<string, unknown>)["correlation_id"]).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  it("H-3: correlation_id가 있으면 기존 값 유지", () => {
+    const ev = valid_progress({ correlation_id: "task-trace-xyz" });
+    validate_progress(ev);
+    expect((ev as Record<string, unknown>)["correlation_id"]).toBe("task-trace-xyz");
   });
 });

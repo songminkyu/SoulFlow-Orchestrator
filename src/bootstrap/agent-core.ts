@@ -137,6 +137,7 @@ export async function create_agent_core(deps: AgentCoreDeps): Promise<AgentCoreR
           id: `hitl-${task.taskId}-${Date.now()}`,
           provider: channel, channel, sender_id: "agent",
           chat_id, content, reply_to, at: now_iso(),
+          team_id: channel,
           metadata: { kind: "task_hitl_notify", task_id: task.taskId, status: task.status },
         }).catch(() => { /* bus 발행 실패가 태스크 실행을 차단하면 안 됨 */ });
       }

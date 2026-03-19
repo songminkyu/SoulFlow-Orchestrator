@@ -65,6 +65,7 @@ export class SendFileTool extends Tool {
       at: now_iso(),
       reply_to: context.reply_to || undefined,
       media: [media_item],
+      team_id: context.team_id || channel,
       metadata: { kind: "file_delivery" },
     };
 

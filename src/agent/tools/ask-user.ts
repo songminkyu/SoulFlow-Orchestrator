@@ -88,6 +88,7 @@ export class AskUserTool extends Tool {
       content: lines.join("\n"),
       reply_to: ctx.reply_to || undefined,
       at: now_iso(),
+      team_id: ctx.team_id || channel,
       metadata: {
         kind: "ask_user",
         request_id,

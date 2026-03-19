@@ -9,7 +9,7 @@ type ApprovalRequest = {
   request_id: string;
   tool_name: string;
   params: Record<string, unknown>;
-  context?: { channel?: string; chat_id?: string; task_id?: string; sender_id?: string };
+  context?: { channel?: string; chat_id?: string; task_id?: string; sender_id?: string; team_id?: string };
   detail: string;
   created_at: string;
 };
@@ -53,6 +53,7 @@ export function build_approval_notifier(deps: ApprovalNotifierDeps): (request: A
       sender_id: "approval-bot",
       chat_id,
       at: now_iso(),
+      team_id: String(request.context?.team_id || channel),
       content: [
         "🔐 **승인 요청**",
         "",

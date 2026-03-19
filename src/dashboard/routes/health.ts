@@ -74,6 +74,7 @@ export async function handle_health(ctx: RouteContext): Promise<boolean> {
         at: now_iso(),
         reply_to: record.reply_to || undefined,
         thread_id: record.thread_id || undefined,
+        team_id: record.provider,
         metadata: { ...record.metadata, dlq_replayed: true },
       };
       const result = await dispatch.send(record.provider, msg);

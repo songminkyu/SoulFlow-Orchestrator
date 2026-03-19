@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { createHmac } from "node:crypto";
+import { Readable } from "node:stream";
 import { dispatch_webhook } from "@src/dashboard/routes/webhook.ts";
 import type { WebhookDeps } from "@src/dashboard/routes/webhook.ts";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -285,6 +286,95 @@ describe("H-9: HMAC-SHA256 서명 검증", () => {
       await dispatch_webhook(deps, req, res, url);
 
       expect(json_calls[0]?.status).toBe(401);
+    });
+  });
+
+  describe("H-9 통합: 단일 스트림에서 HMAC 검증 + JSON 파싱", () => {
+    /** 실제 Node.js Readable stream을 생성하여 스트림 1회 소비를 검증한다. */
+    function make_stream_req(body_buf: Buffer, headers: Record<string, string>): IncomingMessage {
+      const stream = new Readable({ read() { this.push(body_buf); this.push(null); } });
+      Object.assign(stream, { method: "POST", headers, url: "/hooks/data" });
+      return stream as unknown as IncomingMessage;
+    }
+
+    /** 실제 스트림에서 raw bytes를 읽는 헬퍼 (DashboardService._read_raw_body 동등). */
+    function real_read_raw(req: IncomingMessage): Promise<Buffer> {
+      return new Promise((resolve) => {
+        const chunks: Buffer[] = [];
+        req.on("data", (c: Buffer) => chunks.push(c));
+        req.on("end", () => resolve(Buffer.concat(chunks)));
+        req.on("error", () => resolve(Buffer.alloc(0)));
+      });
+    }
+
+    it("HMAC 서명된 POST → 단일 스트림에서 검증 + body 파싱 모두 성공", async () => {
+      const payload = { event: "deploy", env: "prod" };
+      const body_str = JSON.stringify(payload);
+      const body_buf = Buffer.from(body_str);
+      const secret = "stream-test-secret";
+      const sig = make_sig(body_str, secret);
+
+      const json_calls: Array<{ status: number; data: unknown }> = [];
+      const store_calls: Array<unknown> = [];
+
+      const req = make_stream_req(body_buf, { "x-signature-256": sig });
+
+      const deps: WebhookDeps = {
+        webhook_store: { push: (...args: unknown[]) => { store_calls.push(args); } } as unknown as WebhookDeps["webhook_store"],
+        webhook_secret: secret,
+        auth_enabled: true,
+        publish_inbound: vi.fn().mockResolvedValue(undefined),
+        json: (_res, status, data) => { json_calls.push({ status, data }); },
+        // read_body는 호출되면 안 됨 — 스트림이 이미 소비되었으므로
+        read_body: vi.fn().mockRejectedValue(new Error("read_body는 HMAC 경로에서 호출되면 안 됨")),
+        read_raw_body: real_read_raw,
+      };
+
+      const res = {} as ServerResponse;
+      const url = new URL("http://localhost/hooks/data");
+      const handled = await dispatch_webhook(deps, req, res, url);
+
+      expect(handled).toBe(true);
+      expect(json_calls[0]?.status).toBe(200);
+      // passive store에 파싱된 body가 전달됐는지 확인
+      expect(store_calls.length).toBe(1);
+      const stored = store_calls[0] as [string, { body: unknown }];
+      expect(stored[1].body).toEqual(payload);
+      // read_body가 호출되지 않았는지 확인
+      expect(deps.read_body).not.toHaveBeenCalled();
+    });
+
+    it("Bearer 인증 + HMAC 없음 → read_body로 정상 스트림 소비", async () => {
+      const payload = { session_key: "test-session", message: "hello" };
+      const body_str = JSON.stringify(payload);
+      const body_buf = Buffer.from(body_str);
+      const secret = "bearer-stream-secret";
+
+      const json_calls: Array<{ status: number; data: unknown }> = [];
+
+      // Bearer 인증 + 서명 헤더 없음 → read_raw_body 호출 안 함
+      const req = make_stream_req(body_buf, { authorization: `Bearer ${secret}` });
+
+      const deps: WebhookDeps = {
+        webhook_store: { push: vi.fn() } as unknown as WebhookDeps["webhook_store"],
+        webhook_secret: secret,
+        auth_enabled: true,
+        publish_inbound: vi.fn().mockResolvedValue(undefined),
+        json: (_res, status, data) => { json_calls.push({ status, data }); },
+        read_body: vi.fn().mockResolvedValue(payload),
+        read_raw_body: vi.fn().mockRejectedValue(new Error("HMAC 없으면 read_raw_body 호출 안 됨")),
+      };
+
+      const res = {} as ServerResponse;
+      const url = new URL("http://localhost/hooks/wake");
+      const handled = await dispatch_webhook(deps, req, res, url);
+
+      expect(handled).toBe(true);
+      expect(json_calls[0]?.status).toBe(200);
+      // Bearer 경로에서는 read_body가 호출되어야 함
+      expect(deps.read_body).toHaveBeenCalledOnce();
+      // read_raw_body는 호출 안 됨
+      expect(deps.read_raw_body).not.toHaveBeenCalled();
     });
   });
 });

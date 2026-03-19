@@ -709,6 +709,7 @@ export class SubagentRegistry {
       chat_id,
       content: `📝 ${args.label}: ${args.content}`,
       at: now_iso(),
+      team_id: channel,
       metadata: {
         kind: "subagent_stream",
         subagent_id: args.subagent_id,
@@ -786,6 +787,7 @@ export class SubagentRegistry {
       chat_id,
       content: `${icon} ${args.label}: ${args.content.slice(0, 800)}`,
       at: now_iso(),
+      team_id: channel,
       metadata: {
         kind: "subagent_result",
         subagent_id: args.subagent_id,
@@ -812,6 +814,7 @@ export class SubagentRegistry {
       chat_id,
       content: `@${args.alias} ${args.instruction}`,
       at: now_iso(),
+      team_id: channel,
       metadata: {
         kind: "subagent_handoff",
         subagent_id: args.subagent_id,

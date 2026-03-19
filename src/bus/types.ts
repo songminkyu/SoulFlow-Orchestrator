@@ -23,9 +23,9 @@ export type Message = {
   thread_id?: string;
   media?: MediaItem[];
   metadata?: Record<string, unknown>;
-  /** H-2: 멀티테넌트 격리 — 메시지가 속한 팀. */
-  team_id?: string;
-  /** H-3: trace 연속성 — publish 시점의 trace_id를 운반. */
+  /** H-2: 멀티테넌트 격리 — 메시지가 속한 팀. 필수 (미존재 시 BusValidationError). */
+  team_id: string;
+  /** H-3: trace 연속성 — publish 시점의 trace_id를 운반. 미존재 시 자동 생성. */
   correlation_id?: string;
 };
 
@@ -44,8 +44,10 @@ export type ProgressEvent = {
   provider: string;
   chat_id: string;
   at: string;
-  /** 멀티테넌트: SSE 스코프 브로드캐스트에 사용. */
-  team_id?: string;
+  /** H-2: 멀티테넌트 격리 — SSE 스코프 브로드캐스트에 사용. 필수. */
+  team_id: string;
+  /** H-3: trace 연속성 — 미존재 시 자동 생성. */
+  correlation_id?: string;
 };
 
 export type MessageBusObserver = (direction: "inbound" | "outbound", message: Message) => void;

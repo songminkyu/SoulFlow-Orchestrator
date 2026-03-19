@@ -180,8 +180,10 @@ export class RedisMessageBus implements MessageBusRuntime, ReliableMessageBus {
   async publish_progress(event: ProgressEvent): Promise<void> {
     if (this._closed) return;
     validate_progress(event);
+    // validate_progress가 correlation_id를 주입한 후 인덱스 추출
     const extra: string[] = [];
-    if (event.team_id) extra.push("team_id", event.team_id);
+    extra.push("team_id", event.team_id);
+    if (event.correlation_id) extra.push("correlation_id", event.correlation_id);
     await this.xadd("progress", event, extra).catch((err) => {
       log.warn("progress publish failed (best-effort)", { error: error_message(err) });
     });

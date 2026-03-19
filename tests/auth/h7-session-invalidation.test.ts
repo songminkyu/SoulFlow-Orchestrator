@@ -5,12 +5,14 @@
  * password_changed_at 타임스탬프와 JWT iat를 비교하여 세션 유효성을 결정한다.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterAll } from "vitest";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { mkdirSync, rmSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { AdminStore } from "../../src/auth/admin-store.js";
 import { AuthService } from "../../src/auth/auth-service.js";
+import { DashboardService } from "../../src/dashboard/service.js";
 
 /** 테스트용 임시 DB 경로를 생성한다. */
 function make_temp_db(): string {
@@ -187,5 +189,120 @@ describe("H-7: 서버 측 세션 무효화", () => {
     const b_changed_at = store.get_password_changed_at(user_b.id);
     expect(b_changed_at).toBeNull();
     expect(svc.is_token_valid_for_user(user_b.id, old_iat)).toBe(true);
+  });
+});
+
+// ── H-7 미들웨어 통합 테스트 ──────────────────────────────────
+
+describe("H-7: DashboardService 미들웨어 세션 무효화", () => {
+  const MW_DIR = join(tmpdir(), `h7-mw-test-${randomUUID()}`);
+  const MW_DB = join(MW_DIR, "admin.db");
+
+  let auth_svc: AuthService;
+  let dashboard: DashboardService;
+  let base_url: string;
+
+  function make_wdir(tid: string, uid: string): string {
+    return `tenants/${tid}/users/${uid}`;
+  }
+
+  /** HTTP GET 헬퍼 — 보호된 API 엔드포인트에 요청 */
+  async function api_get(path: string, token?: string): Promise<{ status: number; body: Record<string, unknown> }> {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(`${base_url}${path}`, { headers });
+    const body = await res.json() as Record<string, unknown>;
+    return { status: res.status, body };
+  }
+
+  // 테스트 전 DashboardService 시작
+  it("setup: DashboardService 시작", async () => {
+    mkdirSync(MW_DIR, { recursive: true });
+    const store = new AdminStore(MW_DB);
+    auth_svc = new AuthService(store);
+    store.ensure_team("default", "Default");
+
+    dashboard = new DashboardService({
+      host: "127.0.0.1",
+      port: 0,
+      port_fallback: true,
+      workspace: MW_DIR,
+      auth_svc,
+      agent: {} as never,
+      bus: { publish_inbound: async () => {} } as never,
+      channels: {} as never,
+      heartbeat: {} as never,
+      ops: {} as never,
+      decisions: {} as never,
+      promises: {} as never,
+      events: { list: async () => [] } as never,
+    });
+
+    await dashboard.start();
+    base_url = dashboard.get_url();
+    expect(base_url).toBeTruthy();
+  });
+
+  it("비밀번호 변경 후 이전 JWT → 401 session_invalidated", async () => {
+    // 사용자 생성 (password_changed_at = null 상태)
+    const hash = await auth_svc.hash_password("initial_pass");
+    const user = auth_svc["store"].create_user({
+      username: "mw_test_user",
+      password_hash: hash,
+      system_role: "superadmin",
+      default_team_id: "default",
+    });
+
+    // 이전 JWT 발급 (iat = 현재 unix 초)
+    const old_token = auth_svc.sign_token({
+      sub: user.id,
+      usr: "mw_test_user",
+      role: "superadmin",
+      tid: "default",
+      wdir: make_wdir("default", user.id),
+    });
+
+    // 1.1초 대기 — unix second 경계를 넘겨야 iat < password_changed_at 보장
+    await new Promise((r) => setTimeout(r, 1100));
+
+    // 비밀번호 변경 → password_changed_at = now (iat보다 최소 1초 이후)
+    await auth_svc.update_password(user.id, "new_password_xyz");
+
+    // 이전 JWT로 요청 → 401 session_invalidated
+    const { status, body } = await api_get("/api/workflow/events", old_token);
+    expect(status).toBe(401);
+    expect(body.error).toBe("session_invalidated");
+  });
+
+  it("비밀번호 변경 후 새 JWT → 정상 통과", async () => {
+    // 새 사용자 생성
+    const hash = await auth_svc.hash_password("fresh_pass");
+    const user = auth_svc["store"].create_user({
+      username: "mw_fresh_user",
+      password_hash: hash,
+      system_role: "superadmin",
+      default_team_id: "default",
+    });
+
+    // 비밀번호 변경
+    await auth_svc.update_password(user.id, "changed_pass");
+
+    // 변경 후 새 JWT 발급 → iat > password_changed_at
+    const new_token = auth_svc.sign_token({
+      sub: user.id,
+      usr: "mw_fresh_user",
+      role: "superadmin",
+      tid: "default",
+      wdir: make_wdir("default", user.id),
+    });
+
+    // 새 JWT로 요청 → 미들웨어 통과 (200)
+    const { status } = await api_get("/api/workflow/events", new_token);
+    expect(status).toBe(200);
+  });
+
+  afterAll(async () => {
+    await dashboard?.stop();
+    rmSync(MW_DIR, { recursive: true, force: true });
   });
 });
