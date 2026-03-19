@@ -164,8 +164,8 @@ export class ToolRegistry {
       let result = await tool.execute(effective_params, context);
       const is_error = result.startsWith("Error:");
 
-      // 3-projection reducer: 성공 결과에만 적용
-      if (this.reducer && !is_error) {
+      // 3-projection reducer: 성공 결과에만 적용, JSON 결과는 bypass (내부 관리용 도구 보호)
+      if (this.reducer && !is_error && !result.startsWith("{")) {
         const reduced = this.reducer.reduce({ tool_name: name, params: effective_params, result_text: result, is_error });
         result = reduced.prompt_text;
       }
