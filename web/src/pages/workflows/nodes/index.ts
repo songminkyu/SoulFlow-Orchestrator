@@ -141,6 +141,9 @@ import { ascii_art_descriptor } from "./ascii-art";
 import { pagination_descriptor } from "./pagination";
 import { tree_data_descriptor } from "./tree-data";
 import { trigger_cron_descriptor, trigger_webhook_descriptor, trigger_manual_descriptor, trigger_channel_message_descriptor, trigger_kanban_event_descriptor, trigger_filesystem_watch_descriptor } from "./triggers";
+import { reconcile_descriptor } from "./reconcile";
+import { fanout_descriptor } from "./fanout";
+import { critic_gate_descriptor } from "./critic-gate";
 
 const ALL_DESCRIPTORS = [
   http_descriptor,
@@ -288,6 +291,9 @@ const ALL_DESCRIPTORS = [
   trigger_channel_message_descriptor,
   trigger_kanban_event_descriptor,
   trigger_filesystem_watch_descriptor,
+  reconcile_descriptor,
+  fanout_descriptor,
+  critic_gate_descriptor,
 ];
 
 let registered = false;

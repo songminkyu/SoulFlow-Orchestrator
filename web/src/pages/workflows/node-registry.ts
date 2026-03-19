@@ -61,12 +61,21 @@ export interface NodeOptions {
   agent_definitions?: { id: string; name: string; icon: string; role_skill: string | null; soul: string; heart: string; model: string | null; preferred_providers: string[] }[];
 }
 
+/** 상류 노드의 출력 필드 참조 (변수 참조 칩용). */
+export interface UpstreamRef {
+  node_id: string;
+  node_label: string;
+  fields: OutputField[];
+}
+
 export interface EditPanelProps {
   node: Record<string, unknown>;
   update: (partial: Record<string, unknown>) => void;
   t: (key: string, vars?: Record<string, string | number>) => string;
   /** API에서 가져온 리소스 목록. 노드 편집 시 select/dropdown 제공. */
   options?: NodeOptions;
+  /** 상류 노드 출력 필드 목록 — 변수 참조 칩 삽입용 (B1.2). */
+  upstream_refs?: UpstreamRef[];
 }
 
 // ── Registry ────────────────────────────────────────

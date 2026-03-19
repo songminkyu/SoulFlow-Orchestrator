@@ -415,6 +415,156 @@
   letter-spacing: 0.04em;
   flex: 1;
 }
+
+/* ===== A1.6: UserCard (사이드바 하단 고정) ===== */
+.sidebar__user-card {
+  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+  margin-top: auto;
+}
+.user-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+}
+.user-card__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.user-card__username {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.user-card__role-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.user-card__role-badge[data-role="owner"] {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+}
+.user-card__role-badge[data-role="manager"] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.user-card__role-badge[data-role="admin"] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.user-card__team-switcher {
+  position: relative;
+}
+.user-card__team-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+}
+.user-card__team-badge:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.user-card__team-badge--pending {
+  opacity: 0.6;
+  cursor: wait;
+  animation: badge-pulse 1.2s ease-in-out infinite;
+}
+.user-card__team-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.user-card__team-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: var(--panel-elevated, var(--panel));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popup);
+  padding: var(--sp-1);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.user-card__team-menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px 10px;
+  font-size: var(--fs-sm);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  color: var(--text);
+  border: none;
+  background: none;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.1s;
+}
+.user-card__team-menu-item:hover:not(:disabled) {
+  background: var(--hover);
+}
+.user-card__team-menu-item--active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.user-card__team-menu-item:disabled { opacity: 0.5; cursor: wait; }
+.user-card__team-role {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  text-transform: capitalize;
+}
+.user-card__team-menu-empty {
+  padding: 8px 10px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  text-align: center;
+}
+.user-card__logout-btn {
+  align-self: flex-start;
+  color: var(--err);
+  border-color: color-mix(in srgb, var(--err) 25%, transparent);
+}
+.user-card__logout-btn:hover {
+  background: color-mix(in srgb, var(--err) 10%, transparent);
+}
+/* collapsed sidebar — hide user card details */
+.sidebar--collapsed .user-card__username,
+.sidebar--collapsed .user-card__role-badge,
+.sidebar--collapsed .user-card__team-switcher,
+.sidebar--collapsed .user-card__logout-btn { display: none; }
 .sidebar__footer-btn--theme {
   flex: 0 0 auto;
   font-size: var(--fs-base);

@@ -22,9 +22,9 @@ interface McpServer {
 }
 
 interface WorkflowDef {
-  id: string;
+  slug: string;
   name: string;
-  description?: string;
+  objective?: string;
 }
 
 export interface MentionPickerProps {
@@ -64,12 +64,13 @@ function MentionPickerInner({ onClose, onSelect, agents = [], className }: Omit<
     return () => clearTimeout(timer);
   }, []);
 
-  // MCP 도구 목록 fetch
-  const { data: mcpServers = [] } = useQuery<McpServer[]>({
+  // MCP 도구 목록 fetch — API 응답: { servers: McpServer[] }
+  const { data: mcpRaw } = useQuery<{ servers: McpServer[] }>({
     queryKey: ["mention-mcp-servers"],
-    queryFn: () => api.get<McpServer[]>("/api/mcp/servers"),
+    queryFn: () => api.get<{ servers: McpServer[] }>("/api/mcp/servers"),
     staleTime: 30_000,
   });
+  const mcpServers = mcpRaw?.servers ?? [];
 
   // 워크플로우 목록 fetch
   const { data: workflows = [] } = useQuery<WorkflowDef[]>({
@@ -97,9 +98,9 @@ function MentionPickerInner({ onClose, onSelect, agents = [], className }: Omit<
     () =>
       workflows.map((wf) => ({
         type: "workflow" as const,
-        id: wf.id,
+        id: wf.slug,
         name: wf.name,
-        description: wf.description,
+        description: wf.objective,
       })),
     [workflows],
   );

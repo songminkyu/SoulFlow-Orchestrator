@@ -400,10 +400,22 @@ function get_node_subtitle(node: GraphNode): string {
   switch (node.type) {
     case "http": return `${d.method || "GET"} ${truncate_str(String(d.url || ""), 24)}`;
     case "code": return String(d.language || "javascript");
-    case "llm": return String(d.model || "default model");
+    case "llm": {
+      const model = String(d.model || "default");
+      const output_type = d.output_json_schema ? "structured" : "text";
+      return `${truncate_str(model, 16)} \u00B7 ${output_type}`;
+    }
     case "ai_agent": return String(d.model || "agent");
-    case "if": return truncate_str(String(d.condition || ""), 24);
-    case "set": return Object.keys((d.assignments as Record<string, unknown>) || {}).slice(0, 3).join(", ") || "variables";
+    case "if": {
+      const conditions = d.conditions as Array<{ variable: string }> | undefined;
+      if (conditions?.length) return `${conditions.length} condition${conditions.length > 1 ? "s" : ""}`;
+      return truncate_str(String(d.condition || ""), 24);
+    }
+    case "set": {
+      const assignments = d.assignments as Array<{ key: string }> | undefined;
+      if (Array.isArray(assignments)) return assignments.slice(0, 3).map((a) => a.key).filter(Boolean).join(", ") || "variables";
+      return Object.keys((d.assignments as Record<string, unknown>) || {}).slice(0, 3).join(", ") || "variables";
+    }
     case "db": return String(d.datasource || "query");
     case "template": return "Mustache template";
     case "loop": return `items: ${truncate_str(String(d.items_expression || "…"), 20)}`;
@@ -418,6 +430,10 @@ function get_node_subtitle(node: GraphNode): string {
     case "vector_store": return String(d.operation || "query");
     case "sub_workflow": return truncate_str(String(d.workflow_name || ""), 24);
     case "oauth": return String(d.provider_name || "OAuth");
+    case "reconcile": return String(d.policy || "merge_all");
+    case "fanout": return `${((d.branches as unknown[]) || []).length || 0} branches`;
+    case "critic_gate": return `max ${d.max_rounds || 3} rounds`;
+    case "tool_invoke": return truncate_str(String(d.tool_name || "tool"), 24);
     default: return node.sub_label || "";
   }
 }

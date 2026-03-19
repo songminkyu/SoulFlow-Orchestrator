@@ -3,6 +3,15 @@ import type { FrontendNodeDescriptor, EditPanelProps } from "../node-registry";
 
 type SwitchCase = { value: string; targets: string[] };
 
+const CASE_COLORS = [
+  "color-mix(in srgb, #3498db 25%, transparent)",
+  "color-mix(in srgb, #2ecc71 25%, transparent)",
+  "color-mix(in srgb, #e91e63 25%, transparent)",
+  "color-mix(in srgb, #f39c12 25%, transparent)",
+  "color-mix(in srgb, #9b59b6 25%, transparent)",
+  "color-mix(in srgb, #00bcd4 25%, transparent)",
+];
+
 function SwitchEditPanel({ node, update, t, options }: EditPanelProps) {
   const cases = (node.cases as SwitchCase[]) || [];
   const default_targets = (node.default_targets as string[]) || [];
@@ -22,10 +31,16 @@ function SwitchEditPanel({ node, update, t, options }: EditPanelProps) {
       <div className="builder-row">
         <label className="label">{t("workflows.switch_cases")}</label>
         {cases.map((c, i) => (
-          <div key={i} className="builder-nested-block">
+          <div key={i} className="builder-nested-block switch-case-block" data-case-index={i}>
             <div className="builder-inline-row" style={{ marginBottom: "4px" }}>
+              <span
+                className="switch-case-label"
+                style={{ background: CASE_COLORS[i % CASE_COLORS.length] }}
+              >
+                CASE {i + 1}
+              </span>
               <input className="input input--sm" style={{ flex: 1 }} value={c.value} onChange={(e) => update_case(i, { value: e.target.value })} placeholder="success" />
-              <button type="button" className="btn btn--xs btn--danger" onClick={() => remove_case(i)}>✕</button>
+              <button type="button" className="btn btn--xs btn--danger" onClick={() => remove_case(i)}>{"\u2715"}</button>
             </div>
             <NodeMultiSelect value={c.targets} onChange={(ids) => update_case(i, { targets: ids })} nodes={wf_nodes} placeholder="target-node" />
           </div>

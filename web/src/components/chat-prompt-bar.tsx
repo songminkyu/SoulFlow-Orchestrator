@@ -19,6 +19,7 @@ import { MentionPicker, type MentionItem } from "./mention-picker";
 import { ModelSelectorDropdown } from "./model-selector-dropdown";
 import { ToolChoiceToggle } from "./tool-choice-toggle";
 import { AttachedToolChips } from "./attached-tool-chips";
+import { ToolFeatureMenu } from "./tool-feature-menu";
 import { MediaPreviewBar } from "../pages/chat/media-preview";
 import type { ChatMediaItem } from "../pages/chat/types";
 import type { ToolChoiceMode } from "../../../src/contracts";
@@ -67,6 +68,7 @@ export function ChatPromptBar(props: ChatPromptBarProps) {
 
   const [mention_open, setMentionOpen] = useState(false);
   const [tool_choice_open, setToolChoiceOpen] = useState(false);
+  const [feature_menu_open, setFeatureMenuOpen] = useState(false);
 
   const has_model_selector = !!props.onModelChange;
   const has_mention = !!props.onMentionSelect;
@@ -196,16 +198,26 @@ export function ChatPromptBar(props: ChatPromptBarProps) {
         <div className="chat-prompt-bar__toolbar">
           {/* 왼쪽 그룹: [+] [ToolChoice] [Tools N] [@] */}
           <div className="chat-prompt-bar__toolbar-left">
-            {props.onAttach && (
-              <button
-                className="chat-prompt-bar__btn"
-                onClick={props.onAttach}
-                disabled={is_busy}
-                title={t("chat.attach_file")}
-                aria-label={t("chat.attach_file")}
-              >
-                +
-              </button>
+            {(props.onAttach || has_mention) && (
+              <div className="chat-prompt-bar__feature-menu-wrap">
+                <button
+                  className={`chat-prompt-bar__btn${feature_menu_open ? " chat-prompt-bar__btn--active" : ""}`}
+                  onClick={() => setFeatureMenuOpen((v) => !v)}
+                  disabled={is_busy}
+                  title={t("chat.attach_file")}
+                  aria-label={t("chat.attach_file")}
+                >
+                  +
+                </button>
+                <ToolFeatureMenu
+                  open={feature_menu_open}
+                  onClose={() => setFeatureMenuOpen(false)}
+                  onAttach={props.onAttach}
+                  attached_items={props.attached_items}
+                  onMentionSelect={props.onMentionSelect}
+                  onMentionRemove={props.onMentionRemove}
+                />
+              </div>
             )}
 
             {has_tool_choice && (

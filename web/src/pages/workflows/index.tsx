@@ -77,6 +77,7 @@ export default function WorkflowsPage() {
   const templateListRef = useRef<HTMLDivElement>(null);
 
   const [tab, setTab] = useState<"templates" | "running">("templates");
+  const [tpl_filter, setTplFilter] = useState<"all" | "my" | "shared">("all");
   const [selectedTpl, setSelectedTpl] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -240,6 +241,19 @@ export default function WorkflowsPage() {
       {/* Templates 카탈로그 */}
       {tab === "templates" && (
         <>
+          {/* My/Shared 필터 (B5.1) */}
+          <div className="wf-tpl-filter" style={{ display: "flex", gap: "4px", marginBottom: "var(--sp-2, 8px)" }}>
+            {(["all", "my", "shared"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                className={`filter-chip${tpl_filter === f ? " filter-chip--active" : ""}`}
+                onClick={() => setTplFilter(f)}
+              >
+                {t(`workflows.filter_${f}`)}
+              </button>
+            ))}
+          </div>
           {tplLoading ? (
             <SkeletonGrid count={4} cardStyle={{ height: 140 }} />
           ) : !templates?.length ? (
