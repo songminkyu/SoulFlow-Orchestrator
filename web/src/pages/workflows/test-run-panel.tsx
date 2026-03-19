@@ -92,8 +92,8 @@ export function TestRunPanel({ workflow_slug, input_schema = [], className }: Te
                   value={inputs[field.name] ?? "false"}
                   onChange={(e) => setInputs({ ...inputs, [field.name]: e.target.value })}
                 >
-                  <option value="true">true</option>
-                  <option value="false">false</option>
+                  <option value="true">{t("common.bool_true")}</option>
+                  <option value="false">{t("common.bool_false")}</option>
                 </select>
               ) : (field.type === "object" || field.type === "array") ? (
                 <textarea

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BuilderField, JsonField } from "../builder-field";
+import { JsonField } from "../builder-field";
 import type { FrontendNodeDescriptor, EditPanelProps } from "../node-registry";
 
 interface Assignment {

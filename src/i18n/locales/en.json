@@ -500,6 +500,8 @@
   "common.add": "Add",
   "common.all": "All",
   "common.back": "Back",
+  "common.bool_true": "True",
+  "common.bool_false": "False",
   "common.cancel": "Cancel",
   "common.cannot_edit_after_creation": "Cannot edit after creation",
   "common.close": "Close",

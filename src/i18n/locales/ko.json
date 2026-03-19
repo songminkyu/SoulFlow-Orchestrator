@@ -500,6 +500,8 @@
   "common.add": "추가",
   "common.all": "전체",
   "common.back": "뒤로",
+  "common.bool_true": "참",
+  "common.bool_false": "거짓",
   "common.cancel": "취소",
   "common.cannot_edit_after_creation": "생성 후 편집할 수 없습니다",
   "common.close": "닫기",

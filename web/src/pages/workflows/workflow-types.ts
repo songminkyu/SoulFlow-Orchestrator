@@ -65,6 +65,7 @@ export type OrcheNodeType = "http" | "code" | "if" | "merge" | "set" | "split"
   | "notify" | "aggregate" | "send_file" | "error_handler" | "webhook"
   | "hitl" | "approval" | "form" | "tool_invoke" | "gate" | "escalation"
   | "cache" | "retry" | "batch" | "assert"
+  | "reconcile" | "fanout" | "critic_gate"
   | "end";
 
 /** 오케스트레이션 노드 정의. */
