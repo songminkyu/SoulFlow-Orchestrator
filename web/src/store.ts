@@ -45,11 +45,25 @@ function load_theme(): Theme {
   return "dark";
 }
 
+/** 모바일 기본값: 768px 이하이면 접힘 */
+function load_sidebar_collapsed(): boolean {
+  try {
+    const saved = localStorage.getItem("sidebar_collapsed");
+    if (saved === "true" || saved === "false") return saved === "true";
+  } catch { /* storage blocked */ }
+  // 모바일 브레이크포인트: 기본 접힘
+  return typeof window !== "undefined" && window.innerWidth <= 768;
+}
+
 export const useDashboardStore = create<DashboardStore>((set) => ({
   connection: "disconnected",
   set_connection: (connection) => set({ connection }),
-  sidebar_collapsed: false,
-  toggle_sidebar: () => set((s) => ({ sidebar_collapsed: !s.sidebar_collapsed })),
+  sidebar_collapsed: load_sidebar_collapsed(),
+  toggle_sidebar: () => set((s) => {
+    const next = !s.sidebar_collapsed;
+    try { localStorage.setItem("sidebar_collapsed", String(next)); } catch { /* storage blocked */ }
+    return { sidebar_collapsed: next };
+  }),
   sidebar_open: false,
   open_sidebar: () => set({ sidebar_open: true }),
   close_sidebar: () => set({ sidebar_open: false }),

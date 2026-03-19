@@ -7,8 +7,7 @@ import { useDashboardStore } from "../store";
 import { useI18n } from "../i18n";
 import { api } from "../api/client";
 import { useRef, useState } from "react";
-import { useAuthStatus, useAuthUser, useLogout, useMyTeams, useSwitchTeam } from "../hooks/use-auth";
-import { useClickOutside } from "../hooks/use-click-outside";
+import { useAuthStatus, useAuthUser } from "../hooks/use-auth";
 import { useToast } from "../components/toast";
 
 export function RootLayout() {
@@ -32,13 +31,7 @@ export function RootLayout() {
 
   const { data: auth_status } = useAuthStatus();
   const { data: auth_user, isLoading: auth_loading, isFetching: auth_fetching } = useAuthUser();
-  const logout = useLogout();
-  const { data: my_teams = [] } = useMyTeams();
-  const switch_team = useSwitchTeam();
   const { toast } = useToast();
-  const [team_menu_open, set_team_menu_open] = useState(false);
-  const team_menu_ref = useRef<HTMLDivElement>(null);
-  useClickOutside(team_menu_ref, () => set_team_menu_open(false), team_menu_open);
 
   // auth 활성화 시 미인증 → /login 리다이렉트
   // isFetching도 체크: 로그인 직후 refetch 중 null 상태로 오인해 다시 /login으로 보내는 race condition 방지
@@ -176,80 +169,6 @@ export function RootLayout() {
             >
               {locale === "en" ? t("sidebar.locale_ko") : t("sidebar.locale_en")}
             </button>
-            {auth_status?.enabled && auth_user && (
-              <>
-                {auth_user.tid && (
-                  <div ref={team_menu_ref} className="topbar__team-switcher">
-                    <button
-                      className={`topbar__team-badge${switch_team.isPending ? " topbar__team-badge--pending" : ""}`}
-                      onClick={() => set_team_menu_open((o) => !o)}
-                      disabled={switch_team.isPending}
-                      aria-haspopup="listbox"
-                      aria-expanded={team_menu_open}
-                      aria-busy={switch_team.isPending}
-                      title={t("team.switch_title")}
-                    >
-                      {switch_team.isPending
-                        ? t("team.switching")
-                        : <>
-                            {my_teams.find((tm) => tm.id === auth_user.tid)?.name ?? auth_user.tid}
-                            {" ▾"}
-                          </>
-                      }
-                    </button>
-                    {team_menu_open && (
-                      <div className="topbar__team-menu" role="listbox" aria-label={t("team.switch_title")}>
-                        {my_teams.map((tm) => (
-                          <button
-                            key={tm.id}
-                            className={`topbar__team-menu-item${tm.id === auth_user.tid ? " topbar__team-menu-item--active" : ""}`}
-                            role="option"
-                            aria-selected={tm.id === auth_user.tid}
-                            disabled={switch_team.isPending}
-                            onClick={() => {
-                              if (tm.id !== auth_user.tid) switch_team.mutate(tm.id, {
-                                onSuccess: () => set_team_menu_open(false),
-                                onError: (err) => {
-                                  set_team_menu_open(false);
-                                  const code = (err as { body?: { error?: string } })?.body?.error ?? "";
-                                  const msg = code === "not_a_member" ? t("team.err_not_member")
-                                    : code === "team_id_required" ? t("team.err_id_required")
-                                    : t("team.err_switch_failed");
-                                  toast(msg, "err");
-                                },
-                              });
-                              else set_team_menu_open(false);
-                            }}
-                          >
-                            <span>{tm.name || tm.id}</span>
-                            <span className="topbar__team-role">{tm.role}</span>
-                          </button>
-                        ))}
-                        {my_teams.length === 0 && (
-                          <span className="topbar__team-menu-empty">{t("team.no_teams")}</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-                {auth_user.team_role && (
-                  <span className="topbar__role-badge" data-role={auth_user.team_role}>
-                    {auth_user.team_role}
-                  </span>
-                )}
-                <span className="topbar__username" title={auth_user.role}>
-                  {auth_user.username}
-                </span>
-                <button
-                  className="btn btn--xs topbar__logout-btn"
-                  onClick={() => logout.mutate()}
-                  disabled={logout.isPending}
-                  aria-label={t("auth.logout")}
-                >
-                  {t("auth.logout")}
-                </button>
-              </>
-            )}
             <span
               className={`topbar__conn topbar__conn--${sse_stale ? "stale" : connection}`}
               title={sse_stale ? t("conn.stale_hint") : undefined}

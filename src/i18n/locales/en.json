@@ -551,6 +551,8 @@
   "conn.connected": "CONNECTED",
   "conn.disconnected": "DISCONNECTED",
   "conn.reconnecting": "RECONNECTING",
+  "conn.stale": "NO RESPONSE",
+  "conn.stale_hint": "No events for 30 seconds",
   "connections.add": "+ Add Connection",
   "connections.add_title": "Add Connection",
   "connections.added": "Connection added",
@@ -718,7 +720,9 @@
   "models.switching": "Switching...",
   "models.title": "Models",
   "models.vram": "VRAM",
+  "nav.admin": "Admin",
   "nav.agents": "Agents",
+  "nav.group.admin": "Admin",
   "nav.prompting": "Prompting",
   "nav.channels": "Channels",
   "nav.chat": "Chat",
@@ -4062,5 +4066,10 @@
   "team.no_teams": "No teams",
   "team.switch_title": "Switch Team",
   "team.switching": "Switching…",
-  "workflows.profile_preview": "Prompt Profile Preview"
+  "workflows.profile_preview": "Prompt Profile Preview",
+  "user_card.logout": "Log out",
+  "user_card.role": "Role",
+  "user_card.team": "Team",
+  "user_card.switch_team": "Switch team",
+  "user_card.no_teams": "No teams"
 }

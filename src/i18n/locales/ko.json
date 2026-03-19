@@ -551,6 +551,8 @@
   "conn.connected": "연결됨",
   "conn.disconnected": "연결 끊김",
   "conn.reconnecting": "재연결 중",
+  "conn.stale": "응답 없음",
+  "conn.stale_hint": "30초 이상 이벤트가 없습니다",
   "connections.add": "+ 연결 추가",
   "connections.add_title": "연결 추가",
   "connections.added": "연결이 추가되었습니다",
@@ -718,7 +720,9 @@
   "models.switching": "전환 중...",
   "models.title": "모델",
   "models.vram": "VRAM",
+  "nav.admin": "관리자",
   "nav.agents": "에이전트",
+  "nav.group.admin": "관리",
   "nav.prompting": "프롬프팅",
   "nav.channels": "채널",
   "nav.chat": "채팅",
@@ -4062,5 +4066,10 @@
   "team.no_teams": "소속 팀 없음",
   "team.switch_title": "팀 전환",
   "team.switching": "전환 중…",
-  "workflows.profile_preview": "프롬프트 프로필 미리보기"
+  "workflows.profile_preview": "프롬프트 프로필 미리보기",
+  "user_card.logout": "로그아웃",
+  "user_card.role": "역할",
+  "user_card.team": "팀",
+  "user_card.switch_team": "팀 전환",
+  "user_card.no_teams": "소속 팀 없음"
 }

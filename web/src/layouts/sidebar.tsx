@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import { useDashboardStore } from "../store";
 import { useI18n } from "../i18n";
 import { useAuthUser } from "../hooks/use-auth";
+import { UserCard } from "../components/user-card";
 
 type NavItem = { to: string; key: string; icon: string };
 type NavGroup = { label_key: string; items: NavItem[] };
@@ -63,8 +64,6 @@ export function Sidebar() {
     if (window.innerWidth <= 768) close();
   };
 
-  const admin_label = "Admin";
-
   return (
     <>
       <div
@@ -107,7 +106,7 @@ export function Sidebar() {
           {/* superadmin 전용 관리자 콘솔 링크 */}
           {is_superadmin && (
             <li className="sidebar__group">
-              {!collapsed && <span className="sidebar__group-label">관리자</span>}
+              {!collapsed && <span className="sidebar__group-label">{t("nav.group.admin")}</span>}
               <ul className="sidebar__group-items">
                 <li>
                   <NavLink
@@ -115,14 +114,18 @@ export function Sidebar() {
                     className={({ isActive }) => `sidebar__link ${isActive ? "sidebar__link--active" : ""}`}
                     onClick={handle_nav}
                   >
-                    <span className="sidebar__icon" data-tooltip={admin_label}>&#9872;</span>
-                    {!collapsed && <span className="sidebar__label">{admin_label}</span>}
+                    <span className="sidebar__icon" data-tooltip={t("nav.admin")}>&#9872;</span>
+                    {!collapsed && <span className="sidebar__label">{t("nav.admin")}</span>}
                   </NavLink>
                 </li>
               </ul>
             </li>
           )}
         </ul>
+        {/* 사이드바 하단 고정 사용자 카드 */}
+        <div className="sidebar__user-card">
+          <UserCard />
+        </div>
       </nav>
       <BottomNav />
     </>
