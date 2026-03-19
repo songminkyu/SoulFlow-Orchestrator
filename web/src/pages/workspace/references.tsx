@@ -12,12 +12,22 @@ import { useAsyncState } from "../../hooks/use-async-state";
 import { useT } from "../../i18n";
 import { time_ago } from "../../utils/format";
 import { DataTable } from "../../components/data-table";
+import { RichResultRenderer } from "../../components/rich-result-renderer";
+import { StatusView } from "../../components/status-contract";
 
 interface RefDocument {
   path: string;
   chunks: number;
   size: number;
   updated_at: string;
+  /** FE-5: 어휘 프로파일 (언어/토크나이저 힌트). */
+  lexical_profile?: string;
+  /** FE-5: 토크나이저 이름. */
+  tokenizer_hint?: string;
+  /** FE-5: 검색 완료 피드백 (indexed/pending/failed). */
+  retrieval_status?: "indexed" | "pending" | "failed";
+  /** FE-5: 숨김/차단 사유. */
+  hidden_reason?: string;
 }
 
 interface RefStats {
@@ -207,22 +217,23 @@ export function ReferencesTab() {
             <span className="fw-600 text-sm">{t("references.results")} ({searchResults.length})</span>
             <button className="btn btn--xs" onClick={() => setSearchResults(null)}>{t("common.close")}</button>
           </div>
-          {searchResults.length === 0 ? (
-            <div className="text-muted text-sm p-2">{t("references.no_results")}</div>
-          ) : (
+          <StatusView
+            status={searchResults.length === 0 ? "empty" : "success"}
+            emptyMessage={t("references.no_results")}
+          >
             <div className="ws-references__result-list">
               {searchResults.map((r, i) => (
                 <div key={i} className="ws-references__result-item">
                   <div className="ws-references__result-meta">
                     <span className="fw-600 text-xs">{r.doc_path}</span>
-                    {r.heading && <span className="text-xs text-muted"> — {r.heading}</span>}
+                    {r.heading && <span className="text-xs text-muted"> &mdash; {r.heading}</span>}
                     <Badge status={`${(r.score * 100).toFixed(0)}%`} variant={r.score > 0.5 ? "ok" : "info"} />
                   </div>
-                  <pre className="ws-references__result-content">{r.content.slice(0, 500)}</pre>
+                  <RichResultRenderer content={r.content} truncateAt={500} />
                 </div>
               ))}
             </div>
-          )}
+          </StatusView>
         </div>
       )}
 
@@ -238,6 +249,8 @@ export function ReferencesTab() {
                 <th>{t("references.filename")}</th>
                 <th>{t("references.chunks")}</th>
                 <th>{t("references.size")}</th>
+                <th>{t("repo.lexical_profile")}</th>
+                <th>{t("repo.retrieval_feedback")}</th>
                 <th>{t("references.updated")}</th>
                 <th className="th--actions"></th>
               </tr>
@@ -258,6 +271,25 @@ export function ReferencesTab() {
                     </td>
                     <td className="text-xs">{doc.chunks}</td>
                     <td className="text-xs">{format_size(doc.size)}</td>
+                    <td className="text-xs">
+                      {doc.lexical_profile && <span title={doc.tokenizer_hint ?? ""}>{doc.lexical_profile}</span>}
+                      {doc.tokenizer_hint && <span className="text-muted ml-1">({doc.tokenizer_hint})</span>}
+                      {!doc.lexical_profile && !doc.tokenizer_hint && <span className="text-muted">&mdash;</span>}
+                    </td>
+                    <td className="text-xs">
+                      {doc.retrieval_status && (
+                        <Badge
+                          status={doc.retrieval_status}
+                          variant={doc.retrieval_status === "indexed" ? "ok" : doc.retrieval_status === "pending" ? "warn" : "err"}
+                        />
+                      )}
+                      {doc.hidden_reason && (
+                        <span className="text-err text-xs ml-1" title={doc.hidden_reason} aria-label={t("repo.hidden_reason")}>
+                          {doc.hidden_reason}
+                        </span>
+                      )}
+                      {!doc.retrieval_status && !doc.hidden_reason && <span className="text-muted">&mdash;</span>}
+                    </td>
                     <td className="text-xs text-muted" title={doc.updated_at}>{doc.updated_at ? time_ago(doc.updated_at) : "—"}</td>
                     <td>
                       <button

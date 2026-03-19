@@ -5,7 +5,7 @@ import { Badge } from "../../components/badge";
 import { EmptyState } from "../../components/empty-state";
 import { Modal, DeleteConfirmModal } from "../../components/modal";
 import { FormGroup } from "../../components/form-group";
-import { WsListItem, WsDetailHeader, WsSkeletonCol } from "./ws-shared";
+import { WsListItem, WsDetailHeader } from "./ws-shared";
 import { useToast } from "../../components/toast";
 import { useT } from "../../i18n";
 import { time_ago } from "../../utils/format";
@@ -13,6 +13,8 @@ import { SplitPane } from "./split-pane";
 import { DataTable } from "../../components/data-table";
 import { useAsyncAction } from "../../hooks/use-async-action";
 import { useAuthStatus, useAuthUser } from "../../hooks/use-auth";
+import { StatusView } from "../../components/status-contract";
+import { RichResultRenderer } from "../../components/rich-result-renderer";
 
 interface DailyListResponse { days: string[] }
 interface MemoryContentResponse { content: string }
@@ -60,7 +62,7 @@ export function MemoryTab() {
 
   const is_text_view = view === "longterm" || typeof view === "object";
 
-  const { data: content_data, isLoading: content_loading } = useQuery<MemoryContentResponse>({
+  const { data: content_data, isLoading: content_loading, error: content_error, refetch: content_refetch } = useQuery<MemoryContentResponse>({
     queryKey: ["memory-content", view],
     queryFn: () =>
       view === "longterm"
@@ -235,6 +237,11 @@ export function MemoryTab() {
 
     // 텍스트 뷰 (longterm / daily)
     const label = view === "longterm" ? t("workspace.memory.longterm") : view_day;
+    const content_status = content_loading ? "loading" as const
+      : content_error ? "error" as const
+      : !content_data?.content ? "empty" as const
+      : "success" as const;
+
     return (
       <div className="ws-col">
         {right_header(label ?? "",
@@ -252,15 +259,21 @@ export function MemoryTab() {
           )
         )}
         <div className="ws-col flex-fill">
-          {content_loading ? (
-            <WsSkeletonCol rows={["text", "text", "text-sm"]} />
-          ) : editing ? (
-            <textarea autoFocus className="ws-editor ws-editor--editing" value={editText} onChange={(e) => setEditText(e.target.value)} />
-          ) : (
-            <div className="ws-preview">
-              <pre>{content_data?.content || <span className="text-muted">-</span>}</pre>
-            </div>
-          )}
+          <StatusView
+            status={editing ? "success" : content_status}
+            errorMessage={t("status.error")}
+            onRetry={() => void content_refetch()}
+            emptyMessage={t("status.empty")}
+            skeletonCount={3}
+          >
+            {editing ? (
+              <textarea autoFocus className="ws-editor ws-editor--editing" value={editText} onChange={(e) => setEditText(e.target.value)} />
+            ) : (
+              <div className="ws-preview">
+                <RichResultRenderer content={content_data?.content ?? ""} truncateAt={2000} />
+              </div>
+            )}
+          </StatusView>
         </div>
       </div>
     );

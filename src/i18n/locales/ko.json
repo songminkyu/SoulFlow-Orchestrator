@@ -4136,5 +4136,15 @@
   "workflows.schema_summary": "스키마",
   "workflows.passed": "통과",
   "workflows.retries": "재시도",
-  "workflows.conflicts": "충돌"
+  "workflows.conflicts": "충돌",
+  "workflows.retrieval_mode": "검색 모드",
+  "workflows.retrieval_mode_lexical": "어휘 검색",
+  "workflows.retrieval_mode_semantic": "의미 검색",
+  "workflows.retrieval_mode_hybrid": "혼합 검색",
+  "repo.validator_pass": "검증 통과",
+  "repo.validator_fail": "검증 실패",
+  "repo.artifact_replay": "아티팩트 리플레이",
+  "repo.lexical_profile": "어휘 프로파일",
+  "repo.retrieval_feedback": "검색 상태",
+  "repo.hidden_reason": "숨김 사유"
 }

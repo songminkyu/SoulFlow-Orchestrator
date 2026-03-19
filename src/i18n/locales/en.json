@@ -4136,5 +4136,15 @@
   "workflows.schema_summary": "Schema",
   "workflows.passed": "passed",
   "workflows.retries": "retries",
-  "workflows.conflicts": "conflicts"
+  "workflows.conflicts": "conflicts",
+  "workflows.retrieval_mode": "Retrieval Mode",
+  "workflows.retrieval_mode_lexical": "Lexical",
+  "workflows.retrieval_mode_semantic": "Semantic",
+  "workflows.retrieval_mode_hybrid": "Hybrid",
+  "repo.validator_pass": "Validator Pass",
+  "repo.validator_fail": "Validator Fail",
+  "repo.artifact_replay": "Artifact Replay",
+  "repo.lexical_profile": "Lexical Profile",
+  "repo.retrieval_feedback": "Retrieval Feedback",
+  "repo.hidden_reason": "Hidden Reason"
 }
