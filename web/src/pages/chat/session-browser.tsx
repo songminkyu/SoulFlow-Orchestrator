@@ -72,7 +72,7 @@ export function SessionBrowser({
         {/* 대시보드 세션 */}
         {filtered_sessions.length > 0 && (
           <div className="session-browser__group">
-            <div className="session-browser__group-label">Chat</div>
+            <div className="session-browser__group-label">{t("session_browser.chat_group")}</div>
             {filtered_sessions.map((s, i) => {
               const is_active = s.id === active_id;
               return (
@@ -131,7 +131,7 @@ export function SessionBrowser({
         {/* 미러(채널) 세션 */}
         {filtered_mirror.length > 0 && (
           <div className="session-browser__group">
-            <div className="session-browser__group-label">Mirror</div>
+            <div className="session-browser__group-label">{t("session_browser.mirror_group")}</div>
             {filtered_mirror.map((m) => {
               const is_active = m.key === mirror_key;
               return (

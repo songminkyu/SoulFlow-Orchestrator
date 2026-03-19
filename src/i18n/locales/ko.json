@@ -4090,5 +4090,15 @@
   "mention.workflows": "워크플로우",
   "mention.no_results": "결과 없음",
   "model_selector.search": "모델 검색...",
-  "model_selector.select": "모델 선택"
+  "model_selector.select": "모델 선택",
+  "chat.send": "전송",
+  "chat.attach_tools": "도구 첨부",
+  "chat.tool_count": "도구 {count}개",
+  "chat.mention_trigger": "@멘션으로 에이전트/도구/워크플로우 선택",
+  "chat.channel_mismatch": "채널 미스매치",
+  "chat.channel_mismatch_hint": "요청: {requested} → 전달: {delivered}",
+  "chat.session_reuse": "세션 재사용",
+  "chat.session_reuse_hint": "이전 세션 컨텍스트를 재사용 중입니다",
+  "session_browser.chat_group": "채팅",
+  "session_browser.mirror_group": "미러"
 }

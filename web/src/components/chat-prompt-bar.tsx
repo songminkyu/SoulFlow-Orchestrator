@@ -1,39 +1,38 @@
 /**
- * 채팅 입력 + 프로바이더/모델 선택을 통합한 프롬프트바.
- * - 텍스트 입력 (자동 높이 조절)
- * - 첨부 파일 버튼 (옵션)
- * - 프로바이더/모델 칩 → 개별 피커 팝업 (옵션)
- * - popupPlacement: 'up'(기본, 채팅 하단) | 'down'(워크플로우 상단)
+ * ChatPromptBar — 통합 프롬프트바 (FE-2b 리디자인).
+ *
+ * 레이아웃:
+ *   [AttachedToolChips — 입력 바 위]
+ *   [텍스트 입력 영역 (auto-resize)]
+ *   하단 버튼 바: [+] [ToolChoice] [Tools N] [@] ─── [모델] [전송]
+ *
+ * FE-2a 컴포넌트 통합:
+ *   - MentionPicker: @ 입력 시 팝업
+ *   - ModelSelectorDropdown: 모델 선택
+ *   - ToolChoiceToggle: 도구 정책 드롭다운
+ *   - AttachedToolChips: 첨부 도구 칩 표시
  */
 
-import { useRef, useEffect, useState } from "react";
-import { useClickOutside } from "../hooks/use-click-outside";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "../api/client";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { useT } from "../i18n";
+import { MentionPicker, type MentionItem } from "./mention-picker";
+import { ModelSelectorDropdown } from "./model-selector-dropdown";
+import { ToolChoiceToggle } from "./tool-choice-toggle";
+import { AttachedToolChips } from "./attached-tool-chips";
 import { MediaPreviewBar } from "../pages/chat/media-preview";
 import type { ChatMediaItem } from "../pages/chat/types";
-
-interface ProviderInstance {
-  instance_id: string;
-  label: string;
-}
-
-interface ModelInfo {
-  id: string;
-  name: string;
-}
+import type { ToolChoiceMode } from "../../../src/contracts";
 
 export interface ChatPromptBarProps {
   input: string;
   setInput: (v: string) => void;
   sending: boolean;
-  /** AI 응답 스트리밍 중 여부 — true이면 전송 버튼이 로딩 상태 유지 */
+  /** AI 응답 스트리밍 중 여부 */
   is_streaming?: boolean;
   can_send: boolean;
   onSend: () => void;
   placeholder?: string;
-  /** 이전 전송 메시지 히스토리 (오래된 순). ↑↓ 키 탐색에 사용. */
+  /** 이전 전송 메시지 히스토리 (오래된 순). */
   history?: string[];
 
   /** 파일 첨부 지원 */
@@ -41,39 +40,47 @@ export interface ChatPromptBarProps {
   onAttach?: () => void;
   onRemoveMedia?: (idx: number) => void;
 
-  /** 프로바이더/모델 선택 지원 (선택사항) */
-  selectedProvider?: string;
+  /** 모델 선택 (ModelSelectorDropdown) */
   selectedModel?: string;
-  onProviderChange?: (id: string) => void;
   onModelChange?: (model: string) => void;
 
-  /** 팝업 방향 — 'up': 위(기본, 채팅 하단), 'down': 아래(워크플로우 상단) */
-  popupPlacement?: "up" | "down";
+  /** @mention 첨부 아이템 (에이전트/도구/워크플로우) */
+  attached_items?: MentionItem[];
+  onMentionSelect?: (item: MentionItem) => void;
+  onMentionRemove?: (id: string) => void;
+
+  /** 에이전트 목록 (MentionPicker 주입) */
+  agent_mentions?: MentionItem[];
+
+  /** 도구 선택 정책 */
+  tool_choice?: ToolChoiceMode;
+  onToolChoiceChange?: (mode: ToolChoiceMode) => void;
 
   className?: string;
 }
 
-type PickerKind = "provider" | "model" | null;
-
 export function ChatPromptBar(props: ChatPromptBarProps) {
   const t = useT();
-  const { popupPlacement = "up" } = props;
   const is_busy = props.sending || !!props.is_streaming;
   const textarea_ref = useRef<HTMLTextAreaElement>(null);
-  const popup_ref = useRef<HTMLDivElement>(null);
   const pill_ref = useRef<HTMLDivElement>(null);
 
-  const trigger_send_pulse = () => {
+  const [mention_open, setMentionOpen] = useState(false);
+  const [tool_choice_open, setToolChoiceOpen] = useState(false);
+
+  const has_model_selector = !!props.onModelChange;
+  const has_mention = !!props.onMentionSelect;
+  const has_tool_choice = !!props.onToolChoiceChange;
+  const attached_count = props.attached_items?.length ?? 0;
+
+  const trigger_send_pulse = useCallback(() => {
     const el = pill_ref.current;
     if (!el) return;
     el.classList.remove("chat-prompt-bar__pill--sending");
-    void el.offsetWidth; // reflow 강제로 animation 재시작
+    void el.offsetWidth;
     el.classList.add("chat-prompt-bar__pill--sending");
     el.addEventListener("animationend", () => el.classList.remove("chat-prompt-bar__pill--sending"), { once: true });
-  };
-
-  const has_model_selector = !!(props.onProviderChange && props.onModelChange);
-  const [open_picker, setOpenPicker] = useState<PickerKind>(null);
+  }, []);
 
   // 자동 높이 조절
   useEffect(() => {
@@ -83,43 +90,16 @@ export function ChatPromptBar(props: ChatPromptBarProps) {
     el.style.height = Math.min(el.scrollHeight, 160) + "px";
   }, [props.input]);
 
-  // is_busy 해제 시 포커스 복원 (disabled 전환으로 인한 포커스 손실 방지)
+  // is_busy 해제 시 포커스 복원
   const prev_busy = useRef(false);
   useEffect(() => {
     if (prev_busy.current && !is_busy) textarea_ref.current?.focus();
     prev_busy.current = is_busy;
   }, [is_busy]);
 
-  useClickOutside(popup_ref, () => setOpenPicker(null), !!open_picker);
-
-  const { data: instances = [], isLoading: loading_instances } = useQuery({
-    queryKey: ["provider-instances-chat"],
-    queryFn: () => api.get<ProviderInstance[]>("/api/config/provider-instances?purpose=chat"),
-    enabled: has_model_selector,
-    staleTime: 60_000,
-  });
-
-  const { data: models = [], isLoading: loading_models } = useQuery({
-    queryKey: ["provider-models", props.selectedProvider],
-    queryFn: () => api.get<ModelInfo[]>(`/api/agents/providers/${encodeURIComponent(props.selectedProvider!)}/models`),
-    enabled: has_model_selector && !!props.selectedProvider,
-    staleTime: 60_000,
-  });
-
-  // 모델 목록 로드 후 첫 번째 모델 기본 선택
-  useEffect(() => {
-    if (models.length > 0 && !models.find((m) => m.id === props.selectedModel)) {
-      props.onModelChange?.(models[0]!.id);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [models]);
-
-  /** 히스토리 탐색 상태. -1 = 현재 입력 중, 0 = 마지막 전송, 1 = 그 이전, ... */
+  /** 히스토리 탐색 상태 */
   const history_cursor = useRef(-1);
-  /** 히스토리 탐색 시작 전 작성 중이던 draft 보존 */
   const history_draft = useRef("");
-
-  // 히스토리 변경 시 커서 초기화 (세션 전환 등)
   const history = props.history ?? [];
 
   const handle_key_down = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -156,157 +136,167 @@ export function ChatPromptBar(props: ChatPromptBarProps) {
     }
   };
 
-  const toggle_picker = (kind: PickerKind) =>
-    setOpenPicker((prev) => (prev === kind ? null : kind));
+  const handle_input_change = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    history_cursor.current = -1;
+    const val = e.target.value;
+    props.setInput(val);
 
-  const select_provider = (id: string) => {
-    props.onProviderChange?.(id);
-    props.onModelChange?.("");
-    setOpenPicker(null);
+    // @ 입력 감지 — 마지막 문자가 @ 이면 MentionPicker 열기
+    if (has_mention && val.endsWith("@")) {
+      setMentionOpen(true);
+    }
   };
 
-  const select_model = (id: string) => {
-    props.onModelChange?.(id);
-    setOpenPicker(null);
+  const handle_mention_select = (item: MentionItem) => {
+    setMentionOpen(false);
+    props.onMentionSelect?.(item);
+    // @ 제거 — 입력 끝에 @ 가 있으면 삭제
+    if (props.input.endsWith("@")) {
+      props.setInput(props.input.slice(0, -1));
+    }
+    textarea_ref.current?.focus();
   };
 
-  const current_provider = instances.find((i) => i.instance_id === props.selectedProvider);
-  const current_model = models.find((m) => m.id === props.selectedModel);
+  const handle_at_click = () => {
+    if (has_mention) {
+      setMentionOpen((v) => !v);
+    }
+  };
 
   return (
     <div className={`chat-prompt-bar${props.className ? ` ${props.className}` : ""}`}>
+      {/* 첨부 도구 칩 — 입력 바 위 */}
+      {has_mention && (
+        <AttachedToolChips
+          items={props.attached_items ?? []}
+          onRemove={props.onMentionRemove ?? (() => {})}
+        />
+      )}
+
+      {/* 미디어 미리보기 */}
       {(props.pending_media?.length ?? 0) > 0 && props.onRemoveMedia && (
         <MediaPreviewBar items={props.pending_media!} onRemove={props.onRemoveMedia} />
       )}
 
       <div ref={pill_ref} className="chat-prompt-bar__pill">
-        {props.onAttach && (
-          <button
-            className="chat-prompt-bar__btn"
-            onClick={props.onAttach}
-            disabled={is_busy}
-            title={t("chat.attach_file")}
-            aria-label={t("chat.attach_file")}
-          >
-            +
-          </button>
-        )}
-
+        {/* 텍스트 입력 영역 */}
         <textarea
           ref={textarea_ref}
           autoFocus
           className="chat-prompt-bar__textarea"
           value={props.input}
-          onChange={(e) => { history_cursor.current = -1; props.setInput(e.target.value); }}
+          onChange={handle_input_change}
           onKeyDown={handle_key_down}
           placeholder={props.placeholder ?? t("chat.placeholder")}
           disabled={is_busy}
           rows={1}
         />
 
-        {has_model_selector && (
-          <div className="chat-prompt-bar__model-wrap" ref={popup_ref}>
-            {/* 프로바이더 칩 */}
-            <button
-              className={`chat-prompt-bar__model-chip${open_picker === "provider" ? " chat-prompt-bar__model-chip--active" : ""}`}
-              onClick={() => toggle_picker("provider")}
-              disabled={loading_instances}
-              type="button"
-              aria-label={t("chat.provider_select")}
-              title={current_provider?.label ?? t("chat.model_auto")}
-            >
-              <span className="chat-prompt-bar__chip-text">
-                {current_provider?.label ?? t("chat.model_auto")}
-              </span>
-              <span className="chat-prompt-bar__model-chip-caret">▾</span>
-            </button>
-
-            {/* 모델 칩 — 프로바이더 선택 시에만 표시 */}
-            {props.selectedProvider && (
+        {/* 하단 버튼 바 */}
+        <div className="chat-prompt-bar__toolbar">
+          {/* 왼쪽 그룹: [+] [ToolChoice] [Tools N] [@] */}
+          <div className="chat-prompt-bar__toolbar-left">
+            {props.onAttach && (
               <button
-                className={`chat-prompt-bar__model-chip${open_picker === "model" ? " chat-prompt-bar__model-chip--active" : ""}`}
-                onClick={() => toggle_picker("model")}
-                disabled={loading_models}
-                type="button"
-                aria-label={t("chat.model_select")}
-                title={current_model?.name ?? t("chat.model_auto")}
+                className="chat-prompt-bar__btn"
+                onClick={props.onAttach}
+                disabled={is_busy}
+                title={t("chat.attach_file")}
+                aria-label={t("chat.attach_file")}
               >
-                <span className="chat-prompt-bar__chip-text">
-                  {current_model?.name ?? (loading_models ? "…" : t("chat.model_auto"))}
-                </span>
-                <span className="chat-prompt-bar__model-chip-caret">▾</span>
+                +
               </button>
             )}
 
-            {/* 피커 팝업 */}
-            {open_picker && (
-              <div className={`chat-prompt-bar__model-popup chat-prompt-bar__model-popup--${popupPlacement}`}>
-                <div className="chat-prompt-bar__model-popup-label">
-                  {open_picker === "provider" ? t("chat.provider_select") : t("chat.model_select")}
-                </div>
-                <div className="chat-prompt-bar__picker-list">
-                  {open_picker === "provider" ? (
-                    <>
-                      <button
-                        type="button"
-                        className={`chat-prompt-bar__picker-item${!props.selectedProvider ? " chat-prompt-bar__picker-item--selected" : ""}`}
-                        onClick={() => select_provider("")}
-                      >
-                        {t("chat.model_auto")}
-                      </button>
-                      {instances.map((inst) => (
-                        <button
-                          key={inst.instance_id}
-                          type="button"
-                          className={`chat-prompt-bar__picker-item${props.selectedProvider === inst.instance_id ? " chat-prompt-bar__picker-item--selected" : ""}`}
-                          onClick={() => select_provider(inst.instance_id)}
-                        >
-                          {inst.label}
-                        </button>
-                      ))}
-                    </>
-                  ) : loading_models ? (
-                    <div className="chat-prompt-bar__picker-empty">…</div>
-                  ) : models.length === 0 ? (
-                    <div className="chat-prompt-bar__picker-empty">{t("chat.model_loading")}</div>
-                  ) : (
-                    models.map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        className={`chat-prompt-bar__picker-item${props.selectedModel === m.id ? " chat-prompt-bar__picker-item--selected" : ""}`}
-                        onClick={() => select_model(m.id)}
-                      >
-                        {m.name}
-                      </button>
-                    ))
-                  )}
-                </div>
+            {has_tool_choice && (
+              <div className="chat-prompt-bar__tool-choice-wrap">
+                <button
+                  className={`chat-prompt-bar__btn${tool_choice_open ? " chat-prompt-bar__btn--active" : ""}`}
+                  onClick={() => setToolChoiceOpen((v) => !v)}
+                  disabled={is_busy}
+                  title={t("chat.attach_tools")}
+                  aria-label={t("chat.attach_tools")}
+                  type="button"
+                >
+                  {t(`tool_choice.${props.tool_choice ?? "auto"}`)} &#9662;
+                </button>
+                {tool_choice_open && (
+                  <div className="chat-prompt-bar__tool-choice-popup">
+                    <ToolChoiceToggle
+                      value={props.tool_choice ?? "auto"}
+                      onChange={(mode) => {
+                        props.onToolChoiceChange?.(mode);
+                        setToolChoiceOpen(false);
+                      }}
+                      disabled={is_busy}
+                    />
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        <button
-          className={`chat-prompt-bar__btn${is_busy ? " chat-prompt-bar__btn--loading" : props.can_send ? " chat-prompt-bar__btn--send" : ""}`}
-          onClick={is_busy ? undefined : () => { trigger_send_pulse(); props.onSend(); }}
-          disabled={is_busy || !props.can_send}
-          aria-label={is_busy ? t("chat.sending") : t("common.send")}
-          aria-busy={is_busy}
-        >
-          {is_busy ? (
-            <>
-              <span className="chat-send-dot" />
-              <span className="chat-send-dot" />
-              <span className="chat-send-dot" />
-            </>
-          ) : "↑"}
-        </button>
+            {has_mention && attached_count > 0 && (
+              <span className="chat-prompt-bar__tool-count" aria-label={t("chat.tool_count", { count: String(attached_count) })}>
+                {t("chat.tool_count", { count: String(attached_count) })}
+              </span>
+            )}
+
+            {has_mention && (
+              <button
+                className={`chat-prompt-bar__btn chat-prompt-bar__btn--mention${mention_open ? " chat-prompt-bar__btn--active" : ""}`}
+                onClick={handle_at_click}
+                disabled={is_busy}
+                title={t("chat.mention_trigger")}
+                aria-label={t("chat.mention_trigger")}
+                type="button"
+              >
+                @
+              </button>
+            )}
+          </div>
+
+          {/* 오른쪽 그룹: [모델] [전송] */}
+          <div className="chat-prompt-bar__toolbar-right">
+            {has_model_selector && (
+              <ModelSelectorDropdown
+                value={props.selectedModel ?? ""}
+                onSelect={props.onModelChange!}
+                className="chat-prompt-bar__model-selector"
+              />
+            )}
+
+            <button
+              className={`chat-prompt-bar__btn${is_busy ? " chat-prompt-bar__btn--loading" : props.can_send ? " chat-prompt-bar__btn--send" : ""}`}
+              onClick={is_busy ? undefined : () => { trigger_send_pulse(); props.onSend(); }}
+              disabled={is_busy || !props.can_send}
+              aria-label={is_busy ? t("chat.sending") : t("chat.send")}
+              aria-busy={is_busy}
+            >
+              {is_busy ? (
+                <>
+                  <span className="chat-send-dot" />
+                  <span className="chat-send-dot" />
+                  <span className="chat-send-dot" />
+                </>
+              ) : "\u2191"}
+            </button>
+          </div>
+        </div>
       </div>
 
-      {!open_picker && (
+      {/* MentionPicker 팝업 */}
+      {has_mention && (
+        <MentionPicker
+          open={mention_open}
+          onClose={() => setMentionOpen(false)}
+          onSelect={handle_mention_select}
+          agents={props.agent_mentions}
+        />
+      )}
+
+      {!mention_open && !tool_choice_open && (
         <div className="chat-prompt-bar__hint text-xs text-muted">
-          Enter {t("chat.send_hint")} · Shift+Enter {t("chat.newline_hint")}
+          Enter {t("chat.send_hint")} &middot; Shift+Enter {t("chat.newline_hint")}
         </div>
       )}
     </div>

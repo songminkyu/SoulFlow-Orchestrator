@@ -4090,5 +4090,15 @@
   "mention.workflows": "Workflows",
   "mention.no_results": "No results",
   "model_selector.search": "Search models...",
-  "model_selector.select": "Select model"
+  "model_selector.select": "Select model",
+  "chat.send": "Send",
+  "chat.attach_tools": "Attach tools",
+  "chat.tool_count": "{count} tools",
+  "chat.mention_trigger": "Use @mention to select agents/tools/workflows",
+  "chat.channel_mismatch": "Channel mismatch",
+  "chat.channel_mismatch_hint": "Requested: {requested} → Delivered: {delivered}",
+  "chat.session_reuse": "Session reuse",
+  "chat.session_reuse_hint": "Reusing previous session context",
+  "session_browser.chat_group": "Chat",
+  "session_browser.mirror_group": "Mirror"
 }
