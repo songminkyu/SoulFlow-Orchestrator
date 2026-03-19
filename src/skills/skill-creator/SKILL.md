@@ -30,7 +30,7 @@ metadata:
 | Improve body structure | See [references/body-patterns.md](references/body-patterns.md) |
 | Add scripts | `scripts/` dir, test with `--help`, black-box execution |
 | Add references | `references/` dir, link from SKILL.md body |
-| Validate | Load through SkillsLoader + `npm run build` |
+| Validate | `node scripts/validate-skills.mjs src/skills/` or `.claude/skills/` |
 
 ## Skill Anatomy
 
@@ -125,10 +125,20 @@ Only create directories that will contain files.
 5. Link references — `See [topic.md](references/topic.md) for details`
 
 Body patterns guide: [references/body-patterns.md](references/body-patterns.md)
+Dual-target rules: [references/dual-target-rules.md](references/dual-target-rules.md)
+Common schema: [references/common-schema.md](references/common-schema.md)
+Resource conventions: [references/resource-conventions.md](references/resource-conventions.md)
+Examples: [references/example-general-skill.md](references/example-general-skill.md), [references/example-role-skill.md](references/example-role-skill.md)
 
 ### Step 5: Validate and iterate
 
-Test the skill on real tasks. Notice struggles, update, repeat.
+Run the validator before committing:
+
+```bash
+node scripts/validate-skills.mjs src/skills/<skill-name>/
+```
+
+Fix all errors. Warnings are advisory. Then test on real tasks and refine.
 
 ## Freedom Levels
 
