@@ -13,6 +13,7 @@ import type { CliAuthService, CliType } from "../cli-auth.service.js";
 import { AuthProfileTracker } from "./auth-profile-tracker.js";
 import { evaluate_context_window_guard } from "./context-window-guard.js";
 import type { ToolBridgeServer } from "./tool-bridge-server.js";
+import type { PtyOutputReducer } from "./pty-output-reducer.js";
 import { BRIDGE_MCP_CONFIG_CONTAINER_PATH } from "./tool-bridge-config.js";
 
 const BASE_RETRY = 24;
@@ -36,6 +37,8 @@ export type ContainerCliAgentOptions = {
   profile_key_map?: Map<number, Record<string, string>>;
   /** Tool Bridge 서버 (주입 시 MCP 도구 브릿지 활성화). */
   tool_bridge?: ToolBridgeServer;
+  /** PTY 출력 reducer (주입 시 tool_result / assistant_chunk 압축 적용). */
+  pty_reducer?: PtyOutputReducer;
 };
 
 /** 동적 재시도 상한. 프로파일 수에 비례. */
@@ -61,6 +64,7 @@ export class ContainerCliAgent implements AgentBackend {
   private readonly profile_tracker: AuthProfileTracker | null;
   private readonly profile_key_map: Map<number, Record<string, string>>;
   private readonly tool_bridge?: ToolBridgeServer;
+  private readonly pty_reducer?: PtyOutputReducer;
   private auth_ok: boolean;
 
   constructor(options: ContainerCliAgentOptions) {
@@ -76,6 +80,7 @@ export class ContainerCliAgent implements AgentBackend {
     this.auth_ok = !options.auth_service;
     this.profile_key_map = options.profile_key_map ?? new Map();
     this.tool_bridge = options.tool_bridge;
+    this.pty_reducer = options.pty_reducer;
     this.profile_tracker = this.profile_key_map.size > 1
       ? new AuthProfileTracker(this.profile_key_map.size)
       : null;
@@ -125,9 +130,11 @@ export class ContainerCliAgent implements AgentBackend {
     // 출력 이벤트를 AgentEvent로 변환
     const output_sub = this.bus.on_output((key, msg) => {
       if (key !== session_key) return;
-      if (msg.type === "tool_use") tool_calls_count++;
-      if (msg.type === "assistant_chunk" && on_stream) on_stream(msg.content);
-      if (emit) this.relay_output_event(msg, source, emit);
+      // PTY reducer: tool_result / assistant_chunk 압축 적용
+      const reduced_msg = this.pty_reducer ? this.pty_reducer.reduce(msg) : msg;
+      if (reduced_msg.type === "tool_use") tool_calls_count++;
+      if (reduced_msg.type === "assistant_chunk" && on_stream) on_stream(reduced_msg.content);
+      if (emit) this.relay_output_event(reduced_msg, source, emit);
     });
 
     try {

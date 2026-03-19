@@ -8,6 +8,7 @@ import type {
 } from "./types.js";
 import type { AgentApprovalStatus } from "../runtime.types.js";
 import type { ParamSecretResolver } from "./base.js";
+import type { ToolOutputReducer } from "../../orchestration/tool-output-reducer.js";
 
 const ERROR_HINT = "\n\n[Analyze the error and retry with a safer or narrower approach.]";
 
@@ -30,6 +31,8 @@ type ToolRegistryOptions = {
   on_approval_request?: (request: ApprovalRequest) => Promise<void>;
   pre_hooks?: PreToolHook[];
   post_hooks?: PostToolHook[];
+  /** 3-projection reducer. 미지정 시 기존 동작 유지. */
+  reducer?: ToolOutputReducer;
 };
 
 export class ToolRegistry {
@@ -40,6 +43,7 @@ export class ToolRegistry {
   private readonly on_approval_request: ((request: ApprovalRequest) => Promise<void>) | null;
   private readonly pre_hooks: PreToolHook[];
   private readonly post_hooks: PostToolHook[];
+  private readonly reducer: ToolOutputReducer | null;
   /** "모두 승인" 시 세션 동안 자동 승인되는 도구 이름 집합. */
   private readonly auto_approved_tools = new Set<string>();
 
@@ -47,6 +51,7 @@ export class ToolRegistry {
     this.on_approval_request = options?.on_approval_request || null;
     this.pre_hooks = options?.pre_hooks || [];
     this.post_hooks = options?.post_hooks || [];
+    this.reducer = options?.reducer || null;
   }
 
   private _secret_resolver: ParamSecretResolver | null = null;
@@ -156,8 +161,14 @@ export class ToolRegistry {
         }
       }
 
-      const result = await tool.execute(effective_params, context);
+      let result = await tool.execute(effective_params, context);
       const is_error = result.startsWith("Error:");
+
+      // 3-projection reducer: 성공 결과에만 적용
+      if (this.reducer && !is_error) {
+        const reduced = this.reducer.reduce({ tool_name: name, params: effective_params, result_text: result, is_error });
+        result = reduced.prompt_text;
+      }
 
       // PostToolUse hooks — fire-and-forget
       for (const hook of this.post_hooks) {

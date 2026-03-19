@@ -91,7 +91,7 @@ describe("SessionRecorder", () => {
       expect.objectContaining({ role: "assistant", content: "I can help!", sender_id: "bot" }),
     );
     expect(deps.daily_memory.append_daily_memory).toHaveBeenCalledWith(
-      expect.stringContaining("ASSISTANT(bot): I can help!"),
+      expect.stringContaining("ASSISTANT(bot): i can help"),
     );
   });
 

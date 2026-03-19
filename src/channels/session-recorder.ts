@@ -1,4 +1,5 @@
-import { error_message, now_iso, normalize_text } from "../utils/common.js";
+import { error_message, now_iso } from "../utils/common.js";
+import { normalize_query } from "../orchestration/guardrails/session-reuse.js";
 import type { InboundMessage } from "../bus/types.js";
 import type { ChannelProvider } from "./types.js";
 import type { SessionStoreLike } from "../session/service.js";
@@ -206,7 +207,8 @@ export class SessionRecorder {
     content: string,
   ): Promise<void> {
     if (!this.daily_memory) return;
-    const text = normalize_text(content).slice(0, 1600);
+    // novelty gate가 retrieval과 동일한 tokenizer policy를 사용하도록 normalize_query 적용
+    const text = normalize_query(content).slice(0, 1600);
     if (!text) return;
     const thread = thread_id?.trim() || "-";
     const sender = sender_id?.trim() || "unknown";

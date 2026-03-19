@@ -3,6 +3,7 @@
 import type { ToolExecutionContext, ToolLike } from "../tools/types.js";
 import type { AgentEvent, AgentEventSource, AgentFinishReason, AgentHooks } from "../agent.types.js";
 import type { LlmUsage } from "../../providers/types.js";
+import type { ToolOutputReducer } from "../../orchestration/tool-output-reducer.js";
 import { now_iso, error_message, swallow } from "../../utils/common.js";
 
 export type UsageAccumulator = {
@@ -27,6 +28,7 @@ export async function execute_single_tool(
   executors: Map<string, ToolLike>,
   ctx: ToolExecutionContext,
   hooks?: AgentHooks,
+  reducer?: ToolOutputReducer,
 ): Promise<ToolResult> {
   if (hooks?.pre_tool_use) {
     const pre = await hooks.pre_tool_use(name, params, ctx);
@@ -50,6 +52,12 @@ export async function execute_single_tool(
   } else {
     text = `Error: tool_not_found:${name}`;
     is_error = true;
+  }
+
+  // 3-projection reducer: 성공 결과에만 적용, 에러는 원본 유지
+  if (reducer && !is_error) {
+    const reduced = reducer.reduce({ tool_name: name, params, result_text: text, is_error });
+    text = reduced.prompt_text;
   }
 
   if (hooks?.post_tool_use) {
