@@ -4071,5 +4071,14 @@
   "user_card.role": "역할",
   "user_card.team": "팀",
   "user_card.switch_team": "팀 전환",
-  "user_card.no_teams": "소속 팀 없음"
+  "user_card.no_teams": "소속 팀 없음",
+  "permission.consumer": "소비자",
+  "permission.authenticated_member": "인증 멤버",
+  "permission.workspace_editor": "편집자",
+  "permission.operator": "운영자",
+  "permission.superadmin": "최고 관리자",
+  "status.loading": "로딩 중...",
+  "status.error": "오류가 발생했습니다",
+  "status.empty": "데이터가 없습니다",
+  "status.retry": "다시 시도"
 }

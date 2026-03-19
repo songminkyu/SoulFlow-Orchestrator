@@ -4071,5 +4071,14 @@
   "user_card.role": "Role",
   "user_card.team": "Team",
   "user_card.switch_team": "Switch team",
-  "user_card.no_teams": "No teams"
+  "user_card.no_teams": "No teams",
+  "permission.consumer": "Consumer",
+  "permission.authenticated_member": "Member",
+  "permission.workspace_editor": "Editor",
+  "permission.operator": "Operator",
+  "permission.superadmin": "Superadmin",
+  "status.loading": "Loading...",
+  "status.error": "An error occurred",
+  "status.empty": "No data available",
+  "status.retry": "Retry"
 }
