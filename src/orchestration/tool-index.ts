@@ -396,7 +396,7 @@ export class ToolIndex {
   }
 
   /** 인메모리 BM25-like 스코어링. FTS5 DB 쿼리 대체 (~<1ms). */
-  private _mem_search(query: string, max: number, exclude: Set<string>): string[] {
+  private _mem_search(query: string, max: number, exclude: Set<string>, score_out?: Map<string, number>): string[] {
     const qtoks = new Set<string>();
     for (const t of tokenize(query)) if (!STOP_WORDS.has(t) && t.length >= 2) qtoks.add(t);
     for (const [ko, en_tags] of Object.entries(KO_KEYWORD_MAP)) {
@@ -414,7 +414,9 @@ export class ToolIndex {
         if (!exclude.has(name)) scores.set(name, (scores.get(name) ?? 0) + w);
       }
     }
-    return [...scores.entries()].sort((a, b) => b[1] - a[1]).slice(0, max).map(([n]) => n);
+    const sorted = [...scores.entries()].sort((a, b) => b[1] - a[1]).slice(0, max);
+    if (score_out) for (const [n, s] of sorted) score_out.set(n, s);
+    return sorted.map(([n]) => n);
   }
 
   /**
@@ -437,6 +439,9 @@ export class ToolIndex {
     // 인메모리 인덱스 미빌드 시 빈 셋 (다음 build() 후 복구)
     if (this.mem_tools.length === 0) return selected;
 
+    // K4: BM25-like 점수 추적 — step 6에서 semantic delta 가산의 기저 점수로 사용
+    const lexical_scores = new Map<string, number>();
+
     // 1) Core 도구 — once 모드는 minimal core만 포함
     const active_core = opts?.mode === "once" ? CORE_TOOLS_ONCE : CORE_TOOLS;
     for (const { name, core } of this.mem_tools) {
@@ -453,7 +458,7 @@ export class ToolIndex {
 
     // 3) 인메모리 역인덱스 BM25-like 검색 (FTS5 대체, ~<1ms)
     if (this.mem_inv.size > 0 && selected.size < max) {
-      for (const name of this._mem_search(request_text, max - selected.size, selected)) {
+      for (const name of this._mem_search(request_text, max - selected.size, selected, lexical_scores)) {
         if (selected.size >= max) break;
         selected.add(name);
       }
@@ -488,8 +493,11 @@ export class ToolIndex {
         const candidates = [...selected];
         const deltas = await this.semantic_scorer.score(request_text, candidates);
         if (deltas.length > 0) {
-          // 현재 선택 집합을 동일 가중치 1.0으로 초기화 후 delta 적용
-          const base_scores = new Map<string, number>(candidates.map((n) => [n, 1.0]));
+          // BM25-like 점수를 기저로 사용, 점수 없는 항목(core/classifier/vector)은 중앙값 폴백
+          const median = lexical_scores.size > 0
+            ? [...lexical_scores.values()].sort((a, b) => a - b)[Math.floor(lexical_scores.size / 2)]
+            : 1.0;
+          const base_scores = new Map<string, number>(candidates.map((n) => [n, lexical_scores.get(n) ?? median]));
           const boosted = apply_semantic_deltas(base_scores, deltas);
           // 재정렬된 순서로 Set 재구성 (Set insertion order 활용)
           const reordered = [...boosted.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n);

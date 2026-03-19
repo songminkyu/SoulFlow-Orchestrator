@@ -155,7 +155,8 @@ async function _run_task_loop_inner(
             return { status: "waiting_user_input" as const, memory_patch: { ...memory, last_output: final }, current_step: "execute", exit_reason: "waiting_user_input" };
           }
           // K1: native 경로 — feedback contract를 memory에 저장하여 다음 턴에 반영
-          const feedback = build_feedback_contract(tools_used, [], total_tool_count + native_result.tool_calls_count);
+          // task loop는 역할 컨텍스트 내에서 실행되므로 has_role=true
+          const feedback = build_feedback_contract(tools_used, [], total_tool_count + native_result.tool_calls_count, true);
           return {
             memory_patch: { ...memory, last_output: final, ...(feedback ? { completion_feedback: feedback } : {}) },
             next_step_index: 2,
@@ -220,7 +221,8 @@ async function _run_task_loop_inner(
         }
         total_tool_count += state.tool_count;
         // K1: legacy 경로 — feedback contract를 memory에 저장하여 다음 턴에 반영
-        const feedback = build_feedback_contract(tools_used, [], total_tool_count);
+        // task loop는 역할 컨텍스트 내에서 실행되므로 has_role=true
+        const feedback = build_feedback_contract(tools_used, [], total_tool_count, true);
         return {
           memory_patch: { ...memory, last_output: final, ...(feedback ? { completion_feedback: feedback } : {}) },
           next_step_index: 2,

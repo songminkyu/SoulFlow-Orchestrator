@@ -95,6 +95,9 @@ export class SkillIndex {
     this.built = true;
   }
 
+  /** 마지막 select() 호출의 BM25+보너스 점수. select_async()에서 semantic delta 가산 기저로 사용. */
+  private _last_scores = new Map<string, number>();
+
   /** 4차원 스코어링으로 스킬 선택. */
   select(task: string, options: SkillSelectOptions = {}, limit = 6): string[] {
     if (!this.built) return [];
@@ -188,10 +191,9 @@ export class SkillIndex {
       }
     }
 
-    return [...scored.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, max)
-      .map(([name]) => name);
+    const sorted = [...scored.entries()].sort((a, b) => b[1] - a[1]).slice(0, max);
+    this._last_scores = new Map(sorted);
+    return sorted.map(([name]) => name);
   }
 
   /**
@@ -225,8 +227,8 @@ export class SkillIndex {
       const deltas = await this.semantic_scorer.score(task, sync_results);
       if (deltas.length === 0) return sync_results;
 
-      // 동일 가중치 기준으로 초기화 후 delta 적용
-      const base_scores = new Map<string, number>(sync_results.map((n, idx) => [n, sync_results.length - idx]));
+      // BM25+보너스 점수를 기저로 사용 (select()에서 캐시된 실제 점수)
+      const base_scores = new Map<string, number>(sync_results.map((n) => [n, this._last_scores.get(n) ?? 1.0]));
       const boosted = apply_semantic_deltas(base_scores, deltas);
       return [...boosted.entries()]
         .sort((a, b) => b[1] - a[1])
