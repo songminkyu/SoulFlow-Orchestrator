@@ -55,6 +55,48 @@ export interface ReferenceStoreLike {
   get_stats(): { total_docs: number; total_chunks: number; last_sync: string | null };
 }
 
+/**
+ * 벡터/레퍼런스 retrieval 결과의 표준 envelope 항목.
+ * RetrieverTool vector action과 ReferenceStore/SkillRefStore가 동일한 형식을 사용한다.
+ */
+export interface RetrievalItem {
+  /** 청크 고유 ID (citation 추적에 사용). */
+  id: string;
+  /** 원본 문서 경로. */
+  doc_path: string;
+  /** 섹션 제목 (없으면 빈 문자열). */
+  heading: string;
+  /** 검색된 청크 내용. */
+  content: string;
+  /** 유사도 점수 (0-1, 높을수록 유사). */
+  score: number;
+}
+
+/**
+ * RetrieverTool vector action의 표준 결과 envelope.
+ * sqlite-vec 전용 타입은 이 인터페이스 밖으로 노출하지 않는다.
+ */
+export interface RetrievalEnvelope {
+  results: RetrievalItem[];
+  count: number;
+  source: 'vector';
+  query: string;
+  collection: string;
+  top_k: number;
+  min_score: number;
+}
+
+/** ReferenceSearchResult를 RetrievalItem으로 변환하는 헬퍼. */
+export function to_retrieval_item(r: ReferenceSearchResult): RetrievalItem {
+  return {
+    id: r.chunk_id,
+    doc_path: r.doc_path,
+    heading: r.heading,
+    content: r.content,
+    score: r.score,
+  };
+}
+
 const INIT_SQL = `
   CREATE TABLE IF NOT EXISTS ref_documents (
     path         TEXT PRIMARY KEY,

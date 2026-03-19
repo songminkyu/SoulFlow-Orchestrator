@@ -4,6 +4,8 @@ import { Tool } from "./base.js";
 import type { JsonSchema, ToolExecutionContext } from "./types.js";
 import { make_abort_signal } from "../../utils/common.js";
 import { HTTP_FETCH_TIMEOUT_MS } from "../../utils/timeouts.js";
+import type { ReferenceStoreLike, RetrievalEnvelope } from "../../services/reference-store.js";
+import { to_retrieval_item } from "../../services/reference-store.js";
 
 export class RetrieverTool extends Tool {
   readonly name = "retriever";
@@ -24,6 +26,15 @@ export class RetrieverTool extends Tool {
     required: ["action", "query"],
     additionalProperties: false,
   };
+
+  private _reference_store: ReferenceStoreLike | null = null;
+  private _skill_ref_store: ReferenceStoreLike | null = null;
+
+  /** workspace references 스토어 주입. */
+  set_reference_store(store: ReferenceStoreLike): void { this._reference_store = store; }
+
+  /** skill references 스토어 주입. */
+  set_skill_ref_store(store: ReferenceStoreLike): void { this._skill_ref_store = store; }
 
   protected async run(params: Record<string, unknown>, context?: ToolExecutionContext): Promise<string> {
     const action = String(params.action || "memory");
@@ -77,19 +88,49 @@ export class RetrieverTool extends Tool {
     return JSON.stringify({ results: results.slice(0, top_k), count: Math.min(results.length, top_k), source: "memory" });
   }
 
-  private retrieve_vector(query: string, top_k: number, params: Record<string, unknown>): string {
+  /**
+   * vector action: ReferenceStoreLike 스토어에서 실제 검색 결과를 반환한다.
+   * - collection이 없으면 에러.
+   * - 스토어가 주입되지 않았으면 에러 (placeholder 제거됨).
+   * - 두 스토어(reference + skill)를 모두 조회하여 score 순 병합 후 top_k 반환.
+   */
+  private async retrieve_vector(query: string, top_k: number, params: Record<string, unknown>): Promise<string> {
     const collection = String(params.collection || "");
     if (!collection) return "Error: collection is required for vector action";
-    return JSON.stringify({
-      results: [],
-      count: 0,
+
+    const min_score = Number(params.min_score) || 0;
+    const base: Omit<RetrievalEnvelope, "results" | "count"> = {
       source: "vector",
-      note: "Use vector_store tool for actual vector queries. This provides a unified retrieval interface.",
       query,
       collection,
       top_k,
-      min_score: Number(params.min_score) || 0,
-    });
+      min_score,
+    };
+
+    if (!this._reference_store && !this._skill_ref_store) {
+      return "Error: no reference store configured for vector action";
+    }
+
+    // 두 스토어에서 병렬 조회 후 결과 병합
+    const [ref_raw, skill_raw] = await Promise.all([
+      this._reference_store?.search(query, { limit: top_k * 2, doc_filter: collection }) ?? Promise.resolve([]),
+      this._skill_ref_store?.search(query, { limit: top_k * 2, doc_filter: collection }) ?? Promise.resolve([]),
+    ]);
+
+    const seen = new Set<string>();
+    const merged = [...ref_raw, ...skill_raw]
+      .map(to_retrieval_item)
+      .filter((item) => {
+        if (item.score < min_score) return false;
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, top_k);
+
+    const envelope: RetrievalEnvelope = { ...base, results: merged, count: merged.length };
+    return JSON.stringify(envelope);
   }
 
   private simple_relevance(query: string, text: string): number {

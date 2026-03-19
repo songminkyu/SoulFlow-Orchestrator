@@ -52,13 +52,12 @@ describe("RetrieverTool", () => {
       expect(r).toContain("Error");
     });
 
-    it("collection 있으면 빈 결과 + 안내 메시지", async () => {
-      const r = JSON.parse(await make_tool().execute({
+    it("store 없으면 에러", async () => {
+      const r = await make_tool().execute({
         action: "vector", query: "test", collection: "docs",
-      }));
-      expect(r.source).toBe("vector");
-      expect(r.count).toBe(0);
-      expect(r.note).toContain("vector_store");
+      });
+      expect(r).toContain("Error");
+      expect(r).toContain("reference store");
     });
   });
 
