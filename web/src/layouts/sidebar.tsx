@@ -11,20 +11,23 @@ type NavGroup = { label_key: string; items: NavItem[] };
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    label_key: "nav.group.main",
+    label_key: "nav.group.chat",
     items: [
-      { to: "/", key: "nav.overview", icon: "\u25c8" },
       { to: "/chat", key: "nav.chat", icon: "\ud83d\udcac" },
     ],
   },
   {
-    label_key: "nav.group.build",
+    label_key: "nav.group.workflow",
     items: [
-      { to: "/prompting", key: "nav.prompting", icon: "\u2726" },
-      { to: "/workflows", key: "nav.workflows", icon: "\u25b7" },
+      { to: "/workflows", key: "nav.workflows", icon: "\ud83d\udd27" },
       { to: "/kanban", key: "nav.kanban", icon: "\u25a3" },
       { to: "/wbs", key: "nav.wbs", icon: "\u2630" },
-      { to: "/workspace", key: "nav.workspace", icon: "\u25a6" },
+    ],
+  },
+  {
+    label_key: "nav.group.prompting",
+    items: [
+      { to: "/prompting", key: "nav.prompting", icon: "\ud83e\uddea" },
     ],
   },
   {
@@ -38,6 +41,7 @@ const NAV_GROUPS: NavGroup[] = [
     label_key: "nav.group.system",
     items: [
       { to: "/usage", key: "nav.usage", icon: "\u2261" },
+      { to: "/oauth", key: "nav.oauth", icon: "\ud83d\udd11" },
       { to: "/secrets", key: "nav.secrets", icon: "\u26bf" },
       { to: "/settings", key: "nav.settings", icon: "\u229e" },
     ],
@@ -45,7 +49,7 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 const ALL_NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
-const BOTTOM_NAV_KEYS = new Set(["/", "/chat", "/workflows", "/workspace", "/settings"]);
+const BOTTOM_NAV_KEYS = new Set(["/chat", "/workflows", "/prompting", "/settings"]);
 
 export function Sidebar() {
   const collapsed = useDashboardStore((s) => s.sidebar_collapsed);
@@ -57,6 +61,7 @@ export function Sidebar() {
   const { data: auth_status } = useAuthStatus();
   const auth_enabled = auth_status?.enabled ?? false;
   const is_superadmin = auth_user?.role === "superadmin";
+  const is_admin = is_superadmin;
 
   const can_view_route = (path: string) => {
     const policy = PAGE_POLICIES.find((p) => p.path === path);
@@ -117,8 +122,8 @@ export function Sidebar() {
             );
           })}
 
-          {/* superadmin 전용 관리자 콘솔 링크 */}
-          {is_superadmin && (
+          {/* admin/superadmin 전용 관리자 콘솔 링크 */}
+          {is_admin && (
             <li className="sidebar__group">
               {!collapsed && <span className="sidebar__group-label">{t("nav.group.admin")}</span>}
               <ul className="sidebar__group-items">

@@ -2,7 +2,110 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStatus, useLogin, type AuthUser } from "../hooks/use-auth";
+import { useI18n } from "../i18n";
 import { api } from "../api/client";
+
+/** 좌측 아트 패널: 추상 커브 라인 SVG */
+function ArtPanel() {
+  return (
+    <div className="login-page__art" aria-hidden="true">
+      <svg
+        className="login-page__art-svg"
+        viewBox="0 0 480 640"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        {/* 배경 그라디언트 */}
+        <defs>
+          <linearGradient id="art-bg" x1="0" y1="0" x2="480" y2="640" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="var(--accent-2, #7c3aed)" stopOpacity="0.06" />
+          </linearGradient>
+          <linearGradient id="curve-1" x1="0" y1="0" x2="480" y2="640" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.7" />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.1" />
+          </linearGradient>
+          <linearGradient id="curve-2" x1="480" y1="0" x2="0" y2="640" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="var(--accent-2, #7c3aed)" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="var(--accent-2, #7c3aed)" stopOpacity="0.05" />
+          </linearGradient>
+          <filter id="blur-sm">
+            <feGaussianBlur stdDeviation="3" />
+          </filter>
+        </defs>
+
+        {/* 배경 */}
+        <rect width="480" height="640" fill="url(#art-bg)" />
+
+        {/* 커브 라인들 */}
+        <path
+          d="M-40 120 C80 80 160 200 240 180 S380 100 520 160"
+          stroke="url(#curve-1)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          filter="url(#blur-sm)"
+        />
+        <path
+          d="M-40 120 C80 80 160 200 240 180 S380 100 520 160"
+          stroke="url(#curve-1)"
+          strokeWidth="0.5"
+          strokeLinecap="round"
+        />
+        <path
+          d="M-40 220 C100 180 180 300 280 270 S420 200 540 250"
+          stroke="url(#curve-2)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          filter="url(#blur-sm)"
+        />
+        <path
+          d="M-40 220 C100 180 180 300 280 270 S420 200 540 250"
+          stroke="url(#curve-2)"
+          strokeWidth="0.5"
+          strokeLinecap="round"
+        />
+        <path
+          d="M-60 350 C60 310 200 420 320 390 S460 320 560 370"
+          stroke="url(#curve-1)"
+          strokeWidth="1"
+          strokeLinecap="round"
+          filter="url(#blur-sm)"
+        />
+        <path
+          d="M-20 450 C120 400 240 500 360 470 S480 410 580 450"
+          stroke="url(#curve-2)"
+          strokeWidth="1"
+          strokeLinecap="round"
+        />
+        <path
+          d="M-60 540 C80 490 220 580 340 560 S480 500 580 540"
+          stroke="url(#curve-1)"
+          strokeWidth="0.8"
+          strokeLinecap="round"
+        />
+
+        {/* 원형 장식 */}
+        <circle cx="80" cy="180" r="120" fill="var(--accent)" fillOpacity="0.04" />
+        <circle cx="380" cy="460" r="160" fill="var(--accent-2, #7c3aed)" fillOpacity="0.04" />
+        <circle cx="240" cy="320" r="60" fill="var(--accent)" fillOpacity="0.06" />
+
+        {/* 점 장식 */}
+        <circle cx="160" cy="140" r="2" fill="var(--accent)" fillOpacity="0.5" />
+        <circle cx="320" cy="200" r="1.5" fill="var(--accent)" fillOpacity="0.4" />
+        <circle cx="100" cy="380" r="2" fill="var(--accent-2, #7c3aed)" fillOpacity="0.5" />
+        <circle cx="400" cy="300" r="1.5" fill="var(--accent-2, #7c3aed)" fillOpacity="0.4" />
+        <circle cx="240" cy="520" r="2" fill="var(--accent)" fillOpacity="0.3" />
+      </svg>
+
+      {/* 브랜드 오버레이 */}
+      <div className="login-page__art-brand">
+        <span className="login-page__art-logo">SF</span>
+        <span className="login-page__art-tagline">SoulFlow</span>
+      </div>
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const { data: auth_status, isLoading: status_loading } = useAuthStatus();
@@ -10,22 +113,40 @@ export default function LoginPage() {
   if (status_loading) {
     return (
       <div className="login-page">
-        <div className="login-card">
-          <div className="skeleton skeleton--row" style={{ height: 32 }} />
+        <ArtPanel />
+        <div className="login-page__form">
+          <div className="login-card">
+            <div className="skeleton skeleton--row" style={{ height: 32 }} />
+          </div>
         </div>
       </div>
     );
   }
 
   if (auth_status && !auth_status.initialized) {
-    return <SetupForm />;
+    return (
+      <div className="login-page">
+        <ArtPanel />
+        <div className="login-page__form">
+          <SetupForm />
+        </div>
+      </div>
+    );
   }
 
-  return <LoginForm />;
+  return (
+    <div className="login-page">
+      <ArtPanel />
+      <div className="login-page__form">
+        <LoginForm />
+      </div>
+    </div>
+  );
 }
 
 /** 첫 실행: superadmin 계정 생성 폼. */
 function SetupForm() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [username, setUsername] = useState("");
@@ -61,69 +182,68 @@ function SetupForm() {
   };
 
   return (
-    <div className="login-page">
-      <form className="login-card" onSubmit={submit}>
-        <h1 className="login-card__title">SoulFlow</h1>
-        <p className="login-card__subtitle">첫 실행 — 관리자 계정을 생성합니다</p>
+    <form className="login-card" onSubmit={submit}>
+      <h1 className="login-card__title">{t("login.welcome")}</h1>
+      <p className="login-card__subtitle">{t("login.setup_subtitle")}</p>
 
-        {error && (
-          <div className="login-card__error" role="alert">{error}</div>
-        )}
+      {error && (
+        <div className="login-card__error" role="alert">{error}</div>
+      )}
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="setup-username">관리자 아이디</label>
-          <input
-            id="setup-username"
-            className="form-input"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="username"
-            autoFocus
-            disabled={setup.isPending}
-          />
-        </div>
+      <div className="form-group">
+        <label className="form-label" htmlFor="setup-username">관리자 아이디</label>
+        <input
+          id="setup-username"
+          className="form-input"
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          autoComplete="username"
+          autoFocus
+          disabled={setup.isPending}
+        />
+      </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="setup-password">비밀번호 (6자 이상)</label>
-          <input
-            id="setup-password"
-            className="form-input"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-            disabled={setup.isPending}
-          />
-        </div>
+      <div className="form-group">
+        <label className="form-label" htmlFor="setup-password">비밀번호 (6자 이상)</label>
+        <input
+          id="setup-password"
+          className="form-input"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="new-password"
+          disabled={setup.isPending}
+        />
+      </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="setup-confirm">비밀번호 확인</label>
-          <input
-            id="setup-confirm"
-            className="form-input"
-            type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            autoComplete="new-password"
-            disabled={setup.isPending}
-          />
-        </div>
+      <div className="form-group">
+        <label className="form-label" htmlFor="setup-confirm">비밀번호 확인</label>
+        <input
+          id="setup-confirm"
+          className="form-input"
+          type="password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          autoComplete="new-password"
+          disabled={setup.isPending}
+        />
+      </div>
 
-        <button
-          className="btn btn--primary btn--full"
-          type="submit"
-          disabled={setup.isPending || !username || !password || !confirm}
-        >
-          {setup.isPending ? "생성 중..." : "관리자 계정 생성"}
-        </button>
-      </form>
-    </div>
+      <button
+        className="btn btn--primary btn--full"
+        type="submit"
+        disabled={setup.isPending || !username || !password || !confirm}
+      >
+        {setup.isPending ? "생성 중..." : "관리자 계정 생성"}
+      </button>
+    </form>
   );
 }
 
 /** 일반 로그인 폼. */
 function LoginForm() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -143,50 +263,48 @@ function LoginForm() {
   };
 
   return (
-    <div className="login-page">
-      <form className="login-card" onSubmit={submit}>
-        <h1 className="login-card__title">SoulFlow</h1>
-        <p className="login-card__subtitle">로그인이 필요합니다</p>
+    <form className="login-card" onSubmit={submit}>
+      <h1 className="login-card__title">{t("login.welcome")}</h1>
+      <p className="login-card__subtitle">{t("login.subtitle")}</p>
 
-        {error && (
-          <div className="login-card__error" role="alert">{error}</div>
-        )}
+      {error && (
+        <div className="login-card__error" role="alert">{error}</div>
+      )}
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="login-username">아이디</label>
-          <input
-            id="login-username"
-            className="form-input"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="username"
-            autoFocus
-            disabled={login.isPending}
-          />
-        </div>
+      <div className="form-group">
+        <label className="form-label" htmlFor="login-username">아이디</label>
+        <input
+          id="login-username"
+          className="form-input"
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          autoComplete="username"
+          autoFocus
+          disabled={login.isPending}
+        />
+      </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="login-password">비밀번호</label>
-          <input
-            id="login-password"
-            className="form-input"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            disabled={login.isPending}
-          />
-        </div>
+      <div className="form-group">
+        <label className="form-label" htmlFor="login-password">비밀번호</label>
+        <input
+          id="login-password"
+          className="form-input"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          disabled={login.isPending}
+        />
+      </div>
 
-        <button
-          className="btn btn--primary btn--full"
-          type="submit"
-          disabled={login.isPending || !username || !password}
-        >
-          {login.isPending ? "로그인 중..." : "로그인"}
-        </button>
-      </form>
-    </div>
+      <button
+        className="btn btn--primary btn--full"
+        type="submit"
+        disabled={login.isPending || !username || !password}
+      >
+        {login.isPending ? "로그인 중..." : "로그인"}
+      </button>
+    </form>
   );
 }

@@ -1,11 +1,8 @@
 import { Suspense } from "react";
-import { createHashRouter } from "react-router-dom";
+import { createHashRouter, Navigate } from "react-router-dom";
 import { RootLayout } from "./layouts/root";
 import { lazyRetry } from "./utils/lazy-retry";
 import { PATHS } from "./router-paths";
-
-/* Overview는 랜딩 페이지이므로 정적 import 유지 */
-import OverviewPage from "./pages/overview";
 
 /* 나머지 페이지는 lazy load로 코드 스플리팅 */
 const ChannelsPage = lazyRetry(() => import("./pages/channels"));
@@ -49,7 +46,7 @@ export const router = createHashRouter([
   {
     element: <RootLayout />,
     children: [
-      { index: true, element: <OverviewPage /> },
+      { index: true, element: <Navigate to={PATHS.CHAT} replace /> },
       { path: r(PATHS.SETUP), element: lazify(<SetupPage />) },
       { path: r(PATHS.CHANNELS), element: lazify(<ChannelsPage />) },
       { path: r(PATHS.PROVIDERS), element: lazify(<ProvidersPage />) },
