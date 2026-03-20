@@ -1,6 +1,14 @@
 import { useT } from "../../i18n";
+import { AiSuggestions } from "../../components/shared/ai-suggestions";
 
-export function EmptyState({ onNewSession }: { onNewSession: () => void }) {
+export interface EmptyStateProps {
+  onNewSession: () => void;
+  /** Optional starter suggestions. Clicking one creates a session and seeds the input. */
+  suggestions?: string[];
+  onSuggestionSelect?: (text: string) => void;
+}
+
+export function EmptyState({ onNewSession, suggestions, onSuggestionSelect }: EmptyStateProps) {
   const t = useT();
   return (
     <div className="chat-empty">
@@ -10,6 +18,13 @@ export function EmptyState({ onNewSession }: { onNewSession: () => void }) {
       <button className="btn btn--ok" onClick={() => void onNewSession()}>
         {t("chat.new_session")}
       </button>
+      {suggestions && suggestions.length > 0 && onSuggestionSelect && (
+        <AiSuggestions
+          suggestions={suggestions}
+          onSelect={onSuggestionSelect}
+          className="chat-empty__suggestions"
+        />
+      )}
     </div>
   );
 }

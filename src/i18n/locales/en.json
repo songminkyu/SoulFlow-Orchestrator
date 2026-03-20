@@ -409,6 +409,9 @@
   "chat.agent_clear": "Clear agent",
   "chat.system_prompt_label": "System prompt",
   "chat.system_prompt_placeholder": "Agent system prompt (auto if empty)",
+  "chat.suggestion_ask_agent": "Ask an agent a question",
+  "chat.suggestion_run_workflow": "Run a workflow",
+  "chat.suggestion_explore_tools": "Explore available tools",
   "cmd._footer": "See subcommands: type /{command}",
   "cmd._header": "Available Commands",
   "cmd._sub_count": "{count} subcommands",
@@ -1530,6 +1533,8 @@
   "prompting.input": "Input",
   "prompting.max_tokens": "Max Tokens",
   "prompting.model": "Model",
+  "prompting.context": "Context",
+  "prompting.add_context": "Add context",
   "prompting.new": "+ New",
   "prompting.no_vars": "No variables detected. Add {example} to the template.",
   "prompting.optional": "(optional)",
@@ -4261,5 +4266,25 @@
   "workspace.memory.audit_fail": "Quality issue",
   "workspace.memory.audit_noisy": "Noisy content",
   "workspace.memory.audit_too_long": "Too long",
-  "workspace.memory.audit_noisy_warn": "This memory entry appears to contain noisy content (shell output, stack traces, or test results). Consider summarizing before storing."
+  "workspace.memory.audit_noisy_warn": "This memory entry appears to contain noisy content (shell output, stack traces, or test results). Consider summarizing before storing.",
+
+  "unified_selector.label": "Select agent, tool, or workflow",
+  "unified_selector.search_placeholder": "Search...",
+  "unified_selector.tab_agents": "Agents",
+  "unified_selector.tab_tools": "Tools",
+  "unified_selector.tab_workflows": "Workflows",
+  "unified_selector.no_agents": "No agents found",
+  "unified_selector.no_tools": "No tools found",
+  "unified_selector.no_workflows": "No workflows found",
+
+  "endpoint_selector.select": "Select endpoint",
+  "endpoint_selector.search": "Search...",
+  "endpoint_selector.group_agents": "Agents",
+  "endpoint_selector.group_workflows": "Workflows",
+
+  "tool_chips.remove": "Remove {name}",
+  "tool_chips.more": "more",
+  "tool_chips.collapse": "Show less",
+
+  "ai_suggestions.label": "Suggested prompts"
 }

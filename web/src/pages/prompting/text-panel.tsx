@@ -7,6 +7,9 @@ import { api } from "../../api/client";
 import { useT } from "../../i18n";
 import { StudioModelPicker, type StudioModelValue } from "../../components/studio-model-picker";
 import { RunResult, type RunResultValue } from "./run-result";
+import { UnifiedSelector, type UnifiedSelectorItem } from "../../components/shared/unified-selector";
+import { ToolChips, type ToolChip } from "../../components/shared/tool-chips";
+import { EndpointSelector, type Endpoint } from "../../components/shared/endpoint-selector";
 
 type TemplateTab = "write" | "preview";
 
@@ -37,6 +40,26 @@ export function TextPanel() {
   const [vars, setVars] = useState<Record<string, string>>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunResultValue | null>(null);
+
+  /** Context picker: agent/tool/workflow selection for this run */
+  const [ctx_open, setCtxOpen] = useState(false);
+  const [ctx_tools, setCtxTools] = useState<ToolChip[]>([]);
+  const [ctx_endpoint, setCtxEndpoint] = useState<Endpoint | null>(null);
+
+  const handle_ctx_select = (item: UnifiedSelectorItem) => {
+    if (item.type === "mcp-tool" || item.type === "app-tool") {
+      setCtxTools((prev) =>
+        prev.some((c) => c.id === item.id)
+          ? prev
+          : [...prev, { id: item.id, name: item.name, description: item.description, server_name: item.server_name }],
+      );
+    } else if (item.type === "agent") {
+      setCtxEndpoint({ type: "agent", id: item.id, label: item.name });
+    } else if (item.type === "workflow") {
+      setCtxEndpoint({ type: "workflow", id: item.id, label: item.name });
+    }
+    setCtxOpen(false);
+  };
 
   const var_names = useMemo(() => extract_vars(template), [template]);
   const rendered_prompt = apply_vars(template, vars);
@@ -81,6 +104,26 @@ export function TextPanel() {
         <div className="ps-pane-sec">
           <span className="ps-pane-sec__label">{t("prompting.model")}</span>
           <StudioModelPicker value={model} onChange={setModel} />
+        </div>
+
+        {/* 엔드포인트 / 컨텍스트 선택 (UnifiedSelector + EndpointSelector + ToolChips) */}
+        <div className="ps-pane-sec">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <span className="ps-pane-sec__label" style={{ marginBottom: 0 }}>{t("prompting.context")}</span>
+            <button
+              type="button"
+              className="btn btn--sm btn--ghost"
+              onClick={() => setCtxOpen((v) => !v)}
+              aria-label={t("prompting.add_context")}
+            >
+              + {t("prompting.add_context")}
+            </button>
+          </div>
+          <UnifiedSelector open={ctx_open} onClose={() => setCtxOpen(false)} onSelect={handle_ctx_select} />
+          {ctx_endpoint && (
+            <EndpointSelector value={ctx_endpoint} onChange={setCtxEndpoint} className="ps-endpoint-selector" />
+          )}
+          <ToolChips tools={ctx_tools} onRemove={(id) => setCtxTools((prev) => prev.filter((c) => c.id !== id))} />
         </div>
 
         {/* 파라미터 */}

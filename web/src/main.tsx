@@ -13,6 +13,7 @@ import "./styles/prompt.css";
 import "./styles/canvas.css";
 import "./styles/tool-call.css";
 import "./styles/chart-primitives.css";
+import "./styles/shared-components.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {

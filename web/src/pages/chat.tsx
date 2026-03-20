@@ -365,7 +365,17 @@ export default function ChatPage() {
           onDelete={(id) => setDeleteConfirmId(id)}
         />
       ) : !has_active ? (
-        <EmptyState onNewSession={create_session} />
+        <EmptyState
+          onNewSession={create_session}
+          suggestions={[
+            t("chat.suggestion_ask_agent"),
+            t("chat.suggestion_run_workflow"),
+            t("chat.suggestion_explore_tools"),
+          ]}
+          onSuggestionSelect={(text) => {
+            void create_session().then(() => setInput(text));
+          }}
+        />
       ) : (activeSessionLoading || mirrorSessionLoading) ? (
         <div className="chat-loading">
           <div className="spinner" aria-label={t("chat.loading")}></div>
