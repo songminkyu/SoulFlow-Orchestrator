@@ -14,6 +14,7 @@ import "./styles/canvas.css";
 import "./styles/tool-call.css";
 import "./styles/chart-primitives.css";
 import "./styles/shared-components.css";
+import "./styles/response-view.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
