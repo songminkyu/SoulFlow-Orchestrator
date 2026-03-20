@@ -4289,5 +4289,25 @@
   "tool_chips.more": "개 더",
   "tool_chips.collapse": "접기",
 
-  "ai_suggestions.label": "추천 프롬프트"
+  "ai_suggestions.label": "추천 프롬프트",
+
+  "shared_prompt_bar.placeholder": "메시지를 입력하세요...",
+  "shared_prompt_bar.label": "채팅 입력",
+  "shared_prompt_bar.send": "전송",
+  "shared_prompt_bar.stop": "생성 중단",
+  "shared_prompt_bar.at_label": "에이전트, 도구, 워크플로우 선택",
+  "shared_prompt_bar.tools_count": "{count}개 도구",
+
+  "memory_panel.label": "메모리 패널",
+  "memory_panel.title": "메모리",
+  "memory_panel.search_placeholder": "메모리 검색...",
+  "memory_panel.loading": "불러오는 중...",
+  "memory_panel.error": "메모리 로드 실패",
+  "memory_panel.empty": "메모리 항목이 없습니다",
+  "memory_panel.scope.all": "전체",
+  "memory_panel.scope.session": "세션",
+  "memory_panel.scope.user": "사용자",
+  "memory_panel.scope.team": "팀",
+  "memory_panel.audit.clean": "정상",
+  "memory_panel.audit.noisy": "노이즈"
 }

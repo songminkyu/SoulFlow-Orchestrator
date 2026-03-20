@@ -4289,5 +4289,25 @@
   "tool_chips.more": "more",
   "tool_chips.collapse": "Show less",
 
-  "ai_suggestions.label": "Suggested prompts"
+  "ai_suggestions.label": "Suggested prompts",
+
+  "shared_prompt_bar.placeholder": "Message...",
+  "shared_prompt_bar.label": "Chat input",
+  "shared_prompt_bar.send": "Send",
+  "shared_prompt_bar.stop": "Stop generation",
+  "shared_prompt_bar.at_label": "Select agent, tool, or workflow",
+  "shared_prompt_bar.tools_count": "{count} tool(s)",
+
+  "memory_panel.label": "Memory panel",
+  "memory_panel.title": "Memory",
+  "memory_panel.search_placeholder": "Search memory...",
+  "memory_panel.loading": "Loading...",
+  "memory_panel.error": "Failed to load memory",
+  "memory_panel.empty": "No memory entries found",
+  "memory_panel.scope.all": "All",
+  "memory_panel.scope.session": "Session",
+  "memory_panel.scope.user": "User",
+  "memory_panel.scope.team": "Team",
+  "memory_panel.audit.clean": "Clean",
+  "memory_panel.audit.noisy": "Noisy"
 }
