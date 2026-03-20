@@ -111,6 +111,19 @@ interface RoutePreviewEntry {
   total_node_count: number;
 }
 
+/** QC-4: 컴파일러 품질 감사 결과 (BE audit_workflow_nodes() 반환값). */
+interface CompilerViolation {
+  code: string;
+  severity: "major" | "minor";
+  detail?: string;
+}
+
+interface CompilerVerdict {
+  passed: boolean;
+  violations: CompilerViolation[];
+  agent_node_ratio: number;
+}
+
 interface PhaseLoopState {
   workflow_id: string;
   title: string;
@@ -127,6 +140,8 @@ interface PhaseLoopState {
   /** GW-5: 실행 경로 미리보기. */
   route_preview?: RoutePreviewEntry;
   artifact_bundle?: ArtifactBundleEntry;
+  /** QC-4: 컴파일러 품질 감사 결과. definition.nodes가 있는 경우만 존재. */
+  compiler_verdict?: CompilerVerdict | null;
 }
 
 const STATUS_VARIANT: Record<string, "ok" | "warn" | "err" | "off"> = {
@@ -269,6 +284,11 @@ export default function WorkflowDetailPage() {
 
           {wf.artifact_bundle && (
             <ArtifactEntryCard bundle={wf.artifact_bundle} />
+          )}
+
+          {/* QC-4: 컴파일러 품질 감사 결과 */}
+          {wf.compiler_verdict && (
+            <CompilerVerdictPanel verdict={wf.compiler_verdict} />
           )}
 
           {/* FE-4/SO: Workflow Verdict Summary — 전체 스키마/eval 집계 */}
@@ -900,6 +920,49 @@ function AgentChatPanel({ workflow_id, phase_id, agent_id, label, model, status,
         </button>
       </form>
     </div>
+  );
+}
+
+/** QC-4: 컴파일러 품질 감사 결과 패널. */
+function CompilerVerdictPanel({ verdict }: { verdict: CompilerVerdict }) {
+  const t = useT();
+  const major_count = verdict.violations.filter((v) => v.severity === "major").length;
+  const minor_count = verdict.violations.filter((v) => v.severity === "minor").length;
+
+  if (verdict.passed && verdict.violations.length === 0) return null;
+
+  return (
+    <section className="panel panel--flush">
+      <div className="kv mt-0 mb-1">
+        <span className="fw-600 text-sm">{t("workflows.compiler_verdict") || "Compiler Quality"}</span>
+        <Badge
+          status={verdict.passed
+            ? (t("workflows.compiler_verdict_pass") || "Pass")
+            : (t("workflows.compiler_verdict_fail") || "Fail")}
+          variant={verdict.passed ? (minor_count > 0 ? "warn" : "ok") : "err"}
+        />
+        {(major_count > 0 || minor_count > 0) && (
+          <span className="text-xs text-muted">
+            {major_count > 0 && `${major_count} major`}
+            {major_count > 0 && minor_count > 0 && " · "}
+            {minor_count > 0 && `${minor_count} minor`}
+          </span>
+        )}
+        <span className="text-xs text-muted">
+          {t("workflows.compiler_agent_ratio") || "agent ratio"}: {Math.round(verdict.agent_node_ratio * 100)}%
+        </span>
+      </div>
+      {verdict.violations.length > 0 && (
+        <ul className="wf-violations">
+          {verdict.violations.map((v, i) => (
+            <li key={i} className={`wf-violation wf-violation--${v.severity}`}>
+              <span className="wf-violation__code">{v.code}</span>
+              {v.detail && <span className="wf-violation__detail">{v.detail}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

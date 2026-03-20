@@ -17,7 +17,24 @@ import { StatusView } from "../../components/status-contract";
 import { RichResultRenderer } from "../../components/rich-result-renderer";
 
 interface DailyListResponse { days: string[] }
-interface MemoryContentResponse { content: string }
+
+/** QC-5: 메모리 품질 감사 결과 (BE audit_memory_entry() 반환값). */
+interface MemoryAuditViolation {
+  code: "too_long" | "noisy_content" | "empty_content";
+  severity: "major" | "minor";
+  detail?: string;
+}
+
+interface MemoryAuditResult {
+  passed: boolean;
+  violations: MemoryAuditViolation[];
+}
+
+interface MemoryContentResponse {
+  content: string;
+  /** QC-5: 메모리 품질 감사 결과 (optional — BE가 없으면 null). */
+  audit_result?: MemoryAuditResult | null;
+}
 
 interface Decision { id: string; canonical_key: string; value: unknown; priority: number }
 interface PromiseRecord { id: string; canonical_key: string; value: string; priority: number }
@@ -242,21 +259,63 @@ export function MemoryTab() {
       : !content_data?.content ? "empty" as const
       : "success" as const;
 
+    const audit = content_data?.audit_result ?? null;
+    const audit_noisy = audit?.violations.some((v) => v.code === "noisy_content") ?? false;
+    const audit_too_long = audit?.violations.some((v) => v.code === "too_long") ?? false;
+
     return (
       <div className="ws-col">
         {right_header(label ?? "",
-          !editing ? (
-            <button className="btn btn--xs" onClick={() => { setEditText(content_data?.content ?? ""); setEditing(true); }}>
-              {t("common.edit")}
-            </button>
-          ) : (
-            <div className="li-flex">
-              <button className="btn btn--xs" onClick={() => setEditing(false)}>{t("common.cancel")}</button>
-              <button className="btn btn--xs btn--accent" onClick={() => save.mutate(editText)} disabled={save.isPending}>
-                {save.isPending ? t("common.saving") : t("workspace.memory.save")}
+          <div className="li-flex">
+            {/* QC-5: 메모리 품질 감사 배지 */}
+            {audit && !editing && (
+              <>
+                {audit.passed && !audit_noisy && (
+                  <Badge
+                    status={t("workspace.memory.audit_pass") || "Quality OK"}
+                    variant="ok"
+                  />
+                )}
+                {audit_noisy && (
+                  <Badge
+                    status={t("workspace.memory.audit_noisy") || "Noisy content"}
+                    variant="warn"
+                  />
+                )}
+                {audit_too_long && (
+                  <Badge
+                    status={t("workspace.memory.audit_too_long") || "Too long"}
+                    variant="warn"
+                  />
+                )}
+                {!audit.passed && !audit_noisy && !audit_too_long && (
+                  <Badge
+                    status={t("workspace.memory.audit_fail") || "Quality issue"}
+                    variant="err"
+                  />
+                )}
+              </>
+            )}
+            {!editing ? (
+              <button className="btn btn--xs" onClick={() => { setEditText(content_data?.content ?? ""); setEditing(true); }}>
+                {t("common.edit")}
               </button>
-            </div>
-          )
+            ) : (
+              <>
+                <button className="btn btn--xs" onClick={() => setEditing(false)}>{t("common.cancel")}</button>
+                <button className="btn btn--xs btn--accent" onClick={() => save.mutate(editText)} disabled={save.isPending}>
+                  {save.isPending ? t("common.saving") : t("workspace.memory.save")}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        {/* QC-5: noisy-entry 경고 — 셸 출력·스택 트레이스·테스트 결과 패턴 감지 시 표시 */}
+        {audit_noisy && !editing && (
+          <div className="ws-audit-warning" role="alert">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            {t("workspace.memory.audit_noisy_warn") || "This memory entry appears to contain noisy content (shell output, stack traces, or test results). Consider summarizing before storing."}
+          </div>
         )}
         <div className="ws-col flex-fill">
           <StatusView

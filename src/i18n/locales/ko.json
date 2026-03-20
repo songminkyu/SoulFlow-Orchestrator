@@ -998,6 +998,8 @@
   "node.eval.label": "Eval",
   "node.eval.output.result": "Result",
   "node.eval.output.success": "Success",
+  "node.eval.output.rubric_verdict": "루브릭 판정 (pass/warn/fail)",
+  "node.eval.quality_gate": "품질 게이트",
   "node.file.input.content": "Content",
   "node.file.input.file_path": "File path",
   "node.file.label": "File",
@@ -4246,5 +4248,18 @@
 
   "workflows.filter_all": "전체",
   "workflows.filter_my": "내 워크플로우",
-  "workflows.filter_shared": "공유됨"
+  "workflows.filter_shared": "공유됨",
+
+  "workflows.compiler_verdict": "컴파일러 품질",
+  "workflows.compiler_verdict_pass": "통과",
+  "workflows.compiler_verdict_fail": "실패",
+  "workflows.compiler_agent_ratio": "에이전트 비율",
+  "workflows.eval_direct_node_hint": "직접 실행 노드 — 결정적 로직에는 에이전트 노드 대신 사용 권장",
+  "workflows.eval_direct_node_hint_detail": "결정적 변환에는 에이전트 노드 대신 eval/code 노드를 사용하여 에이전트 비율을 낮게 유지하세요.",
+
+  "workspace.memory.audit_pass": "품질 양호",
+  "workspace.memory.audit_fail": "품질 문제",
+  "workspace.memory.audit_noisy": "노이즈 콘텐츠",
+  "workspace.memory.audit_too_long": "너무 긴 내용",
+  "workspace.memory.audit_noisy_warn": "이 메모리 항목에 노이즈 콘텐츠(셸 출력, 스택 트레이스, 테스트 결과 등)가 포함된 것으로 감지되었습니다. 저장 전에 요약을 고려하세요."
 }

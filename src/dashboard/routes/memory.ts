@@ -1,5 +1,6 @@
 import type { RouteContext } from "../route-context.js";
 import { require_team_manager_for_write } from "../route-context.js";
+import { audit_memory_entry } from "../../quality/memory-quality-rule.js";
 
 function memory_ops_or_503(ctx: RouteContext) {
   const ops = ctx.get_scoped_memory_ops();
@@ -17,7 +18,9 @@ export async function handle_memory(ctx: RouteContext): Promise<boolean> {
     const mem = memory_ops_or_503(ctx);
     if (!mem) return true;
     const content = await mem.read_longterm();
-    json(res, 200, { content });
+    // QC-5: 메모리 품질 감사 결과를 audit_result로 첨부
+    const audit_result = content ? audit_memory_entry({ content }) : null;
+    json(res, 200, { content, audit_result });
     return true;
   }
   // PUT /api/memory/longterm { content }
@@ -47,7 +50,9 @@ export async function handle_memory(ctx: RouteContext): Promise<boolean> {
     if (!mem) return true;
     const day = decodeURIComponent(day_match[1]);
     const content = await mem.read_daily(day);
-    json(res, 200, { content, day });
+    // QC-5: 일일 메모리 품질 감사 결과를 audit_result로 첨부
+    const audit_result = content ? audit_memory_entry({ content }) : null;
+    json(res, 200, { content, day, audit_result });
     return true;
   }
 

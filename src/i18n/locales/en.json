@@ -998,6 +998,8 @@
   "node.eval.label": "Eval",
   "node.eval.output.result": "Evaluation result",
   "node.eval.output.success": "Success flag",
+  "node.eval.output.rubric_verdict": "Rubric verdict (pass/warn/fail)",
+  "node.eval.quality_gate": "Quality Gate",
   "node.file.input.content": "Content to write",
   "node.file.input.file_path": "File path",
   "node.file.label": "File",
@@ -4246,5 +4248,18 @@
 
   "workflows.filter_all": "All",
   "workflows.filter_my": "My Workflows",
-  "workflows.filter_shared": "Shared"
+  "workflows.filter_shared": "Shared",
+
+  "workflows.compiler_verdict": "Compiler Quality",
+  "workflows.compiler_verdict_pass": "Pass",
+  "workflows.compiler_verdict_fail": "Fail",
+  "workflows.compiler_agent_ratio": "agent ratio",
+  "workflows.eval_direct_node_hint": "Direct execution node — prefer over agent nodes for deterministic logic",
+  "workflows.eval_direct_node_hint_detail": "Use eval/code nodes instead of agent nodes for deterministic transformations to keep agent ratio low.",
+
+  "workspace.memory.audit_pass": "Quality OK",
+  "workspace.memory.audit_fail": "Quality issue",
+  "workspace.memory.audit_noisy": "Noisy content",
+  "workspace.memory.audit_too_long": "Too long",
+  "workspace.memory.audit_noisy_warn": "This memory entry appears to contain noisy content (shell output, stack traces, or test results). Consider summarizing before storing."
 }

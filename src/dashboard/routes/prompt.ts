@@ -1,6 +1,41 @@
 import type { RouteContext } from "../route-context.js";
 import { build_scope_filter, require_team_manager } from "../route-context.js";
 import { error_message } from "../../utils/common.js";
+import { apply_rubric, DEFAULT_RUBRIC, evaluate_route, DEFAULT_ROUTE_CRITERIA } from "../../quality/index.js";
+import type { ExecutionMode } from "../../quality/index.js";
+
+/** Compute optional quality metadata for a prompt result. */
+function compute_quality_meta(eval_score?: unknown, expected_mode?: unknown): Record<string, unknown> {
+  const meta: Record<string, unknown> = {};
+
+  // rubric_verdict: apply acceptance rubric if eval_score is a number
+  if (typeof eval_score === "number") {
+    const synthetic_scorecard = {
+      case_id: "prompt_run",
+      entries: [{ dimension: "overall", passed: eval_score >= DEFAULT_RUBRIC.default_threshold.pass_at, score: eval_score }],
+      overall_passed: eval_score >= DEFAULT_RUBRIC.default_threshold.pass_at,
+      overall_score: eval_score,
+    };
+    const rubric_result = apply_rubric(synthetic_scorecard, DEFAULT_RUBRIC);
+    meta.rubric_verdict = {
+      overall: rubric_result.overall_verdict,
+      dimensions: rubric_result.dimensions,
+    };
+  }
+
+  // route_verdict: evaluate execution mode if expected_mode is provided
+  if (typeof expected_mode === "string") {
+    const mode = expected_mode as ExecutionMode;
+    const route_eval = evaluate_route(mode, DEFAULT_ROUTE_CRITERIA);
+    meta.route_verdict = {
+      passed: route_eval.passed,
+      actual_mode: mode,
+      ...(route_eval.misroute ? { codes: route_eval.misroute.codes, severity: route_eval.misroute.severity } : {}),
+    };
+  }
+
+  return meta;
+}
 
 export async function handle_prompt(ctx: RouteContext): Promise<boolean> {
   // TN-6d: LLM 프롬프트 실행은 team_manager 이상 (리소스 소비 제어)
@@ -28,7 +63,8 @@ export async function handle_prompt(ctx: RouteContext): Promise<boolean> {
         max_tokens: typeof body.max_tokens === "number" ? body.max_tokens : undefined,
         scope_filter: build_scope_filter(ctx),
       });
-      json(res, 200, result);
+      const quality = compute_quality_meta(body.eval_score, body.expected_mode);
+      json(res, 200, { ...result, ...quality });
     } catch (err) {
       json(res, 500, { error: error_message(err) });
     }
@@ -58,11 +94,13 @@ export async function handle_prompt(ctx: RouteContext): Promise<boolean> {
         }),
       ),
     );
-    json(res, 200, results.map((r, i) =>
-      r.status === "fulfilled"
-        ? { ...r.value, ...targets[i], ok: true }
-        : { ...targets[i], ok: false, error: error_message(r.reason) },
-    ));
+    json(res, 200, results.map((r, i) => {
+      if (r.status === "fulfilled") {
+        const quality = compute_quality_meta(body.eval_score, body.expected_mode);
+        return { ...r.value, ...targets[i], ok: true, ...quality };
+      }
+      return { ...targets[i], ok: false, error: error_message(r.reason) };
+    }));
     return true;
   }
 

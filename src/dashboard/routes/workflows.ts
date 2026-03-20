@@ -3,6 +3,8 @@
 import type { RouteHandler } from "../route-context.js";
 import type { DashboardWorkflowOps } from "../service.js";
 import { set_no_cache, get_filter_team_id, build_scope_filter, require_team_manager_for_write } from "../route-context.js";
+import { audit_workflow_nodes } from "../../quality/workflow-compiler-policy.js";
+import type { WorkflowNodeDefinition } from "../../agent/workflow-node.types.js";
 import { renderMermaid, renderMermaidAscii } from "@vercel/beautiful-mermaid";
 import { error_message } from "../../utils/common.js";
 import {
@@ -56,7 +58,10 @@ export const handle_workflow: RouteHandler = async (ctx) => {
   if (detail_match && method === "GET") {
     const workflow = await ops.get(detail_match[1]);
     if (!workflow || !check_wf_ownership(workflow as unknown as Record<string, unknown>)) { json(res, 404, { error: "not_found" }); return true; }
-    json(res, 200, workflow);
+    // QC-4: definition 노드가 있으면 컴파일러 품질 감사 결과를 compiler_verdict로 첨부
+    const def_nodes = (workflow.definition?.nodes ?? []) as WorkflowNodeDefinition[];
+    const compiler_verdict = def_nodes.length > 0 ? audit_workflow_nodes(def_nodes) : null;
+    json(res, 200, { ...workflow, compiler_verdict });
     return true;
   }
 

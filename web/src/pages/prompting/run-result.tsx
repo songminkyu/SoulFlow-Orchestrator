@@ -1,6 +1,24 @@
 /** Prompt Studio 공통 실행 결과 표시 컴포넌트. */
 import { useState } from "react";
 
+export type RubricDimension = {
+  dimension: string;
+  score: number;
+  verdict: "pass" | "warn" | "fail";
+};
+
+export type RubricVerdictValue = {
+  overall: "pass" | "warn" | "fail";
+  dimensions?: RubricDimension[];
+};
+
+export type RouteVerdictValue = {
+  passed: boolean;
+  actual_mode?: string;
+  codes?: string[];
+  severity?: "major" | "minor";
+};
+
 export type RunResultValue = {
   content: string | null;
   finish_reason: string;
@@ -11,7 +29,79 @@ export type RunResultValue = {
   error?: string;
   /** FE-3: 평가 루브릭 점수 0–1 (F1+F2 Acceptance Rubric 결과). */
   eval_score?: number;
+  /** QC-2: Acceptance Rubric 판정 — pass/warn/fail + per-dimension breakdown. */
+  rubric_verdict?: RubricVerdictValue;
+  /** QC-3: Route selection verdict — 실행 모드 적합성 판정. */
+  route_verdict?: RouteVerdictValue;
 };
+
+/** QC-2: Rubric verdict band badge. */
+function RubricBadge({ verdict }: { verdict: RubricVerdictValue }) {
+  const [expanded, setExpanded] = useState(false);
+  const color_class =
+    verdict.overall === "pass" ? " ps-chip--score-ok"
+    : verdict.overall === "warn" ? " ps-chip--score-warn"
+    : " ps-chip--score-err";
+
+  return (
+    <span style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+      <span
+        className={`ps-chip ps-chip--rubric${color_class}`}
+        title={`Rubric: ${verdict.overall}`}
+        style={{ cursor: verdict.dimensions?.length ? "pointer" : "default", userSelect: "none" }}
+        onClick={() => verdict.dimensions?.length && setExpanded((v) => !v)}
+        data-testid="rubric-verdict-badge"
+      >
+        {verdict.overall.toUpperCase()}
+        {verdict.dimensions && verdict.dimensions.length > 0 && (
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginLeft: 3 }}>
+            {expanded
+              ? <polyline points="18 15 12 9 6 15"/>
+              : <polyline points="6 9 12 15 18 9"/>
+            }
+          </svg>
+        )}
+      </span>
+      {expanded && verdict.dimensions && verdict.dimensions.length > 0 && (
+        <div className="ps-rubric-dropdown" data-testid="rubric-dimensions">
+          {verdict.dimensions.map((d) => (
+            <div key={d.dimension} className="ps-rubric-row">
+              <span className="ps-rubric-row__dim">{d.dimension}</span>
+              <span className="ps-rubric-row__score">{(d.score * 100).toFixed(0)}%</span>
+              <span className={`ps-rubric-row__verdict ps-rubric-row__verdict--${d.verdict}`}>{d.verdict}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
+
+/** QC-3: Route verdict badge. */
+function RouteBadge({ verdict }: { verdict: RouteVerdictValue }) {
+  const label = verdict.passed ? "ROUTED" : "MISROUTE";
+  const color_class = verdict.passed
+    ? (verdict.codes?.length ? " ps-chip--score-warn" : " ps-chip--score-ok")
+    : " ps-chip--score-err";
+  const title = verdict.codes?.length
+    ? `Route: ${verdict.codes.join(", ")} (${verdict.severity ?? "minor"})`
+    : `Route: ${verdict.passed ? "ok" : "misrouted"}`;
+
+  return (
+    <span
+      className={`ps-chip ps-chip--route${color_class}`}
+      title={title}
+      data-testid="route-verdict-badge"
+    >
+      {label}
+      {verdict.codes && verdict.codes.length > 0 && (
+        <span style={{ marginLeft: 3, opacity: 0.8, fontSize: "0.85em" }}>
+          {verdict.severity === "major" ? "!" : "~"}
+        </span>
+      )}
+    </span>
+  );
+}
 
 export function RunResult({ value, loading }: { value: RunResultValue | null; loading?: boolean }) {
   const [copied, setCopied] = useState(false);
@@ -49,7 +139,7 @@ export function RunResult({ value, loading }: { value: RunResultValue | null; lo
     );
   }
 
-  const { content, finish_reason, latency_ms, usage, model, provider_id, eval_score } = value;
+  const { content, finish_reason, latency_ms, usage, model, provider_id, eval_score, rubric_verdict, route_verdict } = value;
   const cost_usd = usage.cost_usd;
 
   const handle_copy = () => {
@@ -76,6 +166,10 @@ export function RunResult({ value, loading }: { value: RunResultValue | null; lo
             {(eval_score * 100).toFixed(0)}%
           </span>
         )}
+        {/* QC-2: Acceptance Rubric 판정 배지 */}
+        {rubric_verdict && <RubricBadge verdict={rubric_verdict} />}
+        {/* QC-3: Route verdict 배지 */}
+        {route_verdict && <RouteBadge verdict={route_verdict} />}
         <button
           className="ps-result__copy"
           onClick={handle_copy}

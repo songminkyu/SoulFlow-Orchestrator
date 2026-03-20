@@ -180,6 +180,37 @@ export function ComparePanel() {
                   <div className="ps-compare__cell-header">
                     <span className="ps-chip">{t.provider_id}</span>
                     {t.model && <span className="ps-chip ps-chip--model">{t.model}</span>}
+                    {/* QC-2: rubric verdict badge per cell */}
+                    {results[i]?.rubric_verdict && (
+                      <span
+                        className={`ps-chip ps-chip--rubric${
+                          results[i]!.rubric_verdict!.overall === "pass" ? " ps-chip--score-ok"
+                          : results[i]!.rubric_verdict!.overall === "warn" ? " ps-chip--score-warn"
+                          : " ps-chip--score-err"
+                        }`}
+                        title={`Rubric: ${results[i]!.rubric_verdict!.overall}`}
+                        data-testid="compare-rubric-badge"
+                      >
+                        {results[i]!.rubric_verdict!.overall.toUpperCase()}
+                      </span>
+                    )}
+                    {/* QC-3: route verdict badge per cell */}
+                    {results[i]?.route_verdict && (
+                      <span
+                        className={`ps-chip ps-chip--route${
+                          results[i]!.route_verdict!.passed
+                            ? (results[i]!.route_verdict!.codes?.length ? " ps-chip--score-warn" : " ps-chip--score-ok")
+                            : " ps-chip--score-err"
+                        }`}
+                        title={results[i]!.route_verdict!.codes?.length
+                          ? `Route: ${results[i]!.route_verdict!.codes!.join(", ")}`
+                          : `Route: ${results[i]!.route_verdict!.passed ? "ok" : "misrouted"}`
+                        }
+                        data-testid="compare-route-badge"
+                      >
+                        {results[i]!.route_verdict!.passed ? "ROUTED" : "MISROUTE"}
+                      </span>
+                    )}
                   </div>
                   <RunResult value={results[i] ?? null} loading={running && !results[i]} />
                 </div>
