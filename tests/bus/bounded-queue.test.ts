@@ -3,7 +3,7 @@ import { BoundedQueue, MessageBus } from "@src/bus/service.js";
 
 const TS = "2024-01-01T00:00:00Z";
 const make_msg = (id: string, content = "test") => ({
-  id, provider: "test", channel: "c", sender_id: "s", chat_id: "t", content, at: TS,
+  id, provider: "test", channel: "c", sender_id: "s", chat_id: "t", content, at: TS, team_id: "team-test",
 });
 
 describe("BoundedQueue", () => {

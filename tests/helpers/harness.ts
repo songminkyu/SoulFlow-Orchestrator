@@ -209,6 +209,7 @@ export function inbound(content: string, patch?: Partial<InboundMessage>): Inbou
     at: new Date().toISOString(),
     media: [],
     metadata: { message_id: id, ...metadata },
+    team_id: "team-test",
     ...patch,
   };
 }

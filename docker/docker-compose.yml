@@ -27,8 +27,10 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+        required: false
       docker-proxy:
         condition: service_started
+        required: false
     ports:
       - "${WEB_PORT:-4200}:4200"
     environment:

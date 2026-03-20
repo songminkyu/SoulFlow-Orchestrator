@@ -13,6 +13,7 @@ describe("Task Progress via MessageBus", () => {
       provider: "telegram",
       chat_id: "chat-123",
       at: new Date().toISOString(),
+      team_id: "team-test",
     };
 
     await bus.publish_progress(event);
@@ -41,6 +42,7 @@ describe("Task Progress via MessageBus", () => {
       provider: "slack",
       chat_id: "c",
       at: new Date().toISOString(),
+      team_id: "team-test",
     });
 
     const received = await bus.consume_progress({ timeout_ms: 50 });
@@ -59,6 +61,7 @@ describe("Task Progress via MessageBus", () => {
         provider: "telegram",
         chat_id: "chat-456",
         at: new Date().toISOString(),
+        team_id: "team-test",
       });
     }
 
