@@ -108,4 +108,6 @@ export type OrchestrationResult = {
   stop_reason?: string;
   /** GW-5: gateway 분류 경로 (identity/builtin/inquiry/direct_tool/once/agent/task/workflow). */
   execution_route?: string;
+  /** K1: in-loop completion feedback contract. agent/task loop 종료 후 self-check 항목. null = feedback 없음. */
+  feedback_contract?: import("./completion-checker.js").CompletionFeedbackContract | null;
 };

@@ -18,6 +18,7 @@ import {
   create_stream_handler, flush_remaining, emit_execution_info,
 } from "../agent-hooks-builder.js";
 import { error_result, reply_result, suppress_result, append_no_tool_notice } from "./helpers.js";
+import { build_feedback_contract } from "../completion-checker.js";
 import type { RunExecutionArgs, RunnerDeps } from "./runner-deps.js";
 import { streaming_cfg_for } from "./runner-deps.js";
 import type { OrchestrationResult } from "../types.js";
@@ -91,6 +92,10 @@ async function _run_agent_loop_inner(
         // EG-4: native 경로 사후 budget 확인
         const max = deps.config.max_tool_calls_per_run;
         if (max > 0 && orch.tool_calls_count >= max) orch.stop_reason = STOP_REASON_BUDGET_EXCEEDED;
+        // K1: feedback contract — has_role=false (agent는 역할 스킬 컨텍스트 없음)
+        orch.feedback_contract = build_feedback_contract(
+          [...new Set(tools_used)], [], orch.tool_calls_count, false,
+        );
         return orch;
       } catch (e) {
         const msg = error_message(e);
@@ -165,5 +170,9 @@ async function _run_agent_loop_inner(
   const legacy_result = reply_result("agent", stream, final_reply, state.tool_count);
   legacy_result.tools_used = [...new Set(tools_used)];
   if (is_over_budget(budget)) legacy_result.stop_reason = STOP_REASON_BUDGET_EXCEEDED;
+  // K1: feedback contract — has_role=false (agent는 역할 스킬 컨텍스트 없음)
+  legacy_result.feedback_contract = build_feedback_contract(
+    [...new Set(tools_used)], [], state.tool_count, false,
+  );
   return legacy_result;
 }

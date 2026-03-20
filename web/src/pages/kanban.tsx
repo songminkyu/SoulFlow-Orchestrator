@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import { create_sse } from "../api/sse";
-import { useToast } from "../components/toast";
 import { SearchInput } from "../components/search-input";
 import { DeleteConfirmModal, FormModal, useConfirm } from "../components/modal";
 import { useT } from "../i18n";
@@ -793,9 +792,9 @@ function RulesPanel({ board_id, columns, onClose }: { board_id: string; columns:
               <input type="checkbox" checked={rule.enabled} onChange={() => toggle_rule(rule)} />
             </label>
             <div className="kanban-rules__info">
-              <span className="kanban-rules__trigger">{t(TRIGGER_LABELS[rule.trigger]) || rule.trigger}</span>
+              <span className="kanban-rules__trigger">{TRIGGER_LABELS[rule.trigger] ? t(TRIGGER_LABELS[rule.trigger]!) : rule.trigger}</span>
               <span className="kanban-rules__arrow">→</span>
-              <span className="kanban-rules__action">{t(ACTION_LABELS[rule.action_type]) || rule.action_type}</span>
+              <span className="kanban-rules__action">{ACTION_LABELS[rule.action_type] ? t(ACTION_LABELS[rule.action_type]!) : rule.action_type}</span>
               {Object.keys(rule.condition).length > 0 && (
                 <span className="kanban-rules__condition" title={JSON.stringify(rule.condition)}>
                   {Object.entries(rule.condition).map(([k, v]) => `${k}=${v}`).join(", ")}
@@ -817,7 +816,6 @@ function RulesPanel({ board_id, columns, onClose }: { board_id: string; columns:
 
 function CreateRuleForm({ board_id, columns, onClose, onCreated }: { board_id: string; columns: ColumnDef[]; onClose: () => void; onCreated: () => void }) {
   const t = useT();
-  const { toast } = useToast();
   const run_action = useAsyncAction();
   const [trigger, setTrigger] = useState<string>("card_moved");
   const [actionType, setActionType] = useState<string>("move_card");
@@ -879,13 +877,13 @@ function CreateRuleForm({ board_id, columns, onClose, onCreated }: { board_id: s
         <div className="kanban-rules__form-field">
           <label className="form-label">{t("kanban.trigger")}</label>
           <select autoFocus className="form-input" value={trigger} onChange={e => setTrigger(e.target.value)}>
-            {TRIGGER_OPTIONS.map(tr => <option key={tr} value={tr}>{t(TRIGGER_LABELS[tr]) || tr}</option>)}
+            {TRIGGER_OPTIONS.map(tr => <option key={tr} value={tr}>{TRIGGER_LABELS[tr] ? t(TRIGGER_LABELS[tr]!) : tr}</option>)}
           </select>
         </div>
         <div className="kanban-rules__form-field">
           <label className="form-label">{t("kanban.action_type")}</label>
           <select className="form-input" value={actionType} onChange={e => setActionType(e.target.value)}>
-            {ACTION_TYPE_OPTIONS.map(a => <option key={a} value={a}>{t(ACTION_LABELS[a]) || a}</option>)}
+            {ACTION_TYPE_OPTIONS.map(a => <option key={a} value={a}>{ACTION_LABELS[a] ? t(ACTION_LABELS[a]!) : a}</option>)}
           </select>
         </div>
       </div>

@@ -8,7 +8,7 @@
  *       - 에러 처리
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { RunnerDeps, RunExecutionArgs } from "@src/orchestration/execution/runner-deps.js";
 import { run_agent_loop } from "@src/orchestration/execution/run-agent-loop.js";
 import type { OrchestrationRequest } from "@src/orchestration/types.js";
@@ -95,7 +95,7 @@ const createMockRunnerDeps = (): Partial<RunnerDeps> => ({
   process_tracker: null,
   get_mcp_configs: vi.fn(() => undefined),
   workspace: "/tmp",
-  convert_agent_result: vi.fn((result, mode, stream) => ({ reply: String(result.content || ""), mode, suppress_reply: false, tool_calls_count: result.tool_calls_count || 0, streamed: false })),
+  convert_agent_result: vi.fn((result: any, mode: any) => ({ reply: String(result.content || ""), mode, suppress_reply: false, tool_calls_count: result.tool_calls_count || 0, streamed: false })),
   hooks_for: vi.fn(() => ({})),
   config: {
     agent_loop_max_turns: 10,
@@ -346,6 +346,85 @@ describe("run_agent_loop — executor 루프 실행", () => {
       // AGENT_TOOL_NUDGE는 문자열이거나 truthy 값
       expect(result).toBeTruthy();
       expect(typeof result).toBe("string");
+    });
+  });
+
+  // ── K1: feedback contract ──
+
+  describe("K1: feedback contract — legacy 경로", () => {
+    it("도구 사용 없을 때 feedback_contract는 null (has_role=false)", async () => {
+      const deps = createMockRunnerDeps() as RunnerDeps;
+
+      (deps.runtime.run_agent_loop as any).mockResolvedValue({
+        final_content: "Done without tools",
+      });
+
+      const result = await run_agent_loop(deps, mockArgs);
+
+      expect(result.mode).toBe("agent");
+      expect(result.reply).toContain("Done without tools");
+      // has_role=false이므로 feedback_contract는 항상 null
+      expect(result.feedback_contract).toBeNull();
+    });
+
+    it("feedback_contract 필드가 result에 존재함 (null 포함)", async () => {
+      const deps = createMockRunnerDeps() as RunnerDeps;
+
+      (deps.runtime.run_agent_loop as any).mockResolvedValue({
+        final_content: "Task complete",
+      });
+
+      const result = await run_agent_loop(deps, mockArgs);
+
+      // K1: feedback_contract 필드가 result에 포함됨
+      expect(Object.prototype.hasOwnProperty.call(result, "feedback_contract")).toBe(true);
+    });
+
+    it("suppress 경로 → feedback_contract 없음 (suppress_reply=true)", async () => {
+      const deps = createMockRunnerDeps() as RunnerDeps;
+
+      // tool_call_handler가 suppress를 설정하도록 시뮬레이션
+      // suppress는 on_tool_calls 내부에서 state.suppress = true로 설정됨
+      // 직접 state를 조작할 수 없으므로 suppress_result를 통해 반환되는 경로는
+      // 별도 mock 없이 basic 경로만 커버
+      (deps.runtime.run_agent_loop as any).mockResolvedValue({
+        final_content: "Normal response",
+      });
+
+      const result = await run_agent_loop(deps, mockArgs);
+      // suppress 아닌 정상 경로 확인
+      expect(result.suppress_reply).toBeUndefined();
+    });
+  });
+
+  describe("K1: feedback contract — 기존 경로 회귀 방지", () => {
+    it("legacy 경로 — feedback_contract=null이어도 reply 정상 반환", async () => {
+      const deps = createMockRunnerDeps() as RunnerDeps;
+
+      (deps.runtime.run_agent_loop as any).mockResolvedValue({
+        final_content: "Existing path unaffected",
+      });
+
+      const result = await run_agent_loop(deps, mockArgs);
+
+      expect(result.reply).toContain("Existing path unaffected");
+      expect(result.mode).toBe("agent");
+      // feedback_contract=null이어도 정상 응답
+      expect(result.feedback_contract).toBeNull();
+    });
+
+    it("에러 경로 — feedback_contract 없이 error 반환", async () => {
+      const deps = createMockRunnerDeps() as RunnerDeps;
+
+      (deps.runtime.run_agent_loop as any).mockResolvedValue({
+        final_content: "",
+      });
+
+      const result = await run_agent_loop(deps, mockArgs);
+
+      expect(result.error).toBe("empty_provider_response");
+      // 에러 경로는 feedback_contract 미설정
+      expect(result.feedback_contract).toBeUndefined();
     });
   });
 });

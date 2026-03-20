@@ -4,8 +4,8 @@
  *       discriminated union (ResumedPreflight | ReadyPreflight)이 올바르게 작동하는지 확인.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
-import type { RequestPreflightDeps, RequestPreflightResult } from "@src/orchestration/request-preflight.js";
+import { describe, it, expect, vi } from "vitest";
+import type { RequestPreflightDeps } from "@src/orchestration/request-preflight.js";
 import { run_request_preflight, collect_skill_provider_prefs } from "@src/orchestration/request-preflight.js";
 import type { SecretVaultService } from "@src/security/secret-vault.js";
 import type { AgentRuntimeLike } from "@src/agent/runtime.types.js";
@@ -631,5 +631,126 @@ describe("request-preflight — seal_list 비로컬 문자열 (L167-168)", () =>
       // sealed 결과가 비어있지 않으면 media에 포함됨
       expect(Array.isArray(result.media)).toBe(true);
     }
+  });
+});
+
+// ══════════════════════════════════════════
+// K4: SemanticScorerPort — request-preflight에서의 optional 사용
+// ══════════════════════════════════════════
+
+import { NoOpSemanticScorer } from "@src/orchestration/semantic-scorer-port.js";
+import type { SemanticScorerPort } from "@src/orchestration/semantic-scorer-port.js";
+
+describe("K4: SemanticScorerPort — semantic_scorer absent (no-op)", () => {
+  it("semantic_scorer 미설정 시 preflight 정상 실행 (kind='ready')", async () => {
+    // semantic_scorer 필드 없는 deps → FTS5 동작 유지, 에러 없음
+    const deps = make_cov2_deps();
+    const result = await run_request_preflight(deps, make_cov2_req());
+    expect(result.kind).toBe("ready");
+  });
+
+  it("semantic_scorer=undefined → tool_index.set_semantic_scorer 호출 안 됨", async () => {
+    const mock_tool_index = {
+      build: vi.fn(),
+      set_semantic_scorer: vi.fn(),
+      warm_up: vi.fn().mockResolvedValue(undefined),
+      select_tools: vi.fn().mockResolvedValue([]),
+    } as unknown as import("@src/orchestration/tool-index.js").ToolIndex;
+
+    const deps: RequestPreflightDeps = {
+      ...make_cov2_deps(),
+      tool_index: mock_tool_index,
+      // semantic_scorer 미설정 (undefined이 아닌 필드 자체 없음)
+    };
+    delete (deps as Record<string, unknown>).semantic_scorer;
+
+    await run_request_preflight(deps, make_cov2_req());
+    // semantic_scorer가 undefined이면 set_semantic_scorer 호출 안 됨
+    expect(mock_tool_index.set_semantic_scorer).not.toHaveBeenCalled();
+  });
+});
+
+describe("K4: SemanticScorerPort — semantic_scorer present", () => {
+  it("NoOpSemanticScorer 주입 → tool_index.set_semantic_scorer 호출됨", async () => {
+    const mock_tool_index = {
+      build: vi.fn(),
+      set_semantic_scorer: vi.fn(),
+      warm_up: vi.fn().mockResolvedValue(undefined),
+      select_tools: vi.fn().mockResolvedValue([]),
+    } as unknown as import("@src/orchestration/tool-index.js").ToolIndex;
+
+    const scorer = new NoOpSemanticScorer();
+    const deps: RequestPreflightDeps = {
+      ...make_cov2_deps(),
+      tool_index: mock_tool_index,
+      semantic_scorer: scorer,
+    };
+
+    await run_request_preflight(deps, make_cov2_req());
+    expect(mock_tool_index.set_semantic_scorer).toHaveBeenCalledWith(scorer);
+  });
+
+  it("semantic_scorer=null 명시 → tool_index.set_semantic_scorer(null) 호출됨 (no-op 복귀)", async () => {
+    const mock_tool_index = {
+      build: vi.fn(),
+      set_semantic_scorer: vi.fn(),
+      warm_up: vi.fn().mockResolvedValue(undefined),
+      select_tools: vi.fn().mockResolvedValue([]),
+    } as unknown as import("@src/orchestration/tool-index.js").ToolIndex;
+
+    const deps: RequestPreflightDeps = {
+      ...make_cov2_deps(),
+      tool_index: mock_tool_index,
+      semantic_scorer: null,
+    };
+
+    await run_request_preflight(deps, make_cov2_req());
+    expect(mock_tool_index.set_semantic_scorer).toHaveBeenCalledWith(null);
+  });
+
+  it("custom scorer → score() 호출 가능 (scorer contract 검증)", async () => {
+    const score_spy = vi.fn().mockResolvedValue([]);
+    const custom_scorer: SemanticScorerPort = { score: score_spy };
+
+    const mock_tool_index = {
+      build: vi.fn(),
+      set_semantic_scorer: vi.fn(),
+      warm_up: vi.fn().mockResolvedValue(undefined),
+      select_tools: vi.fn().mockResolvedValue([]),
+    } as unknown as import("@src/orchestration/tool-index.js").ToolIndex;
+
+    const deps: RequestPreflightDeps = {
+      ...make_cov2_deps(),
+      tool_index: mock_tool_index,
+      semantic_scorer: custom_scorer,
+    };
+
+    await run_request_preflight(deps, make_cov2_req());
+    // scorer가 tool_index에 주입되어야 함
+    expect(mock_tool_index.set_semantic_scorer).toHaveBeenCalledWith(custom_scorer);
+  });
+
+  it("tool_index=null 이면 scorer 있어도 set_semantic_scorer 호출 안 됨", async () => {
+    const scorer = new NoOpSemanticScorer();
+    const deps: RequestPreflightDeps = {
+      ...make_cov2_deps(),
+      tool_index: null,
+      semantic_scorer: scorer,
+    };
+    // null tool_index → 에러 없이 정상 실행
+    const result = await run_request_preflight(deps, make_cov2_req());
+    expect(result.kind).toBe("ready");
+  });
+
+  it("NoOpSemanticScorer.score() → 항상 빈 배열 반환 (FTS5 동작 유지)", async () => {
+    const scorer = new NoOpSemanticScorer();
+    const deltas = await scorer.score("search query", ["tool-a", "tool-b"]);
+    expect(deltas).toEqual([]);
+  });
+
+  it("NoOpSemanticScorer.score() — 빈 candidates → 빈 배열", async () => {
+    const scorer = new NoOpSemanticScorer();
+    const deltas = await scorer.score("query", []);
+    expect(deltas).toEqual([]);
   });
 });

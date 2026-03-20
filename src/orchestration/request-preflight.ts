@@ -27,6 +27,8 @@ export type RequestPreflightDeps = {
   policy_resolver: RuntimePolicyResolver;
   workspace: string | undefined;
   tool_index: import("./tool-index.js").ToolIndex | null;
+  /** K4: optional semantic scorer port. 주입 시 tool_index에 전달하여 BM25 재점수 보강 활성화. */
+  semantic_scorer?: import("./semantic-scorer-port.js").SemanticScorerPort | null;
 };
 
 /** resumed_task 조기 반환 경로 */
@@ -122,6 +124,10 @@ export async function run_request_preflight(
     ? join(deps.workspace, "runtime", "tools", "tool-index.db")
     : undefined;
   rebuild_tool_index(all_tool_definitions as ToolSchema[], category_map, tool_index_db, deps.tool_index);
+  // K4: semantic scorer 주입 — tool_index에 선택적으로 전달. scorer가 없으면 기존 FTS5 동작 유지.
+  if (deps.tool_index && deps.semantic_scorer !== undefined) {
+    deps.tool_index.set_semantic_scorer(deps.semantic_scorer ?? null);
+  }
   const skill_provider_prefs = collect_skill_provider_prefs(deps.runtime, skill_names);
 
   return {
