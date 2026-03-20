@@ -6,27 +6,31 @@ import { BuilderField, BuilderRowPair, NodeMultiSelect } from "../builder-field"
 import type { FrontendNodeDescriptor, EditPanelProps } from "../node-registry";
 
 function FanoutEditPanel({ node, update, t, options }: EditPanelProps) {
-  const branches = (node.branches as string[]) || [];
-  const reconcile_node = (node.reconcile_node as string[]) || [];
+  const reconcile_id = (node.reconcile_node_id as string) || "";
   const wf_nodes = options?.workflow_nodes;
+  const reconcile_nodes = wf_nodes?.filter((n) => n.type === "reconcile") || [];
 
   return (
     <>
       <BuilderField label={t("workflows.fanout_branches")} required hint={t("workflows.fanout_branches_hint")}>
         <NodeMultiSelect
-          value={branches}
-          onChange={(ids) => update({ branches: ids })}
+          value={(node.branches as Array<{ branch_id: string; node_ids: string[] }>)?.map((b) => b.branch_id) || []}
+          onChange={(ids) => update({ branches: ids.map((id) => ({ branch_id: id, node_ids: [] })) })}
           nodes={wf_nodes}
           placeholder="branch-node"
         />
       </BuilderField>
       <BuilderField label={t("workflows.fanout_reconcile")} hint={t("workflows.fanout_reconcile_hint")}>
-        <NodeMultiSelect
-          value={reconcile_node}
-          onChange={(ids) => update({ reconcile_node: ids })}
-          nodes={wf_nodes?.filter((n) => n.type === "reconcile")}
-          placeholder="reconcile-node"
-        />
+        <select
+          className="input input--sm"
+          value={reconcile_id}
+          onChange={(e) => update({ reconcile_node_id: e.target.value })}
+        >
+          <option value="">{t("common.select")}</option>
+          {reconcile_nodes.map((n) => (
+            <option key={n.id} value={n.id}>{n.label || n.id}</option>
+          ))}
+        </select>
       </BuilderField>
       <BuilderRowPair>
         <BuilderField label={t("workflows.fanout_max_concurrency")}>
@@ -46,8 +50,8 @@ function FanoutEditPanel({ node, update, t, options }: EditPanelProps) {
             min={1000}
             max={600000}
             step={1000}
-            value={String(node.timeout_ms ?? 30000)}
-            onChange={(e) => update({ timeout_ms: Number(e.target.value) || 30000 })}
+            value={String(node.branch_timeout_ms ?? 30000)}
+            onChange={(e) => update({ branch_timeout_ms: Number(e.target.value) || 30000 })}
           />
         </BuilderField>
       </BuilderRowPair>
@@ -68,6 +72,6 @@ export const fanout_descriptor: FrontendNodeDescriptor = {
   input_schema: [
     { name: "input", type: "object", description: "node.fanout.input.input" },
   ],
-  create_default: () => ({ branches: [], reconcile_node: [], max_concurrency: 5, timeout_ms: 30000 }),
+  create_default: () => ({ branches: [], reconcile_node_id: "", max_concurrency: 5, branch_timeout_ms: 30000 }),
   EditPanel: FanoutEditPanel,
 };

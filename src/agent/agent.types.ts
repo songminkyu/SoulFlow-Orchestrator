@@ -101,7 +101,9 @@ export type AgentEvent =
       tool_name: string; tool_id: string; params: Record<string, unknown> }
   | { type: "tool_result";      source: AgentEventSource; at: string;
       tool_name: string; tool_id: string; result: string; is_error?: boolean;
-      params?: Record<string, unknown> }
+      params?: Record<string, unknown>;
+      /** OR-4: 사용자 표시용 텍스트 (reducer 적용 시 display_text, 미적용 시 result와 동일) */
+      display_text?: string }
   | { type: "approval_request"; source: AgentEventSource; at: string;
       request: ApprovalBridgeRequest }
   | { type: "usage";            source: AgentEventSource; at: string;

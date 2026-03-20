@@ -128,6 +128,7 @@ export function create_tool_call_handler(
             at: now_iso(),
             tool_name: tc.name, tool_id: "",
             result: prompt, params: tc.arguments, is_error,
+            display_text: display,
           });
         }
         if (stream_ctx?.log_ctx) {

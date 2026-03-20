@@ -6,10 +6,10 @@ import { BuilderField } from "../builder-field";
 import { NodeMultiSelect } from "../builder-field";
 import type { FrontendNodeDescriptor, EditPanelProps } from "../node-registry";
 
-const POLICIES = ["merge_all", "first_success", "majority_vote", "custom"] as const;
+const POLICIES = ["majority_vote", "first_wins", "last_wins", "merge_union"] as const;
 
 function ReconcileEditPanel({ node, update, t, options }: EditPanelProps) {
-  const sources = (node.source_nodes as string[]) || [];
+  const sources = (node.source_node_ids as string[]) || [];
   const wf_nodes = options?.workflow_nodes;
 
   return (
@@ -17,7 +17,7 @@ function ReconcileEditPanel({ node, update, t, options }: EditPanelProps) {
       <BuilderField label={t("workflows.reconcile_sources")} required hint={t("workflows.reconcile_sources_hint")}>
         <NodeMultiSelect
           value={sources}
-          onChange={(ids) => update({ source_nodes: ids })}
+          onChange={(ids) => update({ source_node_ids: ids })}
           nodes={wf_nodes}
           placeholder="source-node"
         />
@@ -27,7 +27,7 @@ function ReconcileEditPanel({ node, update, t, options }: EditPanelProps) {
           autoFocus
           className="input input--sm"
           required
-          value={String(node.policy || "merge_all")}
+          value={String(node.policy || "majority_vote")}
           onChange={(e) => update({ policy: e.target.value })}
         >
           {POLICIES.map((p) => (
@@ -57,10 +57,13 @@ export const reconcile_descriptor: FrontendNodeDescriptor = {
   toolbar_label: "node.reconcile.label",
   category: "flow",
   output_schema: [
-    { name: "result", type: "object", description: "node.reconcile.output.result" },
-    { name: "sources", type: "array", description: "node.reconcile.output.sources" },
+    { name: "reconciled", type: "object", description: "node.reconcile.output.reconciled" },
+    { name: "conflicts", type: "array", description: "node.reconcile.output.conflicts" },
+    { name: "policy_applied", type: "string", description: "node.reconcile.output.policy_applied" },
+    { name: "succeeded", type: "number", description: "node.reconcile.output.succeeded" },
+    { name: "failed", type: "number", description: "node.reconcile.output.failed" },
   ],
   input_schema: [],
-  create_default: () => ({ source_nodes: [], policy: "merge_all", use_parsed: false }),
+  create_default: () => ({ source_node_ids: [], policy: "majority_vote", use_parsed: false }),
   EditPanel: ReconcileEditPanel,
 };

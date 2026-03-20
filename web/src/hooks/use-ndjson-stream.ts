@@ -7,7 +7,7 @@ type NdjsonLine =
   | { type: "delta"; content: string }
   | { type: "thinking"; tokens: number; preview: string }
   | { type: "tool_start"; id: string; name: string; params?: Record<string, unknown> }
-  | { type: "tool_result"; id: string; name: string; result: string; is_error?: boolean }
+  | { type: "tool_result"; id: string; name: string; result: string; is_error?: boolean; display_text?: string }
   | { type: "usage"; input: number; output: number; cache_read?: number; cache_creation?: number; cost_usd?: number | null }
   | { type: "rate_limit"; status: string }
   | { type: "compact"; pre_tokens: number }
@@ -23,6 +23,8 @@ export type ToolCallEntry = {
   done: boolean;
   result?: string;
   is_error?: boolean;
+  /** OR-4: 사용자 표시용 텍스트 — result(=prompt_text) 대신 렌더링에 사용 */
+  display_text?: string;
 };
 
 export type ThinkingEntry = {
@@ -149,8 +151,8 @@ export function useNdjsonStream() {
             } else if (msg.type === "tool_result") {
               const prev_entry = tool_map_ref.current.get(msg.id);
               const updated: ToolCallEntry = prev_entry
-                ? { ...prev_entry, done: true, result: msg.result, is_error: msg.is_error }
-                : { id: msg.id, name: msg.name, done: true, result: msg.result, is_error: msg.is_error };
+                ? { ...prev_entry, done: true, result: msg.result, is_error: msg.is_error, display_text: msg.display_text }
+                : { id: msg.id, name: msg.name, done: true, result: msg.result, is_error: msg.is_error, display_text: msg.display_text };
               tool_map_ref.current.set(msg.id, updated);
               tool_dirty_ref.current = true;
               schedule_flush();

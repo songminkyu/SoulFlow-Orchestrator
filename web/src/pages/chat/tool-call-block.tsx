@@ -195,7 +195,7 @@ function ToolCallBlock({ entry }: { entry: ToolCallEntry }) {
                 <span className="tool-call__section-chevron" aria-hidden="true">{responseOpen ? "▲" : "▼"}</span>
               </button>
               {responseOpen && (
-                <RichResultRenderer content={entry.result} isError={entry.is_error} />
+                <RichResultRenderer content={entry.display_text ?? entry.result} isError={entry.is_error} />
               )}
             </section>
           )}

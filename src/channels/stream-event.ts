@@ -9,7 +9,7 @@ export type StreamEvent =
   | { type: "delta";       content: string }
   | { type: "thinking";    tokens: number; preview: string }
   | { type: "tool_start";  name: string; id: string; params?: Record<string, unknown> }
-  | { type: "tool_result"; name: string; id: string; result: string; is_error?: boolean }
+  | { type: "tool_result"; name: string; id: string; result: string; is_error?: boolean; display_text?: string }
   | { type: "usage";       input: number; output: number; cache_read?: number; cache_creation?: number; cost_usd?: number | null }
   | { type: "rate_limit";  status: "allowed_warning" | "rejected" }
   | { type: "compact";     pre_tokens: number }
@@ -26,7 +26,7 @@ export function agent_event_to_stream(event: AgentEvent): StreamEvent | null {
     case "tool_use":
       return { type: "tool_start", name: event.tool_name, id: event.tool_id, params: event.params };
     case "tool_result":
-      return { type: "tool_result", name: event.tool_name, id: event.tool_id, result: event.result, is_error: event.is_error };
+      return { type: "tool_result", name: event.tool_name, id: event.tool_id, result: event.result, is_error: event.is_error, display_text: event.display_text };
     case "usage":
       return { type: "usage", input: event.tokens.input, output: event.tokens.output, cache_read: event.tokens.cache_read, cache_creation: event.tokens.cache_creation, cost_usd: event.cost_usd };
     case "rate_limit":
