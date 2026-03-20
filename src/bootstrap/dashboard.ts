@@ -195,6 +195,8 @@ export function create_dashboard_bundle(deps: DashboardBundleDeps): DashboardBun
     prompt_ops: {
       async run(input) {
         const chat_provider = find_scoped_chat_provider(provider_store, input.scope_filter);
+        const resolved_provider = input.provider_id ?? chat_provider?.provider_type ?? null;
+        const t0 = Date.now();
         const result = await providers.run_headless_prompt({
           provider_id: (input.provider_id ?? chat_provider?.provider_type) as import("../providers/types.js").ProviderId | undefined,
           prompt: input.prompt,
@@ -203,7 +205,20 @@ export function create_dashboard_bundle(deps: DashboardBundleDeps): DashboardBun
           temperature: input.temperature,
           max_tokens: input.max_tokens,
         });
-        return { content: result?.content ?? null, provider_id: input.provider_id ?? chat_provider?.provider_type ?? null };
+        const latency_ms = Date.now() - t0;
+        return {
+          content: result?.content ?? null,
+          provider_id: resolved_provider,
+          finish_reason: result?.finish_reason ?? "stop",
+          model: (result?.metadata?.["model"] as string) ?? input.model ?? "",
+          latency_ms,
+          usage: {
+            prompt_tokens: result?.usage.prompt_tokens,
+            completion_tokens: result?.usage.completion_tokens,
+            total_tokens: result?.usage.total_tokens,
+            cost_usd: result?.usage.total_cost_usd,
+          },
+        };
       },
     },
     agent_definition_ops: create_agent_definition_ops({
