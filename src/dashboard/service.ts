@@ -58,6 +58,7 @@ import { handle_prompt } from "./routes/prompt.js";
 import { handle_usage } from "./routes/usage.js";
 import { handle_eval } from "./routes/eval.js";
 import { dispatch_webhook } from "./routes/webhook.js";
+import { read_json_body } from "./body-reader.js";
 import { handle_auth } from "./routes/auth.js";
 import { handle_admin } from "./routes/admin.js";
 import { handle_team_providers } from "./routes/team-providers.js";
@@ -226,32 +227,7 @@ export class DashboardService implements ServiceLike {
   }
 
   private _read_json_body(req: IncomingMessage, res: ServerResponse, max_bytes = 1_048_576): Promise<Record<string, unknown> | null> {
-    return new Promise((resolve) => {
-      const chunks: Buffer[] = [];
-      let total = 0;
-      req.on("data", (chunk: Buffer) => {
-        total += chunk.length;
-        if (total > max_bytes) {
-          req.destroy();
-          if (!res.headersSent) {
-            res.statusCode = 413;
-            res.setHeader("Content-Type", "application/json; charset=utf-8");
-            res.end(JSON.stringify({ error: "payload_too_large" }));
-          }
-          resolve(null);
-          return;
-        }
-        chunks.push(chunk);
-      });
-      req.on("end", () => {
-        try {
-          resolve(JSON.parse(Buffer.concat(chunks).toString("utf-8")) as Record<string, unknown>);
-        } catch {
-          resolve(null);
-        }
-      });
-      req.on("error", () => resolve(null));
-    });
+    return read_json_body(req, res, max_bytes);
   }
 
   /** prefix → handler 라우트 맵. */

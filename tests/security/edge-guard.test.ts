@@ -1,49 +1,16 @@
 /**
  * SH-1 Edge Guard 회귀 테스트.
- * - body size limit (1MB 기본값, 413 반환)
+ * - body size limit (1MB 기본값, 413 반환) — production read_json_body 직접 import
  * - webhook secret 인증 (accept/reject)
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createHash } from "node:crypto";
+import { describe, it, expect, vi } from "vitest";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { EventEmitter } from "node:events";
 import type { ServerResponse, IncomingMessage } from "node:http";
+import { read_json_body } from "@src/dashboard/body-reader.js";
 
 // ── DashboardService body size limit 테스트 ──────────────
-// _read_json_body는 private이므로, 동일 로직을 추출하여 테스트
-
-/** _read_json_body와 동일한 구조. DashboardService.ts L188-215 미러. */
-function read_json_body(
-  req: IncomingMessage,
-  res: ServerResponse,
-  max_bytes = 1_048_576,
-): Promise<Record<string, unknown> | null> {
-  return new Promise((resolve) => {
-    const chunks: Buffer[] = [];
-    let total = 0;
-    req.on("data", (chunk: Buffer) => {
-      total += chunk.length;
-      if (total > max_bytes) {
-        req.destroy();
-        if (!res.headersSent) {
-          res.statusCode = 413;
-          res.setHeader("Content-Type", "application/json; charset=utf-8");
-          res.end(JSON.stringify({ error: "payload_too_large" }));
-        }
-        resolve(null);
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on("end", () => {
-      try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString("utf-8")) as Record<string, unknown>);
-      } catch {
-        resolve(null);
-      }
-    });
-    req.on("error", () => resolve(null));
-  });
-}
+// production read_json_body를 직접 import하여 미러 drift 방지 (T-2)
 
 function make_mock_req(): EventEmitter & { destroy: ReturnType<typeof vi.fn> } {
   const emitter = new EventEmitter() as EventEmitter & { destroy: ReturnType<typeof vi.fn> };
@@ -120,7 +87,7 @@ function verify_token(req: { headers: Record<string, string> }, secret: string |
   const token = auth.slice(7).trim();
   const expected = createHash("sha256").update(secret, "utf8").digest();
   const actual = createHash("sha256").update(token, "utf8").digest();
-  return expected.length === actual.length && require("node:crypto").timingSafeEqual(expected, actual);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
 describe("SH-1: webhook secret 인증", () => {

@@ -595,3 +595,54 @@ describe("ToolRegistry — reducer integration", () => {
     expect(result).toBe("plain_tool result");
   });
 });
+
+// ── T-2: JSON bypass branch (L168) — JSON 결과는 reducer를 bypass ──────────
+
+describe("ToolRegistry — JSON result bypasses reducer (L168)", () => {
+  it("결과가 JSON 객체('{' 시작)이면 reducer.reduce()를 호출하지 않는다", async () => {
+    const reducer = {
+      reduce: vi.fn().mockReturnValue({
+        kind: "plain" as const,
+        raw_text: "",
+        prompt_text: "[should not appear]",
+        display_text: "",
+        storage_text: "",
+        meta: { raw_chars: 0, raw_lines: 1, truncated: false },
+      }),
+    };
+    const reg = new ToolRegistry({ reducer });
+    const tool = make_mock_tool("json_tool");
+    (tool.execute as ReturnType<typeof vi.fn>).mockResolvedValue('{"ok":true}');
+    reg.register(tool);
+
+    const result = await reg.execute("json_tool", {});
+
+    expect(result).toBe('{"ok":true}');
+    expect(reducer.reduce).not.toHaveBeenCalled();
+  });
+
+  it("결과가 non-JSON 문자열이면 reducer.reduce()가 호출된다", async () => {
+    const reducer = {
+      reduce: vi.fn().mockReturnValue({
+        kind: "plain" as const,
+        raw_text: "plain text output",
+        prompt_text: "[reduced]",
+        display_text: "plain text output",
+        storage_text: "plain text output",
+        meta: { raw_chars: 17, raw_lines: 1, truncated: true },
+      }),
+    };
+    const reg = new ToolRegistry({ reducer });
+    const tool = make_mock_tool("text_tool");
+    (tool.execute as ReturnType<typeof vi.fn>).mockResolvedValue("plain text output");
+    reg.register(tool);
+
+    const result = await reg.execute("text_tool", {});
+
+    expect(result).toBe("[reduced]");
+    expect(reducer.reduce).toHaveBeenCalledOnce();
+    expect(reducer.reduce).toHaveBeenCalledWith(
+      expect.objectContaining({ tool_name: "text_tool", result_text: "plain text output", is_error: false }),
+    );
+  });
+});

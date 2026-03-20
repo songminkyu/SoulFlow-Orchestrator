@@ -15,6 +15,7 @@ import {
   fire, accum_usage, emit_usage,
   type UsageAccumulator,
 } from "./tool-loop-helpers.js";
+import { create_tool_output_reducer } from "../../orchestration/tool-output-reducer.js";
 import { now_iso, error_message, swallow, make_abort_signal } from "../../utils/common.js";
 import { LLM_REQUEST_TIMEOUT_MS } from "../../utils/timeouts.js";
 
@@ -132,6 +133,9 @@ export class AnthropicNativeAgent implements AgentBackend {
     let total_tool_calls = 0;
     const usage: UsageAccumulator = { input: 0, output: 0, cache_read: 0, cache_creation: 0, cost: 0 };
 
+    // 3-projection reducer: tool 결과 압축 (prompt/display/storage 분리)
+    const reducer = executors.size > 0 ? create_tool_output_reducer() : undefined;
+
     fire(emit, { type: "init", source, at: now_iso() });
 
     try {
@@ -180,7 +184,7 @@ export class AnthropicNativeAgent implements AgentBackend {
             type: "tool_use", source, at: now_iso(),
             tool_name: tb.name, tool_id: tb.id, params: tb.input,
           });
-          const result = await execute_single_tool(tb.name, tb.input, executors, tool_ctx, options.hooks);
+          const result = await execute_single_tool(tb.name, tb.input, executors, tool_ctx, options.hooks, reducer);
           tool_results.push({ type: "tool_result", tool_use_id: tb.id, content: result.text, is_error: result.is_error || undefined });
           fire(emit, {
             type: "tool_result", source, at: now_iso(),

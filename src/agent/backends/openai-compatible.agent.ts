@@ -14,6 +14,7 @@ import {
   fire, accum_usage, emit_usage,
   type UsageAccumulator,
 } from "./tool-loop-helpers.js";
+import { create_tool_output_reducer } from "../../orchestration/tool-output-reducer.js";
 
 export type OpenAiCompatibleConfig = {
   api_base: string;
@@ -61,6 +62,9 @@ export class OpenAiCompatibleAgent implements AgentBackend {
 
     const tools = (chat_options.tools as Record<string, unknown>[] | undefined) ?? [];
 
+    // 3-projection reducer: tool 결과 압축 (prompt/display/storage 분리)
+    const reducer = executors.size > 0 ? create_tool_output_reducer() : undefined;
+
     fire(emit, { type: "init", source, at: now_iso() });
 
     const conversation: ChatMessage[] = [...messages];
@@ -104,7 +108,7 @@ export class OpenAiCompatibleAgent implements AgentBackend {
           });
 
           const result = await execute_single_tool(
-            tc.name, tc.arguments || {}, executors, tool_ctx, options.hooks,
+            tc.name, tc.arguments || {}, executors, tool_ctx, options.hooks, reducer,
           );
 
           conversation.push({ role: "tool", tool_call_id: tc.id, content: result.text });

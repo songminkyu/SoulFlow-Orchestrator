@@ -335,7 +335,7 @@ describe("OpenAiCompatibleAgent — SSE 스트리밍 경로 (L199-322)", () => {
     // 도구 호출이 여러 청크로 나뉘어 전달
     const sse_lines = [
       'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"tc1","function":{"name":"my_","arguments":""}}]},"finish_reason":null}]}',
-      'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"name":"tool","arguments":"{\\\"x\\\":"}}]},"finish_reason":null}]}',
+      'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"name":"tool","arguments":"{x:"}}]},"finish_reason":null}]}',
       'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"1}"}}]},"finish_reason":"tool_calls"}]}',
       "data: [DONE]",
     ];
@@ -398,5 +398,110 @@ describe("OpenAiCompatibleAgent — SSE 스트리밍 경로 (L199-322)", () => {
     const body = JSON.parse(mock_fetch.mock.calls[0][1].body);
     expect(body.tools).toBeDefined();
     expect(body.tool_choice).toBeUndefined();  // no_tool_choice=true → 미포함
+  });
+});
+
+// ── T-2: reducer in tool loop (L66, L110-111) — tool 호출 시 reducer가 결과를 변환 ──────────
+
+describe("OpenAiCompatibleAgent — reducer transforms tool results (L66, L110-111)", () => {
+  it("tool executor 결과가 reducer를 통해 변환된 후 conversation에 주입된다", async () => {
+    const tool_call = {
+      id: "tc-r1",
+      type: "function",
+      function: { name: "my_tool", arguments: JSON.stringify({ input: "test" }) },
+    };
+
+    // 1차 응답: tool_call 요청, 2차 응답: 최종 텍스트
+    const mock_fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: () => Promise.resolve(openai_response("", [tool_call], "tool_calls")),
+        text: () => Promise.resolve(""),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: () => Promise.resolve(openai_response("Final answer")),
+        text: () => Promise.resolve(""),
+      });
+    vi.stubGlobal("fetch", mock_fetch);
+
+    // tool executor가 긴 결과를 반환 (reducer가 truncate하게)
+    const long_result = "X".repeat(10_000);
+    const executor = {
+      name: "my_tool",
+      description: "test",
+      category: "data" as const,
+      parameters: { type: "object" as const, properties: {} },
+      execute: vi.fn().mockResolvedValue(long_result),
+      validate_params: vi.fn().mockReturnValue([]),
+      to_schema: () => ({ type: "function" as const, function: { name: "my_tool", description: "test", parameters: {} } }),
+    };
+
+    const agent = make_agent();
+    const r = await agent.run(make_run_opts({
+      tool_executors: [executor as any],
+    }));
+
+    // 도구가 실행됨
+    expect(executor.execute).toHaveBeenCalledOnce();
+
+    // 두 번째 fetch call에서 conversation에 도구 결과가 포함됨
+    const second_call_body = JSON.parse(mock_fetch.mock.calls[1][1].body);
+    const tool_message = second_call_body.messages.find(
+      (m: Record<string, unknown>) => m.role === "tool",
+    );
+    expect(tool_message).toBeDefined();
+
+    // reducer가 적용되어 10,000자보다 짧은 결과가 conversation에 들어감
+    expect(tool_message.content.length).toBeLessThan(long_result.length);
+
+    expect(r.content).toBe("Final answer");
+    expect(r.tool_calls_count).toBe(1);
+  });
+
+  it("tool executor 에러 결과에는 reducer가 적용되지 않는다", async () => {
+    const tool_call = {
+      id: "tc-r2",
+      type: "function",
+      function: { name: "err_tool", arguments: "{}" },
+    };
+
+    const mock_fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: () => Promise.resolve(openai_response("", [tool_call], "tool_calls")),
+        text: () => Promise.resolve(""),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: () => Promise.resolve(openai_response("Handled error")),
+        text: () => Promise.resolve(""),
+      });
+    vi.stubGlobal("fetch", mock_fetch);
+
+    const executor = {
+      name: "err_tool",
+      description: "fails",
+      category: "data" as const,
+      parameters: { type: "object" as const, properties: {} },
+      execute: vi.fn().mockRejectedValue(new Error("tool crashed")),
+      validate_params: vi.fn().mockReturnValue([]),
+      to_schema: () => ({ type: "function" as const, function: { name: "err_tool", description: "fails", parameters: {} } }),
+    };
+
+    const agent = make_agent();
+    const r = await agent.run(make_run_opts({
+      tool_executors: [executor as any],
+    }));
+
+    // 에러 결과는 reducer bypass
+    const second_call_body = JSON.parse(mock_fetch.mock.calls[1][1].body);
+    const tool_message = second_call_body.messages.find(
+      (m: Record<string, unknown>) => m.role === "tool",
+    );
+    expect(tool_message.content).toContain("Error:");
+    expect(tool_message.content).toContain("tool crashed");
+
+    expect(r.content).toBe("Handled error");
   });
 });

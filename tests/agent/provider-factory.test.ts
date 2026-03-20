@@ -229,3 +229,66 @@ describe("create_agent_provider", () => {
     // docker 모드로 생성 → is_alive는 ContainerPool 내부에 있으므로 백엔드 생성만 검증
   });
 });
+
+// ── T-2: pty_reducer injection (L158) — CLI backend에 create_pty_output_reducer 주입 검증 ──────────
+
+describe("provider-factory — pty_reducer injection (L158)", () => {
+  it("claude_cli backend가 pty_reducer를 가지고 있다", () => {
+    const config = make_config("claude_cli", { execution_mode: "local" });
+    const backend = create_agent_provider(config, null, make_deps());
+    expect(backend).not.toBeNull();
+    // ContainerCliAgent의 private pty_reducer 필드 — TypeScript private은 런타임에서 접근 가능
+    const agent = backend as unknown as Record<string, unknown>;
+    expect(agent["pty_reducer"]).toBeDefined();
+    expect(typeof (agent["pty_reducer"] as Record<string, unknown>).reduce).toBe("function");
+  });
+
+  it("codex_cli backend가 pty_reducer를 가지고 있다", () => {
+    const config = make_config("codex_cli", {});
+    const backend = create_agent_provider(config, null, make_deps());
+    expect(backend).not.toBeNull();
+    const agent = backend as unknown as Record<string, unknown>;
+    expect(agent["pty_reducer"]).toBeDefined();
+    expect(typeof (agent["pty_reducer"] as Record<string, unknown>).reduce).toBe("function");
+  });
+
+  it("gemini_cli backend가 pty_reducer를 가지고 있다", () => {
+    const config = make_config("gemini_cli", {});
+    const backend = create_agent_provider(config, null, make_deps());
+    expect(backend).not.toBeNull();
+    const agent = backend as unknown as Record<string, unknown>;
+    expect(agent["pty_reducer"]).toBeDefined();
+    expect(typeof (agent["pty_reducer"] as Record<string, unknown>).reduce).toBe("function");
+  });
+
+  it("container_cli backend가 pty_reducer를 가지고 있다", () => {
+    const config = make_config("container_cli", { execution_mode: "local", cli_type: "claude" });
+    const backend = create_agent_provider(config, null, make_deps());
+    expect(backend).not.toBeNull();
+    const agent = backend as unknown as Record<string, unknown>;
+    expect(agent["pty_reducer"]).toBeDefined();
+    expect(typeof (agent["pty_reducer"] as Record<string, unknown>).reduce).toBe("function");
+  });
+
+  it("pty_reducer.reduce()가 tool_result 메시지의 긴 output을 축소한다", () => {
+    const config = make_config("claude_cli", {});
+    const backend = create_agent_provider(config, null, make_deps());
+    const agent = backend as unknown as Record<string, unknown>;
+    const reducer = agent["pty_reducer"] as { reduce(msg: Record<string, unknown>): Record<string, unknown> };
+
+    const long_output = "Z".repeat(10_000);
+    const msg = { type: "tool_result", tool: "exec", output: long_output };
+    const reduced = reducer.reduce(msg);
+
+    expect((reduced as Record<string, unknown>).type).toBe("tool_result");
+    expect(((reduced as Record<string, unknown>).output as string).length).toBeLessThan(long_output.length);
+  });
+
+  it("non-CLI backend (openai_compatible)에는 pty_reducer가 없다", () => {
+    const config = make_config("openai_compatible", { api_base: "https://api.example.com/v1", model: "gpt-4o" });
+    const backend = create_agent_provider(config, "test-key", make_deps());
+    expect(backend).not.toBeNull();
+    const agent = backend as unknown as Record<string, unknown>;
+    expect(agent["pty_reducer"]).toBeUndefined();
+  });
+});

@@ -1,13 +1,11 @@
 /**
  * SH-4 Tool Execution Hardening 회귀 테스트.
  * - archive: shell string 대신 argv 배열 사용 확인
- * - ssh: SCP StrictHostKeyChecking 기본값 확인
+ * - ssh: StrictHostKeyChecking=accept-new 기본 적용 확인
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// ── archive: argv 방식 확인 ─────────────────────────────
-// run_command_argv mock으로 argv 직접 검증
-
+// ── archive mock: shell-runtime ────────────────────────
 const { mock_run_argv } = vi.hoisted(() => ({
   mock_run_argv: vi.fn().mockResolvedValue({ stdout: "ok", stderr: "" }),
 }));
@@ -16,11 +14,26 @@ vi.mock("@src/agent/tools/shell-runtime.js", () => ({
   run_command_argv: mock_run_argv,
 }));
 
+// ── ssh mock: node:child_process ───────────────────────
+const { mock_exec_file } = vi.hoisted(() => ({
+  mock_exec_file: vi.fn(),
+}));
+
+vi.mock("node:child_process", () => ({
+  execFile: mock_exec_file,
+}));
+
 import { ArchiveTool } from "@src/agent/tools/archive.js";
+import { SshTool } from "@src/agent/tools/ssh.js";
 
 beforeEach(() => {
   mock_run_argv.mockClear();
+  mock_exec_file.mockReset();
 });
+
+// ══════════════════════════════════════════
+// archive: argv injection 방어
+// ══════════════════════════════════════════
 
 describe("SH-4: archive argv injection 방어", () => {
   function make_tool(): ArchiveTool {
@@ -60,5 +73,62 @@ describe("SH-4: archive argv injection 방어", () => {
     const [cmd, args] = mock_run_argv.mock.calls[0] as [string, string[]];
     expect(cmd).toBe("tar");
     expect(args).toContain(malicious_path);
+  });
+});
+
+// ══════════════════════════════════════════
+// ssh: StrictHostKeyChecking=accept-new 검증
+// ══════════════════════════════════════════
+
+/** execFile 성공 응답 설정 */
+function set_exec_success(stdout: string, stderr = "") {
+  mock_exec_file.mockImplementationOnce((_cmd: unknown, _args: unknown, _opts: unknown, cb: (err: null, out: string, err2: string) => void) => {
+    cb(null, stdout, stderr);
+  });
+}
+
+describe("SH-4: SSH StrictHostKeyChecking 보안 기본값", () => {
+  function make_ssh_tool(): SshTool { return new SshTool(); }
+
+  it("exec → StrictHostKeyChecking=accept-new 포함", async () => {
+    set_exec_success("ok");
+    await make_ssh_tool().execute({ action: "exec", host: "server.example.com", command: "whoami" });
+    expect(mock_exec_file).toHaveBeenCalledOnce();
+    const [, args] = mock_exec_file.mock.calls[0] as [string, string[]];
+    expect(args).toContain("StrictHostKeyChecking=accept-new");
+    expect(args).toContain("ConnectTimeout=10");
+  });
+
+  it("scp_upload → StrictHostKeyChecking=accept-new 포함", async () => {
+    set_exec_success("");
+    await make_ssh_tool().execute({
+      action: "scp_upload", host: "server.example.com",
+      local_path: "/tmp/a", remote_path: "/tmp/b",
+    });
+    expect(mock_exec_file).toHaveBeenCalledOnce();
+    const [, args] = mock_exec_file.mock.calls[0] as [string, string[]];
+    expect(args).toContain("StrictHostKeyChecking=accept-new");
+    expect(args).toContain("ConnectTimeout=10");
+  });
+
+  it("scp_download → StrictHostKeyChecking=accept-new 포함", async () => {
+    set_exec_success("");
+    await make_ssh_tool().execute({
+      action: "scp_download", host: "server.example.com",
+      local_path: "/tmp/a", remote_path: "/tmp/b",
+    });
+    expect(mock_exec_file).toHaveBeenCalledOnce();
+    const [, args] = mock_exec_file.mock.calls[0] as [string, string[]];
+    expect(args).toContain("StrictHostKeyChecking=accept-new");
+    expect(args).toContain("ConnectTimeout=10");
+  });
+
+  it("info → StrictHostKeyChecking=accept-new 포함", async () => {
+    set_exec_success("Linux server 5.15.0");
+    await make_ssh_tool().execute({ action: "info", host: "server.example.com" });
+    expect(mock_exec_file).toHaveBeenCalledOnce();
+    const [, args] = mock_exec_file.mock.calls[0] as [string, string[]];
+    expect(args).toContain("StrictHostKeyChecking=accept-new");
+    expect(args).toContain("ConnectTimeout=10");
   });
 });

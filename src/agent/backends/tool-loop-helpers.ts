@@ -55,7 +55,7 @@ export async function execute_single_tool(
   }
 
   // 3-projection reducer: 성공 결과에만 적용, 에러는 원본 유지
-  if (reducer && !is_error) {
+  if (reducer && !is_error && typeof text === "string") {
     const reduced = reducer.reduce({ tool_name: name, params, result_text: text, is_error });
     text = reduced.prompt_text;
   }

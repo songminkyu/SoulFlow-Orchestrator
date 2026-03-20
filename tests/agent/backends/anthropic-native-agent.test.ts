@@ -441,3 +441,102 @@ describe("AnthropicNativeAgent — L327 tool_blocks sort 비교자", () => {
     expect(result.finish_reason).toBeDefined();
   });
 });
+
+// ── T-2: reducer in tool loop (L137, L187) — tool 호출 시 reducer가 결과를 변환 ──────────
+
+describe("AnthropicNativeAgent — reducer transforms tool results (L137, L187)", () => {
+  it("tool executor 결과가 reducer를 통해 변환된 후 conversation에 주입된다", async () => {
+    const tool_use_events = [
+      { type: "message_start", message: { usage: { input_tokens: 20 } } },
+      { type: "content_block_start", index: 0, content_block: { type: "tool_use", id: "call_r1", name: "verbose_tool" } },
+      { type: "content_block_delta", index: 0, delta: { type: "input_json_delta", partial_json: '{"q":"test"}' } },
+      { type: "content_block_stop", index: 0 },
+      { type: "message_delta", delta: { stop_reason: "tool_use" }, usage: { output_tokens: 5 } },
+    ];
+
+    const fetch_mock = vi.fn()
+      .mockResolvedValueOnce(make_sse_response(tool_use_events))
+      .mockResolvedValueOnce(make_sse_response(TEXT_EVENTS));
+    vi.stubGlobal("fetch", fetch_mock);
+
+    // tool executor가 긴 결과를 반환 (reducer가 truncate하게)
+    const long_result = "Y".repeat(10_000);
+    const executor = {
+      name: "verbose_tool",
+      description: "returns lots of text",
+      category: "data" as const,
+      parameters: { type: "object" as const, properties: {} },
+      execute: vi.fn().mockResolvedValue(long_result),
+      validate_params: vi.fn().mockReturnValue([]),
+      to_schema: () => ({ type: "function" as const, function: { name: "verbose_tool", description: "test", parameters: {} } }),
+    };
+
+    const agent = make_agent();
+    const result = await agent.run(make_run_opts({
+      tool_executors: [executor as any],
+    }));
+
+    expect(executor.execute).toHaveBeenCalled();
+
+    // 두 번째 fetch에서 tool_result content가 축소되어야 함
+    const [, second_opts] = fetch_mock.mock.calls[1] as [string, RequestInit];
+    const second_body = JSON.parse(second_opts.body as string);
+
+    // Anthropic 형식: messages[-1].content 배열에 tool_result 블록
+    const last_user_msg = second_body.messages[second_body.messages.length - 1];
+    const tool_result_block = Array.isArray(last_user_msg.content)
+      ? last_user_msg.content.find((b: Record<string, unknown>) => b.type === "tool_result")
+      : null;
+
+    expect(tool_result_block).toBeDefined();
+    // reducer가 적용되어 10,000자보다 짧은 결과가 conversation에 들어감
+    expect(tool_result_block.content.length).toBeLessThan(long_result.length);
+
+    expect(result.content).toBe("Hello world!");
+    expect(result.tool_calls_count).toBe(1);
+  });
+
+  it("tool executor 에러 결과에는 reducer가 적용되지 않는다", async () => {
+    const tool_use_events = [
+      { type: "message_start", message: { usage: { input_tokens: 20 } } },
+      { type: "content_block_start", index: 0, content_block: { type: "tool_use", id: "call_e1", name: "fail_tool" } },
+      { type: "content_block_delta", index: 0, delta: { type: "input_json_delta", partial_json: '{}' } },
+      { type: "content_block_stop", index: 0 },
+      { type: "message_delta", delta: { stop_reason: "tool_use" }, usage: { output_tokens: 3 } },
+    ];
+
+    const fetch_mock = vi.fn()
+      .mockResolvedValueOnce(make_sse_response(tool_use_events))
+      .mockResolvedValueOnce(make_sse_response(TEXT_EVENTS));
+    vi.stubGlobal("fetch", fetch_mock);
+
+    const executor = {
+      name: "fail_tool",
+      description: "always fails",
+      category: "data" as const,
+      parameters: { type: "object" as const, properties: {} },
+      execute: vi.fn().mockRejectedValue(new Error("tool crashed hard")),
+      validate_params: vi.fn().mockReturnValue([]),
+      to_schema: () => ({ type: "function" as const, function: { name: "fail_tool", description: "fails", parameters: {} } }),
+    };
+
+    const agent = make_agent();
+    const result = await agent.run(make_run_opts({
+      tool_executors: [executor as any],
+    }));
+
+    // 에러 결과는 reducer bypass — 원본 에러 메시지 유지
+    const [, second_opts] = fetch_mock.mock.calls[1] as [string, RequestInit];
+    const second_body = JSON.parse(second_opts.body as string);
+    const last_user_msg = second_body.messages[second_body.messages.length - 1];
+    const tool_result_block = Array.isArray(last_user_msg.content)
+      ? last_user_msg.content.find((b: Record<string, unknown>) => b.type === "tool_result")
+      : null;
+
+    expect(tool_result_block).toBeDefined();
+    expect(tool_result_block.content).toContain("Error:");
+    expect(tool_result_block.content).toContain("tool crashed hard");
+
+    expect(result.content).toBe("Hello world!");
+  });
+});

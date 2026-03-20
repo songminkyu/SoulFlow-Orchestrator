@@ -205,3 +205,58 @@ describe("create_default_tool_registry — runtime_admin 콜백 (L624, L627-629)
     expect(parsed.tool_name).toBe("test_shell_tool");
   });
 });
+
+// ── T-2: factory reducer wiring (L447) — create_default_tool_registry에서 reducer 주입 ──────────
+
+describe("create_default_tool_registry — reducer wiring (L447)", () => {
+  it("생성된 registry가 reducer를 사용하여 tool 실행 결과를 변환한다", async () => {
+    const { registry } = create_default_tool_registry({ workspace });
+
+    // 긴 plain text 결과를 반환하는 도구를 등록
+    const long_text = "A".repeat(10_000);
+    const tool = {
+      name: "verbose_tool",
+      description: "Returns long text",
+      category: "data" as const,
+      parameters: { type: "object" as const, properties: {} },
+      execute: vi.fn().mockResolvedValue(long_text),
+      validate_params: vi.fn().mockReturnValue([]),
+      to_schema: () => ({
+        type: "function" as const,
+        function: { name: "verbose_tool", description: "Returns long text", parameters: { type: "object", properties: {} } },
+      }),
+    };
+    registry.register(tool as any);
+
+    const result = await registry.execute("verbose_tool", {});
+
+    // reducer가 적용되어 10,000자 원본보다 짧아져야 함
+    expect(result.length).toBeLessThan(long_text.length);
+    // 원본이 아닌 축소된 결과임을 확인
+    expect(result).not.toBe(long_text);
+  });
+
+  it("생성된 registry가 JSON 결과에는 reducer를 bypass한다", async () => {
+    const { registry } = create_default_tool_registry({ workspace });
+
+    const json_result = '{"status":"ok","data":[1,2,3]}';
+    const tool = {
+      name: "json_api_tool",
+      description: "Returns JSON",
+      category: "data" as const,
+      parameters: { type: "object" as const, properties: {} },
+      execute: vi.fn().mockResolvedValue(json_result),
+      validate_params: vi.fn().mockReturnValue([]),
+      to_schema: () => ({
+        type: "function" as const,
+        function: { name: "json_api_tool", description: "Returns JSON", parameters: { type: "object", properties: {} } },
+      }),
+    };
+    registry.register(tool as any);
+
+    const result = await registry.execute("json_api_tool", {});
+
+    // JSON 결과는 bypass되므로 원본 그대로
+    expect(result).toBe(json_result);
+  });
+});
