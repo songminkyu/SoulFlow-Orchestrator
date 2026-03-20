@@ -551,8 +551,8 @@ describe("SessionRecorder — is_delivery_retry", () => {
 
 // ── T-2: normalize_query integration in append_daily ─────────────
 
-describe("SessionRecorder — normalize_query integration", () => {
-  it("append_daily에서 normalize_query가 적용되어 정규화된 텍스트가 daily_memory에 기록된다", async () => {
+describe("SessionRecorder -- normalize_query integration", () => {
+  it("append_daily applies normalize_query: lowercase + punctuation strip on daily_memory write", async () => {
     const daily_memory = { append_daily_memory: vi.fn().mockResolvedValue(undefined) };
     const sessions = make_sessions_cov([]);
     const recorder = new SessionRecorder({
@@ -562,15 +562,18 @@ describe("SessionRecorder — normalize_query integration", () => {
       logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any,
     });
 
-    // 한국어 입력: normalize_query는 토크나이저를 통해 정규화
-    await recorder.record_user("slack", make_message_cov({ content: "안녕하세요 테스트입니다" }), "bot");
+    // Input with uppercase + punctuation: normalize_query lowercases and strips punctuation
+    // normalize_text would preserve "Hello, World! Testing." as-is
+    await recorder.record_user("slack", make_message_cov({ content: "Hello, World! Testing." }), "bot");
 
     expect(daily_memory.append_daily_memory).toHaveBeenCalledOnce();
     const written = daily_memory.append_daily_memory.mock.calls[0][0] as string;
-    // normalize_query의 결과는 원본과 다를 수 있음 (토큰화 적용)
-    // 핵심: normalize_text 대신 normalize_query가 사용됨 → 토큰화된 결과
-    expect(written).toContain("USER(user1):");
-    expect(written.length).toBeGreaterThan(0);
+    // normalize_query result: lowercased + punctuation (comma, exclamation, period) stripped
+    expect(written).toContain("hello world testing");
+    // Must NOT contain original casing or punctuation -- proves normalize_query, not normalize_text
+    expect(written).not.toContain("Hello");
+    expect(written).not.toContain("World!");
+    expect(written).not.toContain("Testing.");
   });
 
   it("빈 content는 normalize_query 후에도 빈 문자열 → daily_memory 미기록", async () => {

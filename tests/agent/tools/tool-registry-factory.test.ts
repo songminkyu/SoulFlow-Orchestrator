@@ -260,3 +260,149 @@ describe("create_default_tool_registry — reducer wiring (L447)", () => {
     expect(result).toBe(json_result);
   });
 });
+
+// ══════════════════════════════════════════
+// CV-2: create_policy_pre_hook branch coverage
+// ══════════════════════════════════════════
+
+import { create_policy_pre_hook } from "@src/agent/tools/index.js";
+import { ToolRegistry } from "@src/agent/tools/registry.js";
+
+function make_mock_registry_with_tool(name: string, flags: { write?: boolean; network?: boolean }) {
+  const registry = new ToolRegistry();
+  const tool = {
+    name,
+    description: `mock ${name}`,
+    category: "data" as const,
+    policy_flags: flags,
+    parameters: { type: "object" as const, properties: {} },
+    execute: vi.fn().mockResolvedValue("ok"),
+    validate_params: vi.fn().mockReturnValue([]),
+    to_schema: () => ({
+      type: "function" as const,
+      function: { name, description: `mock ${name}`, parameters: { type: "object", properties: {} } },
+    }),
+  };
+  registry.register(tool as any);
+  return registry;
+}
+
+describe("create_policy_pre_hook -- branch coverage", () => {
+  it("network_access=false + network tool -> deny", () => {
+    const registry = make_mock_registry_with_tool("web_fetch", { network: true });
+    const hook = create_policy_pre_hook({
+      sandbox: { approval: "auto-approve-non-destructive", network_access: false, fs_access: "workspace-write" },
+    } as any, registry);
+    const result = hook("web_fetch", {});
+    expect(result.permission).toBe("deny");
+    expect(result.reason).toContain("network access disabled");
+  });
+
+  it("fs_access=read-only + write tool -> ask", () => {
+    const registry = make_mock_registry_with_tool("write_file", { write: true });
+    const hook = create_policy_pre_hook({
+      sandbox: { approval: "auto-approve-non-destructive", network_access: true, fs_access: "read-only" },
+    } as any, registry);
+    const result = hook("write_file", {});
+    expect(result.permission).toBe("ask");
+    expect(result.reason).toContain("read-only policy");
+  });
+
+  it("workspace-write + exec with dangerous command -> deny", () => {
+    const registry = make_mock_registry_with_tool("exec", { write: true });
+    const hook = create_policy_pre_hook({
+      sandbox: { approval: "auto-approve-non-destructive", network_access: true, fs_access: "workspace-write" },
+    } as any, registry);
+    const result = hook("exec", { command: "rm -rf /" });
+    expect(result.permission).toBe("deny");
+    expect(result.reason).toContain("dangerous command blocked");
+  });
+
+  it("always-ask + write tool -> ask", () => {
+    const registry = make_mock_registry_with_tool("write_file", { write: true });
+    const hook = create_policy_pre_hook({
+      sandbox: { approval: "always-ask", network_access: true, fs_access: "workspace-write" },
+    } as any, registry);
+    const result = hook("write_file", {});
+    expect(result.permission).toBe("ask");
+    expect(result.reason).toContain("approval required");
+  });
+
+  it("trusted-only + write tool (non-dangerous) -> ask", () => {
+    const registry = make_mock_registry_with_tool("write_file", { write: true });
+    const hook = create_policy_pre_hook({
+      sandbox: { approval: "trusted-only", network_access: true, fs_access: "workspace-write" },
+    } as any, registry);
+    const result = hook("write_file", {});
+    expect(result.permission).toBe("ask");
+    expect(result.reason).toContain("trusted-only");
+  });
+
+  it("trusted-only + exec with dangerous command -> deny", () => {
+    const registry = make_mock_registry_with_tool("exec", { write: true });
+    const hook = create_policy_pre_hook({
+      sandbox: { approval: "trusted-only", network_access: true, fs_access: "workspace-write" },
+    } as any, registry);
+    const result = hook("exec", { command: "drop table users" });
+    expect(result.permission).toBe("deny");
+    expect(result.reason).toContain("dangerous command blocked");
+  });
+
+  it("no sandbox -> allow", () => {
+    const hook = create_policy_pre_hook({} as any, null);
+    const result = hook("any_tool", {});
+    expect(result.permission).toBe("allow");
+  });
+
+  it("unknown tool (not in registry) -> allow (no policy_flags)", () => {
+    const registry = new ToolRegistry();
+    const hook = create_policy_pre_hook({
+      sandbox: { approval: "always-ask", network_access: true, fs_access: "workspace-write" },
+    } as any, registry);
+    const result = hook("unknown_tool", {});
+    // No policy_flags -> is_write=false, is_network=false -> allow
+    expect(result.permission).toBe("allow");
+  });
+});
+
+// ══════════════════════════════════════════
+// CV-2: conditional tool registrations (channels, llm_callback, canvas_broadcast)
+// ══════════════════════════════════════════
+
+describe("create_default_tool_registry -- conditional tool registrations", () => {
+  it("channels provided -> poll tool registered", () => {
+    const channels = {
+      list: vi.fn().mockReturnValue([]),
+      get: vi.fn(),
+    };
+    const { registry } = create_default_tool_registry({ workspace, channels: channels as any });
+    expect(registry.tool_names()).toContain("poll");
+  });
+
+  it("channels not provided -> poll tool not registered", () => {
+    const { registry } = create_default_tool_registry({ workspace });
+    expect(registry.tool_names()).not.toContain("poll");
+  });
+
+  it("llm_callback provided -> llm_task tool registered", () => {
+    const llm_callback = vi.fn().mockResolvedValue({ result: "ok" });
+    const { registry } = create_default_tool_registry({ workspace, llm_callback });
+    expect(registry.tool_names()).toContain("llm_task");
+  });
+
+  it("llm_callback not provided -> llm_task tool not registered", () => {
+    const { registry } = create_default_tool_registry({ workspace });
+    expect(registry.tool_names()).not.toContain("llm_task");
+  });
+
+  it("canvas_broadcast provided -> canvas tool registered", () => {
+    const canvas_broadcast = vi.fn().mockResolvedValue(undefined);
+    const { registry } = create_default_tool_registry({ workspace, canvas_broadcast });
+    expect(registry.tool_names()).toContain("canvas_render");
+  });
+
+  it("canvas_broadcast not provided -> canvas tool not registered", () => {
+    const { registry } = create_default_tool_registry({ workspace });
+    expect(registry.tool_names()).not.toContain("canvas_render");
+  });
+});
