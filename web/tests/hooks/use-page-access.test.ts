@@ -137,6 +137,42 @@ describe("tier_satisfied — team_member", () => {
   });
 });
 
+// ── team_contributor tier ────────────────────────────────────────────────────
+
+describe("tier_satisfied — team_contributor", () => {
+  it("viewer → 불통과 (읽기 전용 역할은 mutation 불가)", () => {
+    expect(tier_satisfied("team_contributor", make_user({ team_role: "viewer" }), true)).toBe(false);
+  });
+
+  it("member → 통과", () => {
+    expect(tier_satisfied("team_contributor", make_user({ team_role: "member" }), true)).toBe(true);
+  });
+
+  it("manager → 통과", () => {
+    expect(tier_satisfied("team_contributor", make_user({ team_role: "manager" }), true)).toBe(true);
+  });
+
+  it("owner → 통과", () => {
+    expect(tier_satisfied("team_contributor", make_user({ team_role: "owner" }), true)).toBe(true);
+  });
+
+  it("팀 미소속 (team_role=null) → 불통과", () => {
+    expect(tier_satisfied("team_contributor", make_user({ team_role: null }), true)).toBe(false);
+  });
+
+  it("비인증 → 불통과", () => {
+    expect(tier_satisfied("team_contributor", null, true)).toBe(false);
+  });
+
+  it("superadmin → 통과", () => {
+    expect(tier_satisfied("team_contributor", make_user({ role: "superadmin" }), true)).toBe(true);
+  });
+
+  it("auth 비활성 → 통과 (싱글유저 모드)", () => {
+    expect(tier_satisfied("team_contributor", null, false)).toBe(true);
+  });
+});
+
 // ── team_manager tier ────────────────────────────────────────────────────────
 
 describe("tier_satisfied — team_manager", () => {
@@ -255,6 +291,38 @@ describe("usePageAccess — team 역할 기반", () => {
   it("team viewer → team_manager tier 불통과 (can_view false)", () => {
     mock_auth({ enabled: true, user: make_user({ team_role: "viewer" }) });
     const { result } = renderHook(() => usePageAccess(CHANNEL_POLICY));
+    expect(result.current.can_view).toBe(false);
+    expect(result.current.can_manage).toBe(false);
+  });
+});
+
+// ── usePageAccess — team_contributor (kanban/wbs viewer mutation 차단) ────────
+
+const KANBAN_POLICY: PagePolicy = {
+  path: "/kanban",
+  view: "authenticated",
+  manage: "team_contributor",
+  description: "칸반 보드",
+};
+
+describe("usePageAccess — kanban viewer mutation 차단", () => {
+  it("viewer → can_view true, can_manage false (mutation 차단)", () => {
+    mock_auth({ enabled: true, user: make_user({ team_role: "viewer" }) });
+    const { result } = renderHook(() => usePageAccess(KANBAN_POLICY));
+    expect(result.current.can_view).toBe(true);
+    expect(result.current.can_manage).toBe(false);
+  });
+
+  it("member → can_view + can_manage 모두 true", () => {
+    mock_auth({ enabled: true, user: make_user({ team_role: "member" }) });
+    const { result } = renderHook(() => usePageAccess(KANBAN_POLICY));
+    expect(result.current.can_view).toBe(true);
+    expect(result.current.can_manage).toBe(true);
+  });
+
+  it("비인증 → can_view false", () => {
+    mock_auth({ enabled: true, user: null });
+    const { result } = renderHook(() => usePageAccess(KANBAN_POLICY));
     expect(result.current.can_view).toBe(false);
     expect(result.current.can_manage).toBe(false);
   });

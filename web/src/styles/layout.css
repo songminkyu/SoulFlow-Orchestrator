@@ -347,16 +347,19 @@
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .sidebar__icon {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   border-radius: var(--radius-md);
-  font-size: 14px;
-  background: var(--surface-subtle);
-  transition: background 0.15s;
+  font-size: 15px;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  transition: background 0.15s, transform 0.1s;
+}
+.sidebar__link:hover .sidebar__icon {
+  transform: scale(1.05);
 }
 .sidebar__link--active .sidebar__icon {
   background: color-mix(in srgb, var(--accent) 20%, transparent);

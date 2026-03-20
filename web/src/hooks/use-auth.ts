@@ -99,8 +99,8 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => api.post("/api/auth/logout"),
     onSuccess: () => {
-      // 전체 캐시 초기화 — 이전 유저 데이터 완전 제거
       qc.clear();
+      window.location.hash = "#/login";
     },
   });
 }

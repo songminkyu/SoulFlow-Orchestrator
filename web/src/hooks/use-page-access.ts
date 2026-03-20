@@ -44,6 +44,7 @@ export function tier_satisfied(
 
   const rank = TEAM_ROLE_RANK[team_role] ?? 0;
   if (tier === "team_member") return rank >= TEAM_ROLE_RANK.viewer;
+  if (tier === "team_contributor") return rank >= TEAM_ROLE_RANK.member;
   if (tier === "team_manager") return rank >= TEAM_ROLE_RANK.manager;
   if (tier === "team_owner") return rank >= TEAM_ROLE_RANK.owner;
 

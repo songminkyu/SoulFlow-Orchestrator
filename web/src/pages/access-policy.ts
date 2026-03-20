@@ -14,12 +14,13 @@ export type SystemRole = "superadmin" | "user";
  * public < authenticated < team_member < team_manager < team_owner < superadmin
  */
 export type VisibilityTier =
-  | "public"          // 로그인 불필요 (login 페이지)
-  | "authenticated"   // 로그인만 필요 (auth 비활성 시 모두 허용)
-  | "team_member"     // viewer 이상 (팀 소속 필요)
-  | "team_manager"    // manager 이상 (팀 관리자)
-  | "team_owner"      // owner 전용
-  | "superadmin";     // superadmin 전용
+  | "public"            // 로그인 불필요 (login 페이지)
+  | "authenticated"     // 로그인만 필요 (auth 비활성 시 모두 허용)
+  | "team_member"       // viewer 이상 (팀 소속 필요 — 읽기 전용 포함)
+  | "team_contributor"  // member 이상 (쓰기 권한 있는 팀원 — viewer 제외)
+  | "team_manager"      // manager 이상 (팀 관리자)
+  | "team_owner"        // owner 전용
+  | "superadmin";       // superadmin 전용
 
 export interface PagePolicy {
   /** 라우터 path 패턴 (react-router-dom 형식). */
@@ -119,14 +120,14 @@ export const PAGE_POLICIES: PagePolicy[] = [
   {
     path: "/kanban",
     view: "authenticated",
-    manage: "team_member",
-    description: "칸반 보드",
+    manage: "team_contributor",
+    description: "칸반 보드 — 열람은 모두, 변경은 member 이상",
   },
   {
     path: "/wbs",
     view: "authenticated",
-    manage: "team_member",
-    description: "WBS 작업 계획",
+    manage: "team_contributor",
+    description: "WBS 작업 계획 — 열람은 모두, 변경은 member 이상",
   },
 
   // ── 팀 관리 (team_manager 이상) ──────────────────

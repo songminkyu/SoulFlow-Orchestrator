@@ -7,6 +7,8 @@ import { api } from "../api/client";
 import { useT } from "../i18n";
 import { time_ago } from "../utils/format";
 import { useAsyncAction } from "../hooks/use-async-action";
+import { usePageAccess } from "../hooks/use-page-access";
+import { get_page_policy } from "./access-policy";
 import "../styles/wbs.css";
 
 /* ─── 타입 ─── */
@@ -171,11 +173,12 @@ function WbsRow({ node, selected, on_select }: {
 
 /* ─── 카드 상세 패널 ─── */
 
-function WbsDetailPanel({ card, board_id, columns, on_close, on_update }: {
+function WbsDetailPanel({ card, board_id, columns, on_close, on_update, can_manage = true }: {
   card: Card;
   board_id: string;
   columns: ColumnDef[];
   on_close: () => void;
+  can_manage?: boolean;
   on_update: () => void;
 }) {
   const t = useT();
@@ -223,6 +226,7 @@ function WbsDetailPanel({ card, board_id, columns, on_close, on_update }: {
               className={`wbs-col-btn${card.column_id === col.id ? " wbs-col-btn--active" : ""}`}
               style={{ borderColor: card.column_id === col.id ? col.color : undefined }}
               onClick={() => void move_to(col.id)}
+              disabled={!can_manage}
             >
               {col.name}
             </button>
@@ -255,7 +259,7 @@ function WbsDetailPanel({ card, board_id, columns, on_close, on_update }: {
             <span className="wbs-muted">{time_ago(c.created_at)}</span>
           </div>
         ))}
-        <div className="wbs-detail__comment-form">
+        {can_manage && <div className="wbs-detail__comment-form">
           <textarea
             className="wbs-detail__comment-input"
             value={comment}
@@ -267,7 +271,7 @@ function WbsDetailPanel({ card, board_id, columns, on_close, on_update }: {
           <button className="btn btn--xs btn--accent" onClick={() => void post_comment()}>
             {t("kanban.add_comment")}
           </button>
-        </div>
+        </div>}
       </div>
     </aside>
   );
@@ -278,6 +282,7 @@ function WbsDetailPanel({ card, board_id, columns, on_close, on_update }: {
 export default function WbsPage() {
   const t = useT();
   const qc = useQueryClient();
+  const { can_manage } = usePageAccess(get_page_policy("/wbs")!);
   const [params, setParams] = useSearchParams();
   const board_id_param = params.get("board") || "";
   const [selected_card, set_selected_card] = useState<string | null>(null);
@@ -419,6 +424,7 @@ export default function WbsPage() {
               columns={columns}
               on_close={() => set_selected_card(null)}
               on_update={refresh}
+              can_manage={can_manage}
             />
           ) : null;
         })()}

@@ -29,12 +29,14 @@ async function request<T>(path: string, init?: RequestInit, attempt: number = 1)
       const body = await res.json().catch(() => null);
       // G-12: 전역 cross-team 거부 인터셉터 — 403 + cross_team_denied 코드
       if (res.status === 403) {
-        const err_body = body as { error?: { code?: string; team_id?: string; resource_team_id?: string } } | null;
-        if (err_body?.error?.code === "cross_team_denied") {
+        const err_body = body as { error?: string | { code?: string; team_id?: string; resource_team_id?: string } } | null;
+        if (typeof err_body?.error === "object" && err_body.error?.code === "cross_team_denied") {
           emit_cross_team_denied({
             team_id: err_body.error.team_id,
             resource_team_id: err_body.error.resource_team_id,
           });
+        } else {
+          window.dispatchEvent(new CustomEvent("api-forbidden", { detail: { path, body } }));
         }
       }
 

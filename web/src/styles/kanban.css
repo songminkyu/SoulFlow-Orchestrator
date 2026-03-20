@@ -95,21 +95,8 @@
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
-/* search */
-.kanban-search {
-  padding: 6px 12px;
-  font-size: var(--fs-sm);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
-  color: var(--text);
-  width: 180px;
-  outline: none;
-  transition: border-color 0.15s;
-  min-height: 36px;
-}
-
-.kanban-search:focus { border-color: var(--accent); }
+/* search — 글로벌 .search-input 기반, 너비만 커스텀 */
+.kanban-search { width: 180px; }
 
 /* ─── Board View ─── */
 
@@ -1108,6 +1095,20 @@
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
   resize: vertical;
+}
+
+.kanban-rules__form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+}
+
+.kanban-rules__form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
 }
 
 .kanban-rules__form-actions {

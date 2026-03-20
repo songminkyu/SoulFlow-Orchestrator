@@ -11,6 +11,8 @@ import { useT } from "../i18n";
 import { time_ago } from "../utils/format";
 import { useAsyncAction } from "../hooks/use-async-action";
 import { useDeleteConfirmation } from "../hooks/use-delete-confirmation";
+import { usePageAccess } from "../hooks/use-page-access";
+import { get_page_policy } from "./access-policy";
 import "../styles/kanban.css";
 
 /* ─── 타입 ─── */
@@ -88,6 +90,7 @@ export default function KanbanPage() {
   const qc = useQueryClient();
   const run_action = useAsyncAction();
   const [params, setParams] = useSearchParams();
+  const { can_manage } = usePageAccess(get_page_policy("/kanban")!);
 
   const board_id_param = params.get("board") || "";
   const view = (params.get("view") as ViewMode) || "board";
@@ -219,9 +222,9 @@ export default function KanbanPage() {
         <div className="kanban-empty">
           <div className="kanban-empty__icon">📋</div>
           <div>{t("kanban.no_boards")}</div>
-          <button className="btn btn--accent kanban-empty__btn" onClick={() => setShowCreateBoard(true)}>
+          {can_manage && <button className="btn btn--accent kanban-empty__btn" onClick={() => setShowCreateBoard(true)}>
             + {t("kanban.new_board")}
-          </button>
+          </button>}
         </div>
         <CreateBoardModal open={showCreateBoard} onClose={() => setShowCreateBoard(false)} onCreate={create_board} />
       </div>
@@ -248,11 +251,11 @@ export default function KanbanPage() {
                     {b.name}
                     <span className="board-selector__item-scope">{b.scope_type}:{b.scope_id}</span>
                   </button>
-                  <button className="board-selector__item-del" title={t("kanban.delete_board")}
+                  {can_manage && <button className="board-selector__item-del" title={t("kanban.delete_board")}
                     aria-label={t("kanban.delete_board")}
                     onClick={(e) => { e.stopPropagation(); setDeleteBoardTarget(b); }}>
                     ✕
-                  </button>
+                  </button>}
                 </div>
               ))}
             </div>
@@ -275,13 +278,13 @@ export default function KanbanPage() {
           </div>
           <SearchInput value={search} onChange={setSearch} placeholder={t("kanban.search")} onClear={() => setSearch("")} className="kanban-search" />
           {board_id && <button className={`btn btn--sm ${showRules ? "btn--accent" : ""}`} onClick={() => setShowRules(!showRules)}>{t("kanban.rules")}</button>}
-          {boardDetail && (
+          {can_manage && boardDetail && (
             <button className="btn btn--sm btn--danger" title={t("kanban.delete_board")} aria-label={t("kanban.delete_board")}
               onClick={() => setDeleteBoardTarget(boardDetail)}>
               🗑
             </button>
           )}
-          <button className="btn btn--accent btn--sm" onClick={() => setShowCreateBoard(true)}>+ {t("kanban.new_board")}</button>
+          {can_manage && <button className="btn btn--accent btn--sm" onClick={() => setShowCreateBoard(true)}>+ {t("kanban.new_board")}</button>}
         </div>
       </div>
       <CreateBoardModal open={showCreateBoard} onClose={() => setShowCreateBoard(false)} onCreate={create_board} />
@@ -297,7 +300,7 @@ export default function KanbanPage() {
       />
 
       {/* Rules panel */}
-      {showRules && board_id && <RulesPanel board_id={board_id} onClose={() => setShowRules(false)} />}
+      {showRules && board_id && <RulesPanel board_id={board_id} columns={columns} onClose={() => setShowRules(false)} />}
 
       {/* Body */}
       <div className="kanban-body">
@@ -740,9 +743,12 @@ function CreateBoardModal({ open, onClose, onCreate }: {
 /* ═══ Rules Panel ═══ */
 
 const TRIGGER_OPTIONS = ["card_moved", "subtasks_done", "card_stale"] as const;
-const ACTION_TYPE_OPTIONS = ["move_card", "assign", "add_label", "comment", "run_workflow", "create_task"] as const;
+const TRIGGER_LABELS: Record<string, string> = { card_moved: "kanban.trigger_card_moved", subtasks_done: "kanban.trigger_subtasks_done", card_stale: "kanban.trigger_card_stale" };
 
-function RulesPanel({ board_id, onClose }: { board_id: string; onClose: () => void }) {
+const ACTION_TYPE_OPTIONS = ["move_card", "assign", "add_label", "comment", "run_workflow", "create_task"] as const;
+const ACTION_LABELS: Record<string, string> = { move_card: "kanban.action_move_card", assign: "kanban.action_assign", add_label: "kanban.action_add_label", comment: "kanban.action_comment", run_workflow: "kanban.action_run_workflow", create_task: "kanban.action_create_task" };
+
+function RulesPanel({ board_id, columns, onClose }: { board_id: string; columns: ColumnDef[]; onClose: () => void }) {
   const t = useT();
   const run_action = useAsyncAction();
   const qc = useQueryClient();
@@ -787,9 +793,9 @@ function RulesPanel({ board_id, onClose }: { board_id: string; onClose: () => vo
               <input type="checkbox" checked={rule.enabled} onChange={() => toggle_rule(rule)} />
             </label>
             <div className="kanban-rules__info">
-              <span className="kanban-rules__trigger">{rule.trigger}</span>
+              <span className="kanban-rules__trigger">{t(TRIGGER_LABELS[rule.trigger]) || rule.trigger}</span>
               <span className="kanban-rules__arrow">→</span>
-              <span className="kanban-rules__action">{rule.action_type}</span>
+              <span className="kanban-rules__action">{t(ACTION_LABELS[rule.action_type]) || rule.action_type}</span>
               {Object.keys(rule.condition).length > 0 && (
                 <span className="kanban-rules__condition" title={JSON.stringify(rule.condition)}>
                   {Object.entries(rule.condition).map(([k, v]) => `${k}=${v}`).join(", ")}
@@ -800,7 +806,7 @@ function RulesPanel({ board_id, onClose }: { board_id: string; onClose: () => vo
           </div>
         ))}
       </div>
-      {showCreate && <CreateRuleForm board_id={board_id} onClose={() => setShowCreate(false)} onCreated={() => {
+      {showCreate && <CreateRuleForm board_id={board_id} columns={columns} onClose={() => setShowCreate(false)} onCreated={() => {
         setShowCreate(false);
         void qc.invalidateQueries({ queryKey: ["kanban-rules", board_id] });
       }} />}
@@ -809,24 +815,59 @@ function RulesPanel({ board_id, onClose }: { board_id: string; onClose: () => vo
   );
 }
 
-function CreateRuleForm({ board_id, onClose, onCreated }: { board_id: string; onClose: () => void; onCreated: () => void }) {
+function CreateRuleForm({ board_id, columns, onClose, onCreated }: { board_id: string; columns: ColumnDef[]; onClose: () => void; onCreated: () => void }) {
   const t = useT();
   const { toast } = useToast();
   const run_action = useAsyncAction();
   const [trigger, setTrigger] = useState<string>("card_moved");
   const [actionType, setActionType] = useState<string>("move_card");
-  const [conditionStr, setConditionStr] = useState("{}");
-  const [paramsStr, setParamsStr] = useState("{}");
+
+  // 구조화된 조건 필드
+  const [condToCol, setCondToCol] = useState("");
+  const [condFromCol, setCondFromCol] = useState("");
+  const [condStaleHours, setCondStaleHours] = useState(48);
+
+  // 구조화된 액션 파라미터 필드
+  const [paramColId, setParamColId] = useState("");
+  const [paramAssignee, setParamAssignee] = useState("");
+  const [paramLabel, setParamLabel] = useState("");
+  const [paramLabelColor, setParamLabelColor] = useState("#3b82f6");
+  const [paramCommentText, setParamCommentText] = useState("");
+  const [paramWorkflow, setParamWorkflow] = useState("");
+  const [paramTaskTitle, setParamTaskTitle] = useState("");
+
+  const build_condition = (): Record<string, unknown> => {
+    if (trigger === "card_moved") {
+      const c: Record<string, unknown> = {};
+      if (condToCol) c.to_column = condToCol;
+      if (condFromCol) c.from_column = condFromCol;
+      return c;
+    }
+    if (trigger === "card_stale") return { stale_hours: condStaleHours };
+    return {};
+  };
+
+  const build_params = (): Record<string, unknown> => {
+    if (actionType === "move_card") return { column_id: paramColId };
+    if (actionType === "assign") return { assignee: paramAssignee };
+    if (actionType === "add_label") return { label: paramLabel, color: paramLabelColor };
+    if (actionType === "comment") return { text: paramCommentText };
+    if (actionType === "run_workflow") return { workflow_name: paramWorkflow };
+    if (actionType === "create_task") {
+      const p: Record<string, unknown> = { title: paramTaskTitle };
+      if (paramColId) p.column_id = paramColId;
+      return p;
+    }
+    return {};
+  };
 
   const handle_submit = (e: React.FormEvent) => {
     e.preventDefault();
-    let condition: Record<string, unknown>;
-    let action_params: Record<string, unknown>;
-    try { condition = JSON.parse(conditionStr); } catch { toast(t("kanban.invalid_json"), "err"); return; }
-    try { action_params = JSON.parse(paramsStr); } catch { toast(t("kanban.invalid_json"), "err"); return; }
     void run_action(
-      () => api.post(`/api/kanban/boards/${encodeURIComponent(board_id)}/rules`, { trigger, action_type: actionType, condition, action_params })
-        .then(() => onCreated()),
+      () => api.post(`/api/kanban/boards/${encodeURIComponent(board_id)}/rules`, {
+        trigger, action_type: actionType,
+        condition: build_condition(), action_params: build_params(),
+      }).then(() => onCreated()),
       t("kanban.rule_created"),
       t("kanban.create_failed"),
     );
@@ -834,23 +875,102 @@ function CreateRuleForm({ board_id, onClose, onCreated }: { board_id: string; on
 
   return (
     <form className="kanban-rules__form" onSubmit={handle_submit}>
-      <label className="form-label">{t("kanban.trigger")}</label>
-      <select autoFocus className="form-input" value={trigger} onChange={e => setTrigger(e.target.value)}>
-        {TRIGGER_OPTIONS.map(tr => <option key={tr} value={tr}>{tr}</option>)}
-      </select>
+      <div className="kanban-rules__form-row">
+        <div className="kanban-rules__form-field">
+          <label className="form-label">{t("kanban.trigger")}</label>
+          <select autoFocus className="form-input" value={trigger} onChange={e => setTrigger(e.target.value)}>
+            {TRIGGER_OPTIONS.map(tr => <option key={tr} value={tr}>{t(TRIGGER_LABELS[tr]) || tr}</option>)}
+          </select>
+        </div>
+        <div className="kanban-rules__form-field">
+          <label className="form-label">{t("kanban.action_type")}</label>
+          <select className="form-input" value={actionType} onChange={e => setActionType(e.target.value)}>
+            {ACTION_TYPE_OPTIONS.map(a => <option key={a} value={a}>{t(ACTION_LABELS[a]) || a}</option>)}
+          </select>
+        </div>
+      </div>
 
-      <label className="form-label kanban-form__label--mt">{t("kanban.action_type")}</label>
-      <select className="form-input" value={actionType} onChange={e => setActionType(e.target.value)}>
-        {ACTION_TYPE_OPTIONS.map(a => <option key={a} value={a}>{a}</option>)}
-      </select>
+      {/* 트리거별 조건 필드 */}
+      {trigger === "card_moved" && (
+        <div className="kanban-rules__form-row">
+          <div className="kanban-rules__form-field">
+            <label className="form-label">{t("kanban.condition_from_col")}</label>
+            <select className="form-input" value={condFromCol} onChange={e => setCondFromCol(e.target.value)}>
+              <option value="">{t("kanban.any_column")}</option>
+              {columns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div className="kanban-rules__form-field">
+            <label className="form-label">{t("kanban.condition_to_col")}</label>
+            <select className="form-input" value={condToCol} onChange={e => setCondToCol(e.target.value)}>
+              <option value="">{t("kanban.any_column")}</option>
+              {columns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+        </div>
+      )}
+      {trigger === "card_stale" && (
+        <div className="kanban-rules__form-field">
+          <label className="form-label">{t("kanban.condition_stale_hours")}</label>
+          <input className="form-input" type="number" min={1} value={condStaleHours} onChange={e => setCondStaleHours(Number(e.target.value))} />
+        </div>
+      )}
 
-      <label className="form-label kanban-form__label--mt">{t("kanban.condition")}</label>
-      <textarea className="form-input kanban-rules__json" value={conditionStr} onChange={e => setConditionStr(e.target.value)}
-        placeholder='{"to_column": "done"}' />
-
-      <label className="form-label kanban-form__label--mt">{t("kanban.action_params")}</label>
-      <textarea className="form-input kanban-rules__json" value={paramsStr} onChange={e => setParamsStr(e.target.value)}
-        placeholder='{"column_id": "done"}' />
+      {/* 액션별 파라미터 필드 */}
+      {actionType === "move_card" && (
+        <div className="kanban-rules__form-field">
+          <label className="form-label">{t("kanban.param_target_col")}</label>
+          <select className="form-input" value={paramColId} onChange={e => setParamColId(e.target.value)}>
+            <option value="">{t("kanban.select_column")}</option>
+            {columns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+      )}
+      {actionType === "assign" && (
+        <div className="kanban-rules__form-field">
+          <label className="form-label">{t("kanban.assignee")}</label>
+          <input className="form-input" value={paramAssignee} onChange={e => setParamAssignee(e.target.value)} placeholder={t("kanban.assignee_placeholder")} />
+        </div>
+      )}
+      {actionType === "add_label" && (
+        <div className="kanban-rules__form-row">
+          <div className="kanban-rules__form-field">
+            <label className="form-label">{t("kanban.param_label_name")}</label>
+            <input className="form-input" value={paramLabel} onChange={e => setParamLabel(e.target.value)} placeholder="bug" />
+          </div>
+          <div className="kanban-rules__form-field">
+            <label className="form-label">{t("kanban.param_label_color")}</label>
+            <input className="form-input" type="color" value={paramLabelColor} onChange={e => setParamLabelColor(e.target.value)} />
+          </div>
+        </div>
+      )}
+      {actionType === "comment" && (
+        <div className="kanban-rules__form-field">
+          <label className="form-label">{t("kanban.param_comment_text")}</label>
+          <input className="form-input" value={paramCommentText} onChange={e => setParamCommentText(e.target.value)} placeholder={t("kanban.param_comment_placeholder")} />
+        </div>
+      )}
+      {actionType === "run_workflow" && (
+        <div className="kanban-rules__form-field">
+          <label className="form-label">{t("kanban.param_workflow_name")}</label>
+          <input className="form-input" value={paramWorkflow} onChange={e => setParamWorkflow(e.target.value)} />
+        </div>
+      )}
+      {actionType === "create_task" && (
+        <div className="kanban-rules__form-row">
+          <div className="kanban-rules__form-field">
+            <label className="form-label">{t("kanban.param_task_title")}</label>
+            <input className="form-input" value={paramTaskTitle} onChange={e => setParamTaskTitle(e.target.value)} />
+          </div>
+          <div className="kanban-rules__form-field">
+            <label className="form-label">{t("kanban.param_target_col")}</label>
+            <select className="form-input" value={paramColId} onChange={e => setParamColId(e.target.value)}>
+              <option value="">{t("kanban.select_column")}</option>
+              {columns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+        </div>
+      )}
 
       <div className="kanban-rules__form-actions">
         <button type="submit" className="btn btn--accent btn--sm">{t("kanban.create_rule")}</button>

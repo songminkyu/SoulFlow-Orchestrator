@@ -70,6 +70,15 @@ export function RootLayout() {
     return () => window.removeEventListener("cross-team-denied", handler);
   }, [toast, t]);
 
+  // 일반 403 forbidden toast — viewer 등 권한 부족 시 피드백
+  useEffect(() => {
+    const handler = () => {
+      toast(t("common.err_forbidden") || "권한이 없습니다", "err");
+    };
+    window.addEventListener("api-forbidden", handler);
+    return () => window.removeEventListener("api-forbidden", handler);
+  }, [toast, t]);
+
 
   // FE-2: SSE 신선도 감지 — 연결 중이지만 이벤트가 멈추면 "stale" 표시
   const last_event_at = useRef<number>(0);

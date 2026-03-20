@@ -1,8 +1,10 @@
 import { NavLink } from "react-router-dom";
 import { useDashboardStore } from "../store";
 import { useI18n } from "../i18n";
-import { useAuthUser } from "../hooks/use-auth";
+import { useAuthUser, useAuthStatus } from "../hooks/use-auth";
 import { UserCard } from "../components/user-card";
+import { PAGE_POLICIES } from "../pages/access-policy";
+import { tier_satisfied } from "../hooks/use-page-access";
 
 type NavItem = { to: string; key: string; icon: string };
 type NavGroup = { label_key: string; items: NavItem[] };
@@ -52,7 +54,15 @@ export function Sidebar() {
   const close = useDashboardStore((s) => s.close_sidebar);
   const { t } = useI18n();
   const { data: auth_user } = useAuthUser();
+  const { data: auth_status } = useAuthStatus();
+  const auth_enabled = auth_status?.enabled ?? false;
   const is_superadmin = auth_user?.role === "superadmin";
+
+  const can_view_route = (path: string) => {
+    const policy = PAGE_POLICIES.find((p) => p.path === path);
+    if (!policy) return true;
+    return tier_satisfied(policy.view, auth_user, auth_enabled);
+  };
 
   const cls = [
     "sidebar",
@@ -79,29 +89,33 @@ export function Sidebar() {
           </button>
         </div>
         <ul className="sidebar__nav">
-          {NAV_GROUPS.map((group) => (
-            <li key={group.label_key} className="sidebar__group">
-              {!collapsed && <span className="sidebar__group-label">{t(group.label_key)}</span>}
-              <ul className="sidebar__group-items">
-                {group.items.map((item) => {
-                  const label = t(item.key);
-                  return (
-                    <li key={item.to}>
-                      <NavLink
-                        to={item.to}
-                        end={item.to === "/"}
-                        className={({ isActive }) => `sidebar__link ${isActive ? "sidebar__link--active" : ""}`}
-                        onClick={handle_nav}
-                      >
-                        <span className="sidebar__icon" data-tooltip={label}>{item.icon}</span>
-                        {!collapsed && <span className="sidebar__label">{label}</span>}
-                      </NavLink>
-                    </li>
-                  );
-                })}
-              </ul>
-            </li>
-          ))}
+          {NAV_GROUPS.map((group) => {
+            const visible_items = group.items.filter((item) => can_view_route(item.to));
+            if (visible_items.length === 0) return null;
+            return (
+              <li key={group.label_key} className="sidebar__group">
+                {!collapsed && <span className="sidebar__group-label">{t(group.label_key)}</span>}
+                <ul className="sidebar__group-items">
+                  {visible_items.map((item) => {
+                    const label = t(item.key);
+                    return (
+                      <li key={item.to}>
+                        <NavLink
+                          to={item.to}
+                          end={item.to === "/"}
+                          className={({ isActive }) => `sidebar__link ${isActive ? "sidebar__link--active" : ""}`}
+                          onClick={handle_nav}
+                        >
+                          <span className="sidebar__icon" data-tooltip={label}>{item.icon}</span>
+                          {!collapsed && <span className="sidebar__label">{label}</span>}
+                        </NavLink>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </li>
+            );
+          })}
 
           {/* superadmin 전용 관리자 콘솔 링크 */}
           {is_superadmin && (
