@@ -6,6 +6,7 @@ import { api } from "../api/client";
 import { create_sse } from "../api/sse";
 import { SearchInput } from "../components/search-input";
 import { DeleteConfirmModal, FormModal, useConfirm } from "../components/modal";
+import { StatusBadge } from "../components/shared/status-badges";
 import { useT } from "../i18n";
 import { time_ago } from "../utils/format";
 import { useAsyncAction } from "../hooks/use-async-action";
@@ -373,9 +374,12 @@ function KanbanColumn({ column, cards, selectedCard, onSelect, onAddCard, onDrop
       <div className="kanban-col__header">
         <span className="kanban-col__dot" style={{ background: column.color }} />
         {column.name}
-        <span className={`kanban-col__count${over_wip ? " kanban-col__count--over" : ""}`}>
-          {cards.length}{column.wip_limit ? `/${column.wip_limit}` : ""}
-        </span>
+        <StatusBadge
+          variant={over_wip ? "warn" : "off"}
+          label={`${cards.length}${column.wip_limit ? `/${column.wip_limit}` : ""}`}
+          size="sm"
+          className="kanban-col__count-badge"
+        />
         <button className="kanban-col__add" onClick={() => setAdding(true)} aria-label={`${column.name} add card`}>+</button>
       </div>
       <div className="kanban-col__cards">

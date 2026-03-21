@@ -38,6 +38,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@eslint/css": "^1.0.0",
     "@eslint/js": "^10.0.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

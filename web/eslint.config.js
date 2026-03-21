@@ -1,6 +1,7 @@
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
+import css from "@eslint/css";
 
 export default tseslint.config(
   { ignores: ["dist", "node_modules"] },
@@ -15,6 +16,15 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       "no-console": "error",
+    },
+  },
+  // CSS files: use @eslint/css language plugin for clean per-file lint results
+  {
+    files: ["src/**/*.css"],
+    plugins: { css },
+    language: "css/css",
+    rules: {
+      "css/no-duplicate-imports": "error",
     },
   },
 );
