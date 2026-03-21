@@ -40,7 +40,7 @@
   --prompt-border: var(--line);
   --prompt-radius: 24px;
   --prompt-shadow: var(--shadow-lg);
-  --prompt-max-width: 720px;
+  --prompt-max-width: min(720px, 90%);
 
   /* ── Popover / Selector ── */
   --popover-bg: var(--panel);

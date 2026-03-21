@@ -4329,6 +4329,7 @@
   "shared_prompt_bar.at_label": "Select agent, tool, or workflow",
   "shared_prompt_bar.attach": "Attach file",
   "shared_prompt_bar.tools_count": "{count} tool(s)",
+  "shared_prompt_bar.hint": "Enter to send \u00b7 Shift+Enter for newline",
 
   "memory_panel.label": "Memory panel",
   "memory_panel.title": "Memory",

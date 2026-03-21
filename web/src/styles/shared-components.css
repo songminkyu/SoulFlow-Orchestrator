@@ -498,6 +498,27 @@
 }
 .shared-prompt-bar__btn--send:hover { opacity: 0.9; }
 
+/* ── Light theme: 프롬프트바를 samples/ 레퍼런스처럼 흰색 + 부유 그림자 ── */
+:root[data-theme="light"] .shared-prompt-bar__pill {
+  background: #fff;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+:root[data-theme="light"] .shared-prompt-bar__textarea::placeholder {
+  color: #999;
+  opacity: 0.8;
+}
+
+/* ── 키보드 힌트 ── */
+.shared-prompt-bar__hint {
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  opacity: 0.5;
+  padding: 2px 0 0;
+  user-select: none;
+}
+
 .shared-prompt-bar__btn--stop {
   background: var(--err);
   color: #fff;

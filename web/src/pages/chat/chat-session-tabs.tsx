@@ -76,7 +76,7 @@ export function ChatSessionTabs({ sessions, activeId, creating, onSelect, onClos
     if (long_press_timer.current) clearTimeout(long_press_timer.current);
   };
 
-  const tab_label = (s: ChatSessionSummary) => s.name ?? s.id.slice(0, 8).toUpperCase();
+  const tab_label = (s: ChatSessionSummary, idx: number) => s.name ?? `${t("chat.new_session")} ${idx + 1}`;
 
   return (
     <>
@@ -110,7 +110,7 @@ export function ChatSessionTabs({ sessions, activeId, creating, onSelect, onClos
                 placeholder={s.id.slice(0, 8).toUpperCase()}
               />
             ) : (
-              <span className="chat-tabs__id">{tab_label(s)}</span>
+              <span className="chat-tabs__id">{tab_label(s, i)}</span>
             )}
             <span
               role="button"
@@ -134,7 +134,8 @@ export function ChatSessionTabs({ sessions, activeId, creating, onSelect, onClos
 
       {/* 컨텍스트 메뉴 — createPortal로 body에 마운트해 ancestor transform 영향 제거 */}
       {ctx_menu && (() => {
-        const session = sessions.find((s) => s.id === ctx_menu.id);
+        const ctx_idx = sessions.findIndex((s) => s.id === ctx_menu.id);
+        const session = ctx_idx >= 0 ? sessions[ctx_idx] : null;
         if (!session) return null;
         const menu_x = Math.min(ctx_menu.x, window.innerWidth - 224);
         const menu_y = Math.min(ctx_menu.y, window.innerHeight - 160);
@@ -145,7 +146,7 @@ export function ChatSessionTabs({ sessions, activeId, creating, onSelect, onClos
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="chat-ctx-menu__header">
-              <span className="chat-ctx-menu__title">{tab_label(session)}</span>
+              <span className="chat-ctx-menu__title">{tab_label(session, ctx_idx)}</span>
               <span className="chat-ctx-menu__sub">{session.id}</span>
             </div>
             <button className="chat-ctx-menu__item" onClick={() => copy_id(session.id)}>

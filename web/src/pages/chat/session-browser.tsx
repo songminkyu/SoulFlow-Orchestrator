@@ -100,7 +100,7 @@ export function SessionBrowser({
                       />
                     ) : (
                       <span className="session-browser__item-name">
-                        {s.name ?? s.id.slice(0, 8).toUpperCase()}
+                        {s.name ?? `${t("chat.new_session")} ${i + 1}`}
                       </span>
                     )}
                     <div className="session-browser__item-meta">

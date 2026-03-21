@@ -338,6 +338,9 @@ export function SharedPromptBar({
         </div>
       </div>
 
+      {/* 키보드 힌트 */}
+      <div className="shared-prompt-bar__hint">{t("shared_prompt_bar.hint")}</div>
+
       {/* 도구 칩 목록 */}
       {tools.length > 0 && (
         <ToolChips

@@ -13,7 +13,7 @@ import { useT } from "../i18n";
 import { SharedPromptBar } from "../components/shared/prompt-bar";
 import type { SharedPromptBarProps, UnifiedSelectorItem } from "../components/shared/prompt-bar";
 import { MessageList } from "./chat/message-list";
-import { EmptyState } from "./chat/empty-state";
+// EmptyState 대신 chat-empty-hub__greeting으로 인라인 표시 (samples/ 레퍼런스)
 import { ChatSessionTabs } from "./chat/chat-session-tabs";
 import { ChatBottomBar } from "./chat/chat-status-bar";
 import { SessionBrowser } from "./chat/session-browser";
@@ -404,37 +404,39 @@ export default function ChatPage() {
     onSuggestionSelect: !has_active ? (text: string) => {
       void create_session().then(() => setInput(text));
     } : undefined,
-    greeting: !has_active ? t("chat.greeting") : undefined,
+    greeting: undefined,
   };
 
   return (
     <div className="chat-page">
-      {/* 세션 탭바 */}
-      <div className="chat-header">
-        <button
-          className={`chat-header__burger${sessions_open ? " chat-header__burger--open" : ""}`}
-          onClick={() => setSessionsOpen((o) => !o)}
-          aria-label={sessions_open ? t("common.close") : t("chat.session_browser_title")}
-        >
-          {sessions_open ? "\u2715" : "\u2261"}
-        </button>
-        <ChatSessionTabs
-          sessions={sessions}
-          activeId={is_mirror ? null : activeId}
-          creating={creating}
-          onSelect={select_and_close}
-          onClose={(id) => setDeleteConfirmId(id)}
-          onNew={() => void create_session()}
-          onRename={(id, name) => void rename_session(id, name)}
-        />
-        {is_mirror && <Badge status={t("chat.mirror_badge")} variant="info" />}
-        {activeDefinition && !is_mirror && (
-          <Badge status={`${activeDefinition.icon} ${activeDefinition.name}`} variant="ok" />
-        )}
-        {pending_approvals.length > 0 && (
-          <Badge status={`\uD83D\uDD10 ${pending_approvals.length}`} variant="warn" />
-        )}
-      </div>
+      {/* 세션 탭바 — 빈 상태에서 숨김 (samples/ 레퍼런스) */}
+      {(has_active || sessions_open) && (
+        <div className="chat-header">
+          <button
+            className={`chat-header__burger${sessions_open ? " chat-header__burger--open" : ""}`}
+            onClick={() => setSessionsOpen((o) => !o)}
+            aria-label={sessions_open ? t("common.close") : t("chat.session_browser_title")}
+          >
+            {sessions_open ? "\u2715" : "\u2261"}
+          </button>
+          <ChatSessionTabs
+            sessions={sessions}
+            activeId={is_mirror ? null : activeId}
+            creating={creating}
+            onSelect={select_and_close}
+            onClose={(id) => setDeleteConfirmId(id)}
+            onNew={() => void create_session()}
+            onRename={(id, name) => void rename_session(id, name)}
+          />
+          {is_mirror && <Badge status={t("chat.mirror_badge")} variant="info" />}
+          {activeDefinition && !is_mirror && (
+            <Badge status={`${activeDefinition.icon} ${activeDefinition.name}`} variant="ok" />
+          )}
+          {pending_approvals.length > 0 && (
+            <Badge status={`\uD83D\uDD10 ${pending_approvals.length}`} variant="warn" />
+          )}
+        </div>
+      )}
 
       {sessions_open ? (
         <SessionBrowser
@@ -451,8 +453,8 @@ export default function ChatPage() {
         />
       ) : !has_active ? (
         <div className="chat-empty-hub">
-          <EmptyState onNewSession={create_session} />
-          <div className="chat-empty-hub__bottom">
+          <div className="chat-empty-hub__center">
+            <h2 className="chat-empty-hub__greeting">{t("chat.greeting")}</h2>
             <SharedPromptBar
               {...promptBarProps}
               className="chat-empty-hub__prompt-bar"

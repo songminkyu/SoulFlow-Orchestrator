@@ -4329,6 +4329,7 @@
   "shared_prompt_bar.at_label": "에이전트, 도구, 워크플로우 선택",
   "shared_prompt_bar.attach": "파일 첨부",
   "shared_prompt_bar.tools_count": "{count}개 도구",
+  "shared_prompt_bar.hint": "Enter로 전송 \u00b7 Shift+Enter로 줄바꿈",
 
   "memory_panel.label": "메모리 패널",
   "memory_panel.title": "메모리",

@@ -148,14 +148,14 @@ export function Sidebar() {
                       <span className="sidebar__empty-hint">{t("nav.no_chats_yet")}</span>
                     ) : (
                       <ul className="sidebar__chat-list">
-                        {recent_sessions.slice(0, 8).map((s) => (
+                        {recent_sessions.slice(0, 8).map((s, idx) => (
                           <li key={s.id}>
                             <NavLink
                               to={`/chat?session=${s.id}`}
                               className="sidebar__chat-item"
                               onClick={handle_nav}
                             >
-                              {s.name || s.id.slice(0, 8)}
+                              {s.name || `${t("chat.new_session")} ${idx + 1}`}
                             </NavLink>
                           </li>
                         ))}

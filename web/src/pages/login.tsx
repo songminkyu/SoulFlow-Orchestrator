@@ -5,10 +5,19 @@ import { useAuthStatus, useLogin, type AuthUser } from "../hooks/use-auth";
 import { useI18n } from "../i18n";
 import { api } from "../api/client";
 
-/** 좌측 아트 패널: 추상 커브 라인 SVG */
+/** 좌측 아트 패널: samples/better-chatbot-login.png 레퍼런스
+ *  - 흰/밝은 배경 + 흑색 커브 라인 (하단부에서 올라오는 곡선)
+ *  - 좌상단에 브랜드 ("< SoulFlow")
+ *  - 좌하단에 한 줄 설명 */
 function ArtPanel() {
   return (
     <div className="login-page__art" aria-hidden="true">
+      {/* 브랜드 — 좌상단 */}
+      <div className="login-page__art-brand login-page__art-brand--top">
+        <span className="login-page__art-logo">SF</span>
+        <span className="login-page__art-tagline">SoulFlow</span>
+      </div>
+
       <svg
         className="login-page__art-svg"
         viewBox="0 0 480 640"
@@ -16,92 +25,34 @@ function ArtPanel() {
         xmlns="http://www.w3.org/2000/svg"
         preserveAspectRatio="xMidYMid slice"
       >
-        {/* 배경 그라디언트 */}
         <defs>
-          <linearGradient id="art-bg" x1="0" y1="0" x2="480" y2="640" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="var(--accent-2, #7c3aed)" stopOpacity="0.06" />
+          <linearGradient id="curve-dark" x1="0" y1="640" x2="480" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#1a1a1a" stopOpacity="0.9" />
+            <stop offset="60%" stopColor="#333" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#666" stopOpacity="0.1" />
           </linearGradient>
-          <linearGradient id="curve-1" x1="0" y1="0" x2="480" y2="640" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.7" />
-            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.1" />
+          <linearGradient id="curve-mid" x1="0" y1="640" x2="480" y2="200" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#222" stopOpacity="0.7" />
+            <stop offset="100%" stopColor="#888" stopOpacity="0.05" />
           </linearGradient>
-          <linearGradient id="curve-2" x1="480" y1="0" x2="0" y2="640" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="var(--accent-2, #7c3aed)" stopOpacity="0.6" />
-            <stop offset="100%" stopColor="var(--accent-2, #7c3aed)" stopOpacity="0.05" />
-          </linearGradient>
-          <filter id="blur-sm">
-            <feGaussianBlur stdDeviation="3" />
-          </filter>
         </defs>
 
-        {/* 배경 */}
-        <rect width="480" height="640" fill="url(#art-bg)" />
-
-        {/* 커브 라인들 */}
-        <path
-          d="M-40 120 C80 80 160 200 240 180 S380 100 520 160"
-          stroke="url(#curve-1)"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          filter="url(#blur-sm)"
-        />
-        <path
-          d="M-40 120 C80 80 160 200 240 180 S380 100 520 160"
-          stroke="url(#curve-1)"
-          strokeWidth="0.5"
-          strokeLinecap="round"
-        />
-        <path
-          d="M-40 220 C100 180 180 300 280 270 S420 200 540 250"
-          stroke="url(#curve-2)"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          filter="url(#blur-sm)"
-        />
-        <path
-          d="M-40 220 C100 180 180 300 280 270 S420 200 540 250"
-          stroke="url(#curve-2)"
-          strokeWidth="0.5"
-          strokeLinecap="round"
-        />
-        <path
-          d="M-60 350 C60 310 200 420 320 390 S460 320 560 370"
-          stroke="url(#curve-1)"
-          strokeWidth="1"
-          strokeLinecap="round"
-          filter="url(#blur-sm)"
-        />
-        <path
-          d="M-20 450 C120 400 240 500 360 470 S480 410 580 450"
-          stroke="url(#curve-2)"
-          strokeWidth="1"
-          strokeLinecap="round"
-        />
-        <path
-          d="M-60 540 C80 490 220 580 340 560 S480 500 580 540"
-          stroke="url(#curve-1)"
-          strokeWidth="0.8"
-          strokeLinecap="round"
-        />
-
-        {/* 원형 장식 */}
-        <circle cx="80" cy="180" r="120" fill="var(--accent)" fillOpacity="0.04" />
-        <circle cx="380" cy="460" r="160" fill="var(--accent-2, #7c3aed)" fillOpacity="0.04" />
-        <circle cx="240" cy="320" r="60" fill="var(--accent)" fillOpacity="0.06" />
-
-        {/* 점 장식 */}
-        <circle cx="160" cy="140" r="2" fill="var(--accent)" fillOpacity="0.5" />
-        <circle cx="320" cy="200" r="1.5" fill="var(--accent)" fillOpacity="0.4" />
-        <circle cx="100" cy="380" r="2" fill="var(--accent-2, #7c3aed)" fillOpacity="0.5" />
-        <circle cx="400" cy="300" r="1.5" fill="var(--accent-2, #7c3aed)" fillOpacity="0.4" />
-        <circle cx="240" cy="520" r="2" fill="var(--accent)" fillOpacity="0.3" />
+        {/* 하단에서 올라오는 흑색 커브 라인 — 레퍼런스처럼 */}
+        <path d="M-60 640 C20 580 100 520 200 500 S360 480 520 440" stroke="url(#curve-dark)" strokeWidth="1.2" strokeLinecap="round" />
+        <path d="M-40 640 C40 590 140 540 240 510 S400 470 540 420" stroke="url(#curve-dark)" strokeWidth="0.8" strokeLinecap="round" />
+        <path d="M-20 640 C60 600 160 550 260 530 S420 500 560 450" stroke="url(#curve-mid)" strokeWidth="1.0" strokeLinecap="round" />
+        <path d="M0 640 C80 610 180 560 280 540 S440 510 580 460" stroke="url(#curve-mid)" strokeWidth="0.6" strokeLinecap="round" />
+        <path d="M20 640 C100 615 200 570 300 545 S450 515 590 470" stroke="url(#curve-dark)" strokeWidth="0.5" strokeLinecap="round" />
+        <path d="M40 640 C120 618 220 575 320 548 S460 518 600 475" stroke="url(#curve-mid)" strokeWidth="0.4" strokeLinecap="round" />
+        <path d="M60 640 C140 620 240 580 340 555 S470 525 610 485" stroke="url(#curve-dark)" strokeWidth="0.3" strokeLinecap="round" />
+        <path d="M-80 640 C0 570 80 500 180 475 S340 450 500 410" stroke="url(#curve-dark)" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M-100 640 C-20 560 60 480 160 450 S320 420 480 380" stroke="url(#curve-mid)" strokeWidth="1.0" strokeLinecap="round" />
+        <path d="M-120 640 C-40 550 40 460 140 430 S300 400 460 360" stroke="url(#curve-dark)" strokeWidth="0.7" strokeLinecap="round" />
       </svg>
 
-      {/* 브랜드 오버레이 */}
-      <div className="login-page__art-brand">
-        <span className="login-page__art-logo">SF</span>
-        <span className="login-page__art-tagline">SoulFlow</span>
+      {/* 좌하단 설명 */}
+      <div className="login-page__art-footer">
+        SoulFlow Orchestrator &mdash; AI 에이전트 런타임
       </div>
     </div>
   );
@@ -307,40 +258,7 @@ function LoginForm() {
         {login.isPending ? "로그인 중..." : t("login.submit")}
       </button>
 
-      {/* OAuth 섹션 */}
-      <div className="login-card__divider">
-        <span>{t("login.oauth_divider")}</span>
-      </div>
-      <div className="login-card__oauth">
-        <button
-          type="button"
-          className="btn btn--outline btn--full login-card__oauth-btn"
-          onClick={() => { window.location.href = "/api/auth/oauth/google"; }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-          </svg>
-          Google
-        </button>
-        <button
-          type="button"
-          className="btn btn--outline btn--full login-card__oauth-btn"
-          onClick={() => { window.location.href = "/api/auth/oauth/github"; }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/>
-          </svg>
-          GitHub
-        </button>
-      </div>
-
-      {/* 회원가입 링크 */}
-      <p className="login-card__signup">
-        {t("login.no_account")} <a href="/signup" className="login-card__signup-link">{t("login.signup")}</a>
-      </p>
+      {/* 엔터프라이즈: 관리자가 계정 관리 — 회원가입 불필요 */}
     </form>
   );
 }
