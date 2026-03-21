@@ -1,13 +1,10 @@
 import { NavLink } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { useDashboardStore } from "../store";
 import { useI18n } from "../i18n";
 import { useAuthUser, useAuthStatus } from "../hooks/use-auth";
 import { UserCard } from "../components/user-card";
 import { PAGE_POLICIES } from "../pages/access-policy";
 import { tier_satisfied } from "../hooks/use-page-access";
-import { api } from "../api/client";
-
 type NavItem = { to: string; key: string; icon: string };
 type NavGroup = { label_key: string; items: NavItem[] };
 
@@ -62,8 +59,6 @@ const NAV_GROUPS: NavGroup[] = [
 const ALL_NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
 const BOTTOM_NAV_KEYS = new Set(["/chat", "/workflows", "/prompting", "/settings"]);
 
-type ChatSessionSummary = { id: string; name: string; updated_at: string };
-
 export function Sidebar() {
   const collapsed = useDashboardStore((s) => s.sidebar_collapsed);
   const toggle = useDashboardStore((s) => s.toggle_sidebar);
@@ -81,13 +76,6 @@ export function Sidebar() {
     if (!policy) return true;
     return tier_satisfied(policy.view, auth_user, auth_enabled);
   };
-
-  /** 대화 목록 — 채팅 그룹 하위에 표시 */
-  const { data: recent_sessions = [] } = useQuery<ChatSessionSummary[]>({
-    queryKey: ["sidebar-recent-chats"],
-    queryFn: () => api.get("/api/chat/sessions"),
-    staleTime: 15_000,
-  });
 
   const cls = [
     "sidebar",
@@ -118,7 +106,6 @@ export function Sidebar() {
           {NAV_GROUPS.map((group) => {
             const visible_items = group.items.filter((item) => can_view_route(item.to));
             if (visible_items.length === 0) return null;
-            const is_chat_group = group.label_key === "nav.group.chat";
             return (
               <li key={group.label_key} className="sidebar__group">
                 {!collapsed && <span className="sidebar__group-label">{t(group.label_key)}</span>}
@@ -140,29 +127,6 @@ export function Sidebar() {
                     );
                   })}
                 </ul>
-
-                {/* 대화 목록 — 채팅 그룹 하위 (사이트맵: 💬 채팅 └── 대화 목록) */}
-                {is_chat_group && !collapsed && (
-                  <div className="sidebar__chat-list-wrap">
-                    {recent_sessions.length === 0 ? (
-                      <span className="sidebar__empty-hint">{t("nav.no_chats_yet")}</span>
-                    ) : (
-                      <ul className="sidebar__chat-list">
-                        {recent_sessions.slice(0, 8).map((s, idx) => (
-                          <li key={s.id}>
-                            <NavLink
-                              to={`/chat?session=${s.id}`}
-                              className="sidebar__chat-item"
-                              onClick={handle_nav}
-                            >
-                              {s.name || `${t("chat.new_session")} ${idx + 1}`}
-                            </NavLink>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
               </li>
             );
           })}

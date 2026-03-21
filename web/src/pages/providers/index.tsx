@@ -387,7 +387,7 @@ function SharedProvidersTab({ auth_user }: SharedProvidersTabProps) {
   return (
     <div className="fade-in">
       <SectionHeader title={t("providers.shared_title")}>
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div className="section-header__actions">
           <button className="btn btn--sm btn--accent" onClick={() => open_add("team")}>
             {t("providers.add_team")}
           </button>
@@ -402,7 +402,7 @@ function SharedProvidersTab({ auth_user }: SharedProvidersTabProps) {
 
       {addForm.open && (
         <div className="panel panel--inset mb-3">
-          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
+          <div className="li-flex" style={{ flexWrap: "wrap" }}>
             <span className={`badge badge--${SCOPE_VARIANTS[addForm.scope]}`}>{scope_label(addForm.scope)}</span>
             <input className="form-input" style={{ flex: "1 1 100px" }} placeholder={t("providers.name_placeholder")} value={addForm.name}
               onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))} />

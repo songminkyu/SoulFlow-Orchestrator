@@ -135,7 +135,7 @@ function SectionPanel({ section }: { section: SectionInfo }) {
   const isOperatorSection = OPERATOR_SECTIONS.has(section.id);
   return (
     <section className="panel mb-3" data-testid={`settings-section-${section.id}`}>
-      <div className="li-flex" style={{ alignItems: "center", gap: "8px" }}>
+      <div className="li-flex">
         <h2>{t(`cfg.section.${section.id}`)}</h2>
         {isOperatorSection && <VisibilityBadge tier="operator" />}
       </div>

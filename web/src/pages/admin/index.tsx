@@ -56,7 +56,7 @@ export default function AdminPage() {
         </SectionHeader>
 
         <StatusView status={viewStatus} onRetry={() => void refetch()}>
-          <div className="settings__filters" role="tablist" style={{ marginBottom: "16px" }}>
+          <div className="settings__filters" role="tablist">
             {TAB_IDS.map((id) => (
               <button
                 key={id}

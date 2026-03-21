@@ -17,6 +17,7 @@ import { MessageList } from "./chat/message-list";
 import { ChatSessionTabs } from "./chat/chat-session-tabs";
 import { ChatBottomBar } from "./chat/chat-status-bar";
 import { SessionBrowser } from "./chat/session-browser";
+import { MemoryPanel } from "../components/shared/memory-panel";
 import { compose_agent_prompt } from "./chat/agent-context-bar";
 import { CanvasPanel } from "./chat/canvas-panel";
 import type { ChatSessionSummary, ChatSession, ChatMessage, ChatMediaItem } from "./chat/types";
@@ -33,13 +34,17 @@ export default function ChatPage() {
   const location = useLocation();
   /** 에이전트 갤러리 "Use" 진입 시 location.state에서 1회 읽음 */
   const init_def = (location.state as { agent_definition?: AgentDefinition } | null)?.agent_definition ?? null;
-  const [activeId, setActiveId] = useState<string | null>(null);
+  /** URL ?session=ID 파라미터에서 초기 세션 선택 */
+  const url_session = useMemo(() => new URLSearchParams(location.search).get("session"), [location.search]);
+  const [activeId, setActiveId] = useState<string | null>(url_session);
   const [mirrorKey, setMirrorKey] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [waiting_response, setWaitingResponse] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [sessions_open, setSessionsOpen] = useState(false);
+  /** 내부 패널: sessions(세션 브라우저) | memory(메모리 관리) | null(닫힘) */
+  const [panel, setPanel] = useState<"sessions" | "memory" | null>(null);
+  const sessions_open = panel === "sessions";
   const { pending: creating, run: run_create } = useAsyncState();
   const { run: run_delete } = useAsyncState();
   const [pending_media, setPendingMedia] = useState<ChatMediaItem[]>([]);
@@ -64,6 +69,11 @@ export default function ChatPage() {
   const canvas_specs = useDashboardStore((s) => s.canvas_specs);
   const dismiss_canvas = useDashboardStore((s) => s.dismiss_canvas);
   const { stream: ndjson_stream, tool_calls: ndjson_tool_calls, thinking_blocks: ndjson_thinking, routing: ndjson_routing, start: start_stream, cancel: cancel_stream } = useNdjsonStream();
+
+  /** 사이드바 세션 클릭 시 URL ?session= 변경 → activeId 동기화 */
+  useEffect(() => {
+    if (url_session && url_session !== activeId) setActiveId(url_session);
+  }, [url_session]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const is_mirror = !!mirrorKey;
 
@@ -308,18 +318,23 @@ export default function ChatPage() {
     if (web_stream?.done && web_stream.chat_id === activeId) set_web_stream(null);
   }, [activeSession?.messages, ndjson_stream, web_stream, activeId, cancel_stream, set_web_stream]);
 
-  const messages = (() => {
-    if (!stream_active) return raw_messages;
+  /** 스트리밍 시작 시간 — 안정적 timestamp로 불필요한 리렌더 방지 */
+  const stream_start_ref = useRef<string>("");
+  if (stream_active && !stream_start_ref.current) stream_start_ref.current = new Date().toISOString();
+  if (!stream_active) stream_start_ref.current = "";
+
+  const messages = useMemo(() => {
+    if (!stream_active || !active_stream) return raw_messages;
     const virtual_msg: ChatMessage = {
       direction: "assistant",
-      content: active_stream!.content,
-      at: new Date().toISOString(),
+      content: active_stream.content,
+      at: stream_start_ref.current,
       ...(ndjson_routing?.requested_channel ? { requested_channel: ndjson_routing.requested_channel } : {}),
       ...(ndjson_routing?.delivered_channel ? { delivered_channel: ndjson_routing.delivered_channel } : {}),
       ...(ndjson_routing?.execution_route ? { execution_route: ndjson_routing.execution_route } : {}),
     };
     return [...raw_messages, virtual_msg];
-  })();
+  }, [raw_messages, stream_active, active_stream?.content, ndjson_routing]);
 
   const last_msg = messages.length > 0 ? messages[messages.length - 1] : null;
   const last_is_user = last_msg?.direction === "user";
@@ -335,8 +350,8 @@ export default function ChatPage() {
     if (web_stream?.chat_id === activeId) set_web_stream(null);
   };
 
-  const select_and_close = (id: string) => { select_session(id); setSessionsOpen(false); };
-  const mirror_and_close = (key: string) => { select_mirror(key); setSessionsOpen(false); };
+  const select_and_close = (id: string) => { select_session(id); setPanel(null); };
+  const mirror_and_close = (key: string) => { select_mirror(key); setPanel(null); };
 
   /** SharedPromptBar props — mirror 모드에서는 간소화 */
   const endpoint_value = selectedModel
@@ -396,38 +411,49 @@ export default function ChatPage() {
     capabilities,
     onCapabilityChange: handle_capability_change,
     onAttach: () => fileInputRef.current?.click(),
-    suggestions: !has_active ? [
-      t("chat.suggestion_ask_agent"),
-      t("chat.suggestion_run_workflow"),
-      t("chat.suggestion_explore_tools"),
-    ] : undefined,
-    onSuggestionSelect: !has_active ? (text: string) => {
-      void create_session().then(() => setInput(text));
-    } : undefined,
+    suggestions: undefined,
+    onSuggestionSelect: undefined,
     greeting: undefined,
   };
 
   return (
     <div className="chat-page">
       {/* 세션 탭바 — 빈 상태에서 숨김 (samples/ 레퍼런스) */}
-      {(has_active || sessions_open) && (
-        <div className="chat-header">
-          <button
-            className={`chat-header__burger${sessions_open ? " chat-header__burger--open" : ""}`}
-            onClick={() => setSessionsOpen((o) => !o)}
-            aria-label={sessions_open ? t("common.close") : t("chat.session_browser_title")}
-          >
-            {sessions_open ? "\u2715" : "\u2261"}
-          </button>
-          <ChatSessionTabs
-            sessions={sessions}
-            activeId={is_mirror ? null : activeId}
-            creating={creating}
-            onSelect={select_and_close}
-            onClose={(id) => setDeleteConfirmId(id)}
-            onNew={() => void create_session()}
-            onRename={(id, name) => void rename_session(id, name)}
-          />
+      <div className="chat-header">
+          <div className="chat-header__panel-toggles">
+            <button
+              className={`chat-header__burger${panel === "sessions" ? " chat-header__burger--open" : ""}`}
+              onClick={() => setPanel(panel === "sessions" ? null : "sessions")}
+              aria-label={t("chat.session_browser_title")}
+              title={t("chat.session_browser_title")}
+            >
+              {panel === "sessions" ? "\u2715" : "\u2261"}
+            </button>
+            <button
+              className={`chat-header__panel-btn${panel === "memory" ? " chat-header__panel-btn--active" : ""}`}
+              onClick={() => setPanel(panel === "memory" ? null : "memory")}
+              aria-label={t("memory_panel.title")}
+              title={t("memory_panel.title")}
+            >
+              {panel === "memory" ? "\u2715" : "\uD83E\uDDE0"}
+            </button>
+          </div>
+          {!panel && (
+            <ChatSessionTabs
+              sessions={sessions}
+              activeId={is_mirror ? null : activeId}
+              creating={creating}
+              onSelect={select_and_close}
+              onClose={(id) => setDeleteConfirmId(id)}
+              onNew={() => void create_session()}
+              onRename={(id, name) => void rename_session(id, name)}
+            />
+          )}
+          {panel && (
+            <span className="chat-header__panel-label">
+              {panel === "sessions" ? t("chat.session_browser_title") : t("memory_panel.title")}
+            </span>
+          )}
           {is_mirror && <Badge status={t("chat.mirror_badge")} variant="info" />}
           {activeDefinition && !is_mirror && (
             <Badge status={`${activeDefinition.icon} ${activeDefinition.name}`} variant="ok" />
@@ -436,9 +462,8 @@ export default function ChatPage() {
             <Badge status={`\uD83D\uDD10 ${pending_approvals.length}`} variant="warn" />
           )}
         </div>
-      )}
 
-      {sessions_open ? (
+      {panel === "sessions" ? (
         <SessionBrowser
           sessions={sessions}
           mirror_sessions={mirror_sessions}
@@ -451,6 +476,8 @@ export default function ChatPage() {
           onRename={(id, name) => void rename_session(id, name)}
           onDelete={(id) => setDeleteConfirmId(id)}
         />
+      ) : panel === "memory" ? (
+        <MemoryPanel sessionId={activeId} mode="inline" className="chat-memory-panel" />
       ) : !has_active ? (
         <div className="chat-empty-hub">
           <div className="chat-empty-hub__center">

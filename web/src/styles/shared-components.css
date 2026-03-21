@@ -6,14 +6,15 @@
 
 /* ── UnifiedSelector ──────────────────────────────────────── */
 
+/* ===== UnifiedSelector — 멀티컬럼 그리드 (ref: feature4.png) ===== */
 .unified-selector {
   position: relative;
   background: var(--popover-bg);
   border: 1px solid var(--popover-border);
   border-radius: var(--popover-radius);
   box-shadow: var(--popover-shadow);
-  width: 360px;
-  max-height: var(--popover-max-height);
+  width: min(680px, 90vw);
+  max-height: 420px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -22,11 +23,8 @@
 
 .unified-selector__search {
   flex-shrink: 0;
-  position: sticky;
-  top: 0;
-  z-index: 1;
   width: 100%;
-  padding: var(--sp-2) var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
   background: var(--popover-bg);
   border: none;
   border-bottom: 1px solid var(--popover-border);
@@ -35,60 +33,46 @@
   outline: none;
   box-sizing: border-box;
 }
+.unified-selector__search::placeholder { color: var(--muted); }
 
-.unified-selector__search::placeholder {
-  color: var(--muted);
-}
-
-.unified-selector__tabs {
-  flex-shrink: 0;
-  display: flex;
-  border-bottom: 1px solid var(--popover-border);
-  background: var(--surface-faint);
-}
-
-.unified-selector__tab {
+/* 3컬럼 그리드 — Agents+Workflows | MCP Tools | App Tools */
+.unified-selector__grid {
   flex: 1;
-  padding: var(--sp-2) var(--sp-1);
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--muted);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  cursor: pointer;
-  transition: color var(--duration-fast), border-color var(--duration-fast);
-  text-align: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  overflow: hidden;
 }
 
-.unified-selector__tab:hover {
-  color: var(--text);
-}
-
-.unified-selector__tab--active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-}
-
-.unified-selector__list {
-  flex: 1;
+.unified-selector__column {
   overflow-y: auto;
   padding: var(--sp-1) 0;
+  border-right: 1px solid var(--popover-border);
 }
+.unified-selector__column:last-child { border-right: none; }
+
+.unified-selector__section-label {
+  padding: var(--sp-2) var(--sp-3) var(--sp-1);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+.unified-selector__section-label--mt { margin-top: var(--sp-3); }
 
 .unified-selector__empty {
-  padding: var(--sp-4) var(--sp-3);
-  color: var(--muted);
-  font-size: var(--fs-sm);
+  padding: var(--sp-3) var(--sp-3);
+  color: var(--off);
+  font-size: var(--fs-xs);
   text-align: center;
 }
 
+/* 아이템 — 컴팩트: 아이콘 + 이름만 */
 .unified-selector__item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--sp-2);
   width: 100%;
-  padding: var(--sp-2) var(--sp-3);
+  padding: var(--sp-1) var(--sp-3);
   background: transparent;
   border: none;
   color: var(--text);
@@ -97,43 +81,161 @@
   cursor: pointer;
   transition: background var(--duration-fast);
 }
-
-.unified-selector__item:hover,
-.unified-selector__item--focused {
-  background: var(--hover);
-}
+.unified-selector__item:hover { background: var(--hover); }
 
 .unified-selector__item-icon {
   flex-shrink: 0;
   font-size: 14px;
-  margin-top: 1px;
+}
+.unified-selector__item-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.unified-selector__item-body {
+/* 모바일: 1컬럼 세로 스크롤 */
+@media (max-width: 640px) {
+  .unified-selector { width: 95vw; max-height: 60vh; }
+  .unified-selector__grid { grid-template-columns: 1fr; }
+  .unified-selector__column { border-right: none; border-bottom: 1px solid var(--popover-border); }
+  .unified-selector__column:last-child { border-bottom: none; }
+}
+
+/* ===== MemoryPanel ===== */
+.memory-panel {
   display: flex;
   flex-direction: column;
-  min-width: 0;
+  height: 100%;
 }
-
-.unified-selector__item-name {
+.memory-panel__header {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+}
+.memory-panel__title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+.memory-panel__scope-tabs {
+  display: flex;
+  gap: 2px;
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+}
+.memory-panel__scope-tab {
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-xs);
   font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.unified-selector__item-server {
-  font-size: var(--fs-xs);
-  color: var(--accent);
-  opacity: 0.7;
-}
-
-.unified-selector__item-desc {
-  font-size: var(--fs-xs);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
   color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+.memory-panel__scope-tab:hover { color: var(--text); background: var(--hover); }
+.memory-panel__scope-tab--active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.memory-panel__search-wrap {
+  padding: var(--sp-2) var(--sp-4);
+}
+.memory-panel__search {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  outline: none;
+}
+.memory-panel__search::placeholder { color: var(--muted); }
+.memory-panel__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-2) var(--sp-4);
+}
+.memory-panel__empty,
+.memory-panel__loading,
+.memory-panel__error {
+  padding: var(--sp-6);
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.memory-panel__error { color: var(--err); }
+
+/* 메모리 엔트리 */
+.memory-panel__entry {
+  padding: var(--sp-3);
+  margin-bottom: var(--sp-2);
+  background: var(--surface-subtle);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+}
+.memory-panel__entry--noisy {
+  border-color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 5%, transparent);
+}
+.memory-panel__entry-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+.memory-panel__entry-key {
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  font-family: var(--font-mono);
+}
+.memory-panel__entry-scope {
+  font-size: var(--fs-xs);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+}
+.memory-panel__entry-value {
+  font-size: var(--fs-xs);
+  color: var(--text);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: var(--sp-2);
+  background: var(--panel);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+}
+.memory-panel__entry-warning {
+  margin-top: var(--sp-2);
+  padding: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  border-radius: var(--radius-sm);
+}
+.memory-panel__entry-time {
+  margin-top: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--off);
+}
+.memory-panel__badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+.memory-panel__badge--clean {
+  background: color-mix(in srgb, var(--ok) 15%, transparent);
+  color: var(--ok);
+}
+.memory-panel__badge--noisy {
+  background: color-mix(in srgb, var(--warn) 15%, transparent);
+  color: var(--warn);
 }
 
 /* ── EndpointSelector ─────────────────────────────────────── */

@@ -2216,7 +2216,7 @@ a:focus-visible > .stat-card {
   gap: var(--sp-3);
   padding: var(--sp-2) var(--sp-3);
   border-radius: var(--radius-sm);
-  transition: background 0.15s;
+  transition: background var(--duration-normal) ease;
 }
 .cfg-field:hover { background: var(--surface-faint); }
 .cfg-field--editing { background: color-mix(in srgb, var(--accent) 4%, transparent); }
@@ -2322,68 +2322,68 @@ a:focus-visible > .stat-card {
 .instance-picker__list {
   max-height: 180px;
   overflow-y: auto;
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius);
-  background: var(--c-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
 }
 .instance-picker__item {
   display: flex;
-  gap: 8px;
+  gap: var(--sp-2);
   align-items: center;
   width: 100%;
-  padding: 4px 8px;
+  padding: var(--sp-1) var(--sp-2);
   border: none;
   background: none;
   cursor: pointer;
   text-align: left;
   font-size: var(--fs-sm);
-  color: var(--c-text);
+  color: var(--text);
 }
-.instance-picker__item:hover { background: var(--c-hover); }
-.instance-picker__item--selected { background: var(--c-accent-muted); font-weight: 600; }
+.instance-picker__item:hover { background: var(--hover); }
+.instance-picker__item--selected { background: color-mix(in srgb, var(--accent) 15%, transparent); font-weight: 600; }
 .instance-picker__id { font-family: var(--font-mono); font-size: var(--fs-xs); }
-.instance-picker__meta { color: var(--c-text-muted); font-size: var(--fs-xs); }
-.instance-picker__section { margin-top: 6px; }
+.instance-picker__meta { color: var(--muted); font-size: var(--fs-xs); }
+.instance-picker__section { margin-top: var(--sp-2); }
 .instance-picker__section-label {
   font-size: var(--fs-xs);
   font-weight: 600;
-  color: var(--c-text-muted);
-  padding: 4px 8px 2px;
+  color: var(--muted);
+  padding: var(--sp-1) var(--sp-2) 2px;
 }
 .instance-picker__model-search {
   width: 100%;
-  padding: 4px 8px;
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius);
-  background: var(--c-bg);
-  color: var(--c-text);
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--text);
   font-size: var(--fs-xs);
-  margin-bottom: 4px;
+  margin-bottom: var(--sp-1);
 }
 .instance-picker__model-list {
   max-height: 160px;
   overflow-y: auto;
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius);
-  background: var(--c-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
 }
 .instance-picker__model-item {
   display: flex;
-  gap: 8px;
+  gap: var(--sp-2);
   align-items: center;
   width: 100%;
-  padding: 3px 8px;
+  padding: 3px var(--sp-2);
   border: none;
   background: none;
   cursor: pointer;
   text-align: left;
   font-size: var(--fs-xs);
-  color: var(--c-text);
+  color: var(--text);
 }
-.instance-picker__model-item:hover { background: var(--c-hover); }
-.instance-picker__model-item--selected { background: var(--c-accent-muted); font-weight: 600; }
+.instance-picker__model-item:hover { background: var(--hover); }
+.instance-picker__model-item--selected { background: color-mix(in srgb, var(--accent) 15%, transparent); font-weight: 600; }
 .instance-picker__model-name { font-family: var(--font-mono); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.instance-picker__model-meta { color: var(--c-text-muted); font-size: 10px; white-space: nowrap; }
+.instance-picker__model-meta { color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; }
 
 @media (max-width: 768px) {
   .cfg-field {
