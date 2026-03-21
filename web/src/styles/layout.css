@@ -270,6 +270,48 @@
 }
 .btn--full { width: 100%; }
 
+/* ── Login OAuth + Signup ──────────────── */
+.login-card__divider {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
+}
+.login-card__divider::before,
+.login-card__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.login-card__oauth {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.login-card__oauth-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+.login-card__signup {
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--fg-muted);
+  margin: 0;
+}
+.login-card__signup-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+.login-card__signup-link:hover {
+  text-decoration: underline;
+}
+
 /* Users 목록 */
 .users-list { display: flex; flex-direction: column; gap: var(--sp-2); }
 .users-list__item {
@@ -458,6 +500,40 @@
   .sidebar--collapsed .sidebar__icon[data-tooltip]::after {
     display: none;
   }
+}
+
+/* ── 대화 목록 (채팅 그룹 하위) ─────── */
+.sidebar__chat-list-wrap {
+  padding: var(--sp-1) 0 0 var(--sp-4);
+}
+.sidebar__empty-hint {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--fg-muted);
+  padding: var(--sp-1) var(--sp-2);
+}
+.sidebar__chat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.sidebar__chat-item {
+  display: block;
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--fg);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.12s;
+}
+.sidebar__chat-item:hover {
+  background: var(--hover);
 }
 
 /* Sidebar footer */

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef, useEffect, useReducer, useMemo } from "react";
+import { useState, useRef, useEffect, useReducer, useMemo, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { api } from "../api/client";
 import { Badge } from "../components/badge";
@@ -53,6 +53,8 @@ export default function ChatPage() {
   const [attached_items, setAttachedItems] = useState<MentionItem[]>([]);
   /** FE-2b: 도구 선택 정책 */
   const [tool_choice, setToolChoice] = useState<"auto" | "manual" | "none">("auto");
+  /** 기능 토글 (웹 검색, 코드 실행 등) */
+  const [capabilities, setCapabilities] = useState<Set<string>>(new Set(["web_search"]));
   const messagesRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sent_msg_count, setSentMsgCount] = useState(0);
@@ -249,6 +251,7 @@ export default function ChatPage() {
     if (tool_choice !== "auto") body.tool_choice = tool_choice;
     const pinned = pinned_tools_from_items(attached_items);
     if (pinned.length > 0) body.pinned_tools = pinned;
+    if (capabilities.size > 0) body.enabled_capabilities = [...capabilities];
     setInput("");
     setPendingMedia([]);
     setSending(false);
@@ -351,6 +354,14 @@ export default function ChatPage() {
   const mirror_send_handler = () => { void send_mirror(); };
   const normal_send_handler = () => { void send(); };
 
+  const handle_capability_change = useCallback((id: string, on: boolean) => {
+    setCapabilities((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id); else next.delete(id);
+      return next;
+    });
+  }, []);
+
   const promptBarProps: SharedPromptBarProps = is_mirror ? {
     input,
     onInputChange: setInput,
@@ -364,6 +375,9 @@ export default function ChatPage() {
     onToolRemove: () => {},
     toolChoice: "auto",
     onToolChoiceChange: () => {},
+    capabilities: new Set(),
+    onCapabilityChange: () => {},
+    onAttach: undefined,
     disabled: !mirrorKey,
   } : {
     input,
@@ -379,6 +393,9 @@ export default function ChatPage() {
     onToolRemove: handle_mention_remove,
     toolChoice: tool_choice,
     onToolChoiceChange: setToolChoice,
+    capabilities,
+    onCapabilityChange: handle_capability_change,
+    onAttach: () => fileInputRef.current?.click(),
     suggestions: !has_active ? [
       t("chat.suggestion_ask_agent"),
       t("chat.suggestion_run_workflow"),
@@ -434,13 +451,13 @@ export default function ChatPage() {
         />
       ) : !has_active ? (
         <div className="chat-empty-hub">
-          <EmptyState
-            onNewSession={create_session}
-          />
-          <SharedPromptBar
-            {...promptBarProps}
-            className="chat-empty-hub__prompt-bar"
-          />
+          <EmptyState onNewSession={create_session} />
+          <div className="chat-empty-hub__bottom">
+            <SharedPromptBar
+              {...promptBarProps}
+              className="chat-empty-hub__prompt-bar"
+            />
+          </div>
         </div>
       ) : (activeSessionLoading || mirrorSessionLoading) ? (
         <div className="chat-loading">

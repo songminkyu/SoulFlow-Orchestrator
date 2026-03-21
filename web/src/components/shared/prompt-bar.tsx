@@ -1,15 +1,16 @@
 /**
  * SharedPromptBar — Layer 1: UnifiedSelector를 내장한 범용 프롬프트바.
- * UnifiedSelector / EndpointSelector / ToolChips / ToolChoiceToggle / AiSuggestions 조합.
+ * UnifiedSelector / EndpointSelector / ToolChips / ToolChoiceToggle /
+ * CapabilityToggles / AiSuggestions 조합.
  *
- * 레이아웃:
- *   [greeting]              ← 빈 상태에서만
- *   [AI suggestions 그리드] ← 빈 상태에서만
- *   ┌──────────────────────────────────────────┐
- *   │ [textarea (auto-resize)]                 │
- *   │ [+] [ToolChoice▾] [Tools N] [@] ─── [EP▾] [⏎/■] │
- *   └──────────────────────────────────────────┘
- *   [tool chips]            ← 도구 선택 시
+ * 레이아웃 (설계문서 기준):
+ *   [greeting]                  ← 빈 상태: "Good morning, {사용자 이름}"
+ *   [AI suggestions 그리드]     ← 빈 상태에서만
+ *   ┌──────────────────────────────────────────────────┐
+ *   │ [textarea (auto-resize)]                         │
+ *   │ [+] [⚙cap] [도구정책▾] [Tools N] [@] ── [EP▾] [⏎/■] │
+ *   └──────────────────────────────────────────────────┘
+ *   [tool chips]                ← 도구 선택 시
  */
 
 import { useRef, useEffect, useState, useCallback } from "react";
@@ -22,6 +23,7 @@ import { ToolChips } from "./tool-chips";
 import type { ToolChip } from "./tool-chips";
 import { ToolChoiceToggle } from "./tool-choice-toggle";
 import type { ToolChoiceMode } from "./tool-choice-toggle";
+import { CapabilityToggles } from "./capability-toggles";
 import { AiSuggestions } from "./ai-suggestions";
 
 export type { UnifiedSelectorItem, Endpoint, ToolChip, ToolChoiceMode };
@@ -46,6 +48,11 @@ export interface SharedPromptBarProps {
   /** 도구 정책 */
   toolChoice: ToolChoiceMode;
   onToolChoiceChange: (mode: ToolChoiceMode) => void;
+  /** 기능 토글 (웹 검색, 코드 실행 등) */
+  capabilities: Set<string>;
+  onCapabilityChange: (id: string, on: boolean) => void;
+  /** 파일 첨부 */
+  onAttach?: () => void;
   /** AI 추천 프롬프트 (빈 상태에서) */
   suggestions?: string[];
   onSuggestionSelect?: (text: string) => void;
@@ -70,6 +77,9 @@ export function SharedPromptBar({
   onToolRemove,
   toolChoice,
   onToolChoiceChange,
+  capabilities,
+  onCapabilityChange,
+  onAttach,
   suggestions = [],
   onSuggestionSelect,
   greeting,
@@ -79,6 +89,8 @@ export function SharedPromptBar({
   const t = useT();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectorOpen, setSelectorOpen] = useState(false);
+  const [capOpen, setCapOpen] = useState(false);
+  const [toolChoiceOpen, setToolChoiceOpen] = useState(false);
   const is_busy = sending || streaming;
   const is_empty = input.trim().length === 0;
 
@@ -150,18 +162,7 @@ export function SharedPromptBar({
   const show_empty_state = is_empty && !is_busy;
 
   return (
-    <div
-      className={[
-        "shared-prompt-bar",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      style={{
-        margin: "0 auto",
-        maxWidth: "var(--prompt-max-width, 720px)",
-      }}
-    >
+    <div className={["shared-prompt-bar", className].filter(Boolean).join(" ")}>
       {/* 빈 상태: greeting */}
       {show_empty_state && greeting && (
         <div className="shared-prompt-bar__greeting">{greeting}</div>
@@ -185,14 +186,7 @@ export function SharedPromptBar({
       />
 
       {/* 입력 필 */}
-      <div
-        className="shared-prompt-bar__pill"
-        style={{
-          background: "var(--prompt-bg, var(--surface-1))",
-          borderRadius: "var(--prompt-radius, 16px)",
-          boxShadow: "var(--prompt-shadow, 0 2px 12px rgba(0,0,0,.15))",
-        }}
-      >
+      <div className="shared-prompt-bar__pill">
         <textarea
           ref={textareaRef}
           className="shared-prompt-bar__textarea"
@@ -207,14 +201,71 @@ export function SharedPromptBar({
 
         {/* 툴바 */}
         <div className="shared-prompt-bar__toolbar">
-          {/* 왼쪽 그룹 */}
+          {/* 왼쪽 그룹: [+] [도구정책] [Tools N] — [@] (설계문서 기준) */}
           <div className="shared-prompt-bar__toolbar-left">
-            {/* ToolChoiceToggle */}
-            <ToolChoiceToggle
-              value={toolChoice}
-              onChange={onToolChoiceChange}
-              disabled={is_busy || disabled}
-            />
+            {/* + 파일 첨부 버튼 */}
+            {onAttach && (
+              <button
+                type="button"
+                className="shared-prompt-bar__btn"
+                onClick={onAttach}
+                disabled={is_busy || disabled}
+                title={t("shared_prompt_bar.attach")}
+                aria-label={t("shared_prompt_bar.attach")}
+                data-testid="attach-button"
+              >
+                +
+              </button>
+            )}
+
+            {/* ⚙ 기능 설정 (capability 토글) */}
+            <div className="shared-prompt-bar__cap-wrap">
+              <button
+                type="button"
+                className={`shared-prompt-bar__btn${capOpen ? " shared-prompt-bar__btn--active" : ""}`}
+                onClick={() => setCapOpen((v) => !v)}
+                disabled={is_busy || disabled}
+                title={t("capability.header")}
+                aria-label={t("capability.header")}
+                aria-expanded={capOpen}
+                data-testid="capability-button"
+              >
+                {"\u2699"}
+                {capabilities.size > 0 && (
+                  <span className="shared-prompt-bar__cap-count">{capabilities.size}</span>
+                )}
+              </button>
+              {capOpen && (
+                <div className="shared-prompt-bar__cap-popup">
+                  <CapabilityToggles
+                    enabled={capabilities}
+                    onChange={(id, on) => onCapabilityChange(id, on)}
+                    disabled={is_busy || disabled}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* 도구 정책 (Auto/Manual/None) — 별도 드롭다운 */}
+            <div className="shared-prompt-bar__cap-wrap">
+              <button
+                type="button"
+                className={`shared-prompt-bar__btn${toolChoiceOpen ? " shared-prompt-bar__btn--active" : ""}`}
+                onClick={() => setToolChoiceOpen((v) => !v)}
+                disabled={is_busy || disabled}
+              >
+                {t(`tool_choice.${toolChoice}`)} &#9662;
+              </button>
+              {toolChoiceOpen && (
+                <div className="shared-prompt-bar__cap-popup">
+                  <ToolChoiceToggle
+                    value={toolChoice}
+                    onChange={(mode) => { onToolChoiceChange(mode); setToolChoiceOpen(false); }}
+                    disabled={is_busy || disabled}
+                  />
+                </div>
+              )}
+            </div>
 
             {/* Tools count */}
             {tools.length > 0 && (

@@ -22,9 +22,12 @@
 
 .unified-selector__search {
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 1;
   width: 100%;
   padding: var(--sp-2) var(--sp-3);
-  background: transparent;
+  background: var(--popover-bg);
   border: none;
   border-bottom: 1px solid var(--popover-border);
   color: var(--text);
@@ -180,9 +183,9 @@
 
 .endpoint-selector__dropdown {
   position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: var(--z-dropdown);
+  bottom: calc(100% + 4px);
+  right: 0;
+  z-index: var(--z-popover);
   background: var(--popover-bg);
   border: 1px solid var(--popover-border);
   border-radius: var(--popover-radius);
@@ -196,8 +199,11 @@
 
 .endpoint-selector__search {
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 1;
   padding: var(--sp-2) var(--sp-3);
-  background: transparent;
+  background: var(--popover-bg);
   border: none;
   border-bottom: 1px solid var(--popover-border);
   color: var(--text);
@@ -396,4 +402,256 @@
 .ai-suggestions__card:hover .ai-suggestions__arrow {
   color: var(--accent);
   transform: translateX(2px);
+}
+
+/* ── SharedPromptBar ──────────────────────────────────── */
+
+.shared-prompt-bar {
+  margin: 0 auto;
+  max-width: var(--prompt-max-width, 720px);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  position: relative;
+}
+
+.shared-prompt-bar__greeting {
+  text-align: center;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0.85;
+  padding: var(--sp-2) 0;
+}
+
+.shared-prompt-bar__pill {
+  background: var(--prompt-bg);
+  border: 1px solid var(--prompt-border);
+  border-radius: var(--prompt-radius);
+  box-shadow: var(--prompt-shadow);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.shared-prompt-bar__textarea {
+  width: 100%;
+  min-height: 40px;
+  max-height: 200px;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  padding: var(--sp-3) var(--sp-4);
+  line-height: 1.5;
+}
+.shared-prompt-bar__textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+.shared-prompt-bar__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-1) var(--sp-3) var(--sp-2);
+  gap: var(--sp-2);
+}
+
+.shared-prompt-bar__toolbar-left,
+.shared-prompt-bar__toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.shared-prompt-bar__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.shared-prompt-bar__btn:hover { background: var(--hover); color: var(--text); }
+.shared-prompt-bar__btn--active { background: var(--hover); color: var(--accent); }
+.shared-prompt-bar__btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.shared-prompt-bar__btn--send {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+.shared-prompt-bar__btn--send:hover { opacity: 0.9; }
+
+.shared-prompt-bar__btn--stop {
+  background: var(--err);
+  color: #fff;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.shared-prompt-bar__tool-count {
+  font-size: var(--fs-xs);
+  color: var(--accent);
+  padding: 2px 8px;
+  background: var(--chip-bg);
+  border-radius: var(--chip-radius);
+}
+
+/* UnifiedSelector positioning in prompt bar */
+.shared-prompt-bar__selector {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: var(--z-popover, 500);
+}
+
+/* Capability popup in prompt bar */
+.shared-prompt-bar__cap-wrap {
+  position: relative;
+}
+.shared-prompt-bar__cap-popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: var(--z-popover, 500);
+  background: var(--popover-bg);
+  border: 1px solid var(--popover-border);
+  border-radius: var(--popover-radius);
+  box-shadow: var(--popover-shadow);
+  min-width: 260px;
+}
+
+/* ── CapabilityToggles ──────────────────────────────────── */
+
+.capability-toggles {
+  display: flex;
+  flex-direction: column;
+}
+
+.capability-toggles__header {
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--surface-subtle);
+}
+
+.capability-toggles__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  cursor: pointer;
+  transition: background var(--duration-fast);
+  user-select: none;
+}
+.capability-toggles__row:hover {
+  background: var(--hover);
+}
+
+.capability-toggles__icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  width: 24px;
+  text-align: center;
+}
+
+.capability-toggles__info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.capability-toggles__label {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text);
+}
+
+.capability-toggles__desc {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+/* Toggle switch */
+.capability-toggles__switch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--line);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: none;
+  outline: none;
+}
+.capability-toggles__switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  transition: transform 0.2s;
+}
+.capability-toggles__switch:checked {
+  background: var(--accent);
+}
+.capability-toggles__switch:checked::after {
+  transform: translateX(16px);
+}
+.capability-toggles__switch:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Divider inside ⚙ popup (between capabilities and tool choice) */
+.shared-prompt-bar__cap-divider {
+  height: 1px;
+  background: var(--surface-subtle);
+  margin: var(--sp-1) 0;
+}
+
+/* Active count badge in toolbar */
+.shared-prompt-bar__cap-count {
+  font-size: 9px;
+  min-width: 14px;
+  height: 14px;
+  line-height: 14px;
+  text-align: center;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  pointer-events: none;
 }

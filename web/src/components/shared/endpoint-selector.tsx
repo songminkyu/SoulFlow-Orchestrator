@@ -166,8 +166,8 @@ export function EndpointSelector({ value, onChange, className }: EndpointSelecto
                     key={m.id}
                     type="button"
                     role="option"
-                    aria-selected={value?.id === m.id && value.type === "model"}
-                    className={`endpoint-selector__option${value?.id === m.id && value.type === "model" ? " endpoint-selector__option--selected" : ""}`}
+                    aria-selected={value?.id === m.id && value?.type === "model"}
+                    className={`endpoint-selector__option${value?.id === m.id && value?.type === "model" ? " endpoint-selector__option--selected" : ""}`}
                     onClick={() =>
                       handleSelect({
                         type: "model",
@@ -198,8 +198,8 @@ export function EndpointSelector({ value, onChange, className }: EndpointSelecto
                     key={a.slug}
                     type="button"
                     role="option"
-                    aria-selected={value?.id === a.slug && value.type === "agent"}
-                    className={`endpoint-selector__option${value?.id === a.slug && value.type === "agent" ? " endpoint-selector__option--selected" : ""}`}
+                    aria-selected={value?.id === a.slug && value?.type === "agent"}
+                    className={`endpoint-selector__option${value?.id === a.slug && value?.type === "agent" ? " endpoint-selector__option--selected" : ""}`}
                     onClick={() =>
                       handleSelect({ type: "agent", id: a.slug, label: a.name })
                     }
@@ -224,8 +224,8 @@ export function EndpointSelector({ value, onChange, className }: EndpointSelecto
                     key={w.slug}
                     type="button"
                     role="option"
-                    aria-selected={value?.id === w.slug && value.type === "workflow"}
-                    className={`endpoint-selector__option${value?.id === w.slug && value.type === "workflow" ? " endpoint-selector__option--selected" : ""}`}
+                    aria-selected={value?.id === w.slug && value?.type === "workflow"}
+                    className={`endpoint-selector__option${value?.id === w.slug && value?.type === "workflow" ? " endpoint-selector__option--selected" : ""}`}
                     onClick={() =>
                       handleSelect({ type: "workflow", id: w.slug, label: w.name })
                     }

@@ -856,19 +856,41 @@
 }
 .chat-approval__custom-btns { display: flex; flex-direction: column; gap: var(--sp-1); }
 
-/* Empty state */
+/* ===== Empty State Hub (samples/ 레퍼런스) ===== */
+.chat-empty-hub {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-gradient);
+  position: relative;
+}
 .chat-empty {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--sp-4);
+  gap: var(--sp-3);
   color: var(--muted);
+  cursor: default;
 }
-.chat-empty__icon { font-size: 48px; color: var(--muted); }
-.chat-empty__title { font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
-.chat-empty__subtitle { font-size: var(--fs-sm); max-width: 280px; text-align: center; line-height: 1.5; }
+.chat-empty__icon { font-size: 56px; opacity: 0.6; }
+.chat-empty__title {
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0.85;
+}
+.chat-empty-hub__bottom {
+  flex-shrink: 0;
+  padding: var(--sp-4) var(--sp-6) var(--sp-6);
+  display: flex;
+  justify-content: center;
+}
+.chat-empty-hub__prompt-bar {
+  max-width: var(--prompt-max-width);
+  width: 100%;
+}
 
 /* ===== 햄버거 버튼 ===== */
 .chat-header__burger {
@@ -1348,11 +1370,14 @@
   padding: var(--sp-2) var(--sp-3);
   border: none;
   border-bottom: 1px solid var(--line);
-  background: transparent;
+  background: var(--popover-bg, var(--panel));
   color: var(--text);
   font-size: var(--fs-sm);
   font-family: inherit;
   outline: none;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 .mention-picker__search::placeholder { color: var(--off); }
 .mention-picker__search:focus { background: color-mix(in srgb, var(--accent) 4%, transparent); }
