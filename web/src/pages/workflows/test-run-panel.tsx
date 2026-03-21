@@ -23,9 +23,9 @@ export function TestRunPanel({ workflow_slug, input_schema = [], className }: Te
   const run_mutation = useMutation({
     mutationFn: (payload: Record<string, unknown>) =>
       api.post<{ run_id: string; result?: unknown }>(`/api/workflow/runs`, {
-        template: workflow_slug,
-        input: payload,
-        test_mode: true,
+        template_name: workflow_slug,
+        variables: payload,
+        title: `Test: ${workflow_slug}`,
       }),
     onSuccess: () => setTab("result"),
   });
