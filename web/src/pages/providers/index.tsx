@@ -19,7 +19,7 @@ import {
   useAddGlobalProvider, useDeleteGlobalProvider, type ScopedProvider, type ProviderInput,
 } from "../../hooks/use-team-providers";
 
-type Tab = "providers" | "chat" | "embedding" | "shared";
+type Tab = "providers" | "chat" | "embedding" | "image" | "video" | "shared";
 
 export default function ProvidersPage() {
   const { toast } = useToast();
@@ -52,9 +52,11 @@ export default function ProvidersPage() {
 
   const chatProviders = instances?.filter((i) => (i.model_purpose || "chat") === "chat") ?? [];
   const embedProviders = instances?.filter((i) => i.model_purpose === "embedding") ?? [];
+  const imageProviders = instances?.filter((i) => i.model_purpose === "image") ?? [];
+  const videoProviders = instances?.filter((i) => i.model_purpose === "video") ?? [];
 
   const openAddModal = () => {
-    const purpose = tab === "embedding" ? "embedding" : "chat";
+    const purpose = (tab === "embedding" || tab === "image" || tab === "video") ? tab : "chat";
     setModal({ kind: "add", defaultPurpose: purpose });
   };
 
@@ -62,7 +64,7 @@ export default function ProvidersPage() {
     <div className="page">
       {/* Tab bar */}
       <div className="provider-tabs" role="tablist">
-        {(["providers", "chat", "embedding", "shared"] as const).map((t_id) => (
+        {(["providers", "chat", "embedding", "image", "video", "shared"] as const).map((t_id) => (
           <button
             key={t_id}
             role="tab"
@@ -70,7 +72,7 @@ export default function ProvidersPage() {
             className={`provider-tab${tab === t_id ? " provider-tab--active" : ""}`}
             onClick={() => setTab(t_id)}
           >
-            {t_id === "providers" ? t("providers.tab_providers") : t_id === "chat" ? t("providers.tab_chat") : t_id === "embedding" ? t("providers.tab_embedding") : t("providers.tab_shared")}
+            {t_id === "providers" ? t("providers.tab_providers") : t_id === "chat" ? t("providers.tab_chat") : t_id === "embedding" ? t("providers.tab_embedding") : t_id === "image" ? t("providers.purpose_image") : t_id === "video" ? t("providers.purpose_video") : t("providers.tab_shared")}
             {t_id !== "shared" && (
               <span className="provider-tab__count">
                 {t_id === "providers" ? connections.length : t_id === "chat" ? chatProviders.length : embedProviders.length}

@@ -194,7 +194,7 @@ function WbsDetailPanel({ card, board_id, columns, on_close, on_update, can_mana
 
   const move_to = (col_id: string) =>
     run_action(
-      () => api.patch(`/api/kanban/cards/${encodeURIComponent(card_id)}`, { column_id: col_id }).then(on_update),
+      () => api.put(`/api/kanban/cards/${encodeURIComponent(card_id)}`, { column_id: col_id }).then(on_update),
       undefined,
       t("common.save_failed"),
     );

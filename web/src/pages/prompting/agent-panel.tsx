@@ -148,7 +148,7 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
     if (!ai_prompt.trim()) return;
     setGenerating(true);
     try {
-      const data = await api.post<GeneratedAgentFields>("/api/agent-definitions/generate", { prompt: ai_prompt });
+      const data = await api.post<GeneratedAgentFields>("/api/agent-definitions/generate", { prompt: ai_prompt, provider_id: model.provider_id || undefined });
       setForm((f) => ({
         ...f,
         name: data.name || f.name,

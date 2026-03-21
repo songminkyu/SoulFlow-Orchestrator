@@ -288,7 +288,9 @@ export class ProviderRegistry implements ProviderRegistryLike {
 
   /** 지정 ID의 LlmProvider 인스턴스 반환. AgentBackendRegistry에서 래핑 시 사용. */
   get_provider_instance(provider_id: ProviderId): LlmProvider {
-    const provider = this.providers.get(provider_id);
+    // alias 해석: "claude_cli" → "claude_code", "codex_appserver" → "chatgpt" 등
+    const resolved = parse_provider_id(provider_id) ?? provider_id;
+    const provider = this.providers.get(resolved);
     if (!provider) throw new Error(`provider_not_found:${provider_id}`);
     return provider;
   }

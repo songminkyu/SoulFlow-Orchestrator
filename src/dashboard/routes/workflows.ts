@@ -86,7 +86,7 @@ export const handle_workflow: RouteHandler = async (ctx) => {
 
   // PATCH /api/workflow/runs/:id/settings (FE-6a: team ownership)
   const settings_match = path.match(/^\/api\/workflow\/runs\/([^/]+)\/settings$/);
-  if (settings_match && method === "PATCH") {
+  if (settings_match && (method === "PATCH" || method === "PUT")) {
     if (!ops.update_settings) { json(res, 501, { error: "not_supported" }); return true; }
     const workflow = await ops.get(settings_match[1]);
     if (!workflow || !check_wf_ownership(workflow as unknown as Record<string, unknown>)) { json(res, 404, { error: "not_found" }); return true; }

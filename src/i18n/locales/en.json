@@ -1653,6 +1653,8 @@
   "providers.provider_type": "Provider Type",
   "providers.purpose_chat": "Chat",
   "providers.purpose_embedding": "Embedding",
+  "providers.purpose_image": "Image Generation",
+  "providers.purpose_video": "Video Generation",
   "providers.remove_confirm": "Remove \"{label}\"?",
   "providers.remove_failed": "Remove failed: {error}",
   "providers.remove_title": "Remove Provider",

@@ -275,6 +275,10 @@ export class CliHeadlessProvider extends BaseLlmProvider {
     if (is_gemini_command(command) && args.length === 0) {
       args = ["--output-format", "stream-json"];
     }
+    // tools 명시 시 CLI --tools 플래그 주입: [] → "" (비활성), [a,b] → "a,b" (제한)
+    if (Array.isArray(options.tools) && is_claude_command(command) && !args.includes("--tools")) {
+      args.push("--tools", options.tools.map((t) => String((t as Record<string, unknown>).name ?? "")).filter(Boolean).join(","));
+    }
     args = with_codex_permission_overrides(command, args, options.runtime_policy, this.permission_config);
     args = with_claude_permission_overrides(command, args, options.runtime_policy, this.permission_config);
     args = with_gemini_permission_overrides(command, args, options.runtime_policy, this.permission_config);

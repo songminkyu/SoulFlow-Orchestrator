@@ -48,6 +48,7 @@ import type { ProviderScopeFilter } from "../agent/provider-store.js";
 
 /** TN-5: scope-aware chat provider 선택. 테스트에서 직접 호출 가능. */
 export function find_scoped_chat_provider(provider_store: AgentProviderStore, scope?: ProviderScopeFilter) {
+  // chat 용도만 선택 — embedding 모델은 생성/대화에 사용 불가
   return provider_store.list(scope).find((p) => p.enabled && p.model_purpose === "chat") ?? null;
 }
 
@@ -223,29 +224,58 @@ export function create_dashboard_bundle(deps: DashboardBundleDeps): DashboardBun
     },
     agent_definition_ops: create_agent_definition_ops({
       store: agent_definition_store,
-      generate_fn: async (prompt, scope) => {
+      generate_fn: async (prompt, scope, explicit_provider_id) => {
         const chat_provider = find_scoped_chat_provider(provider_store, scope);
-        const result = await providers.run_headless({
-          provider_id: chat_provider?.provider_type as import("../providers/types.js").ProviderId | undefined,
-          messages: [
-            {
-              role: "user" as const,
-              content: `You are an AI agent designer. Given a description, output a JSON object with these exact fields:
+        const gen_messages = [
+          {
+            role: "user" as const,
+            content: `IMPORTANT: Do NOT use any tools. Respond with plain text only.
+
+You are an AI agent designer. Given a description, output a JSON object with these exact fields:
 {"name":"string","description":"string (one-line Use when... summary)","icon":"single emoji","role_skill":"string|null (e.g. role:pm, role:implementer, or null if custom)","soul":"string (persona/character)","heart":"string (behavior/manner)","tools":["string array"],"shared_protocols":["string array from: clarification-protocol,phase-gates,error-escalation,session-metrics,difficulty-guide"],"skills":[],"use_when":"string","not_use_for":"string","extra_instructions":"","preferred_providers":[],"model":null}
 
 Output ONLY the JSON object, no markdown, no explanation.
 
 Description: ${prompt}`,
-            },
-          ],
-        });
-        if (!result?.content) return null;
-        try {
-          const text = result.content.trim().replace(/^```json?\n?/, "").replace(/\n?```$/, "");
-          return JSON.parse(text) as import("../agent/agent-definition.types.js").GeneratedAgentFields;
-        } catch {
-          return null;
+          },
+        ];
+        // 프로바이더 fallback: explicit → scoped chat → 전체 chat 프로바이더 순회 (embedding 제외)
+        const chat_list = provider_store.list().filter((p) => p.enabled && p.model_purpose === "chat");
+        const candidates = explicit_provider_id
+          ? [explicit_provider_id, ...chat_list.filter((p) => p.provider_type !== explicit_provider_id).map((p) => p.provider_type)]
+          : chat_provider
+            ? [chat_provider.provider_type, ...chat_list.filter((p) => p.provider_type !== chat_provider.provider_type).map((p) => p.provider_type)]
+            : chat_list.map((p) => p.provider_type);
+        let last_error: unknown;
+        for (const pid of candidates) {
+          try {
+            const result = await providers.run_headless({
+              provider_id: pid as import("../providers/types.js").ProviderId | undefined,
+              messages: gen_messages,
+              tools: [], // 도구 비활성화 — 텍스트 전용 응답 강제
+            });
+            // content 또는 tool_calls에서 텍스트 추출
+            let raw = result?.content ?? "";
+            if (!raw && result?.tool_calls?.length) {
+              // tool_calls arguments에서 JSON 추출 시도
+              raw = result.tool_calls.map((tc) => JSON.stringify(tc.arguments)).join("\n");
+            }
+            if (!raw) continue;
+            let text = raw.trim();
+            // CLI 프로바이더 래핑 제거 + JSON 블록 추출
+            text = text.replace(/^```json?\n?/, "").replace(/\n?```$/, "");
+            // 응답에서 첫 번째 JSON 객체 추출 (텍스트가 섞여있을 수 있음)
+            const json_match = text.match(/\{[\s\S]*\}/);
+            if (!json_match) continue;
+            const parsed = JSON.parse(json_match[0]) as import("../agent/agent-definition.types.js").GeneratedAgentFields;
+            // 유효성 검증: 최소한 name 또는 soul 필드가 있어야 유효한 에이전트 정의
+            if (parsed.name || parsed.soul || parsed.heart) return parsed;
+          } catch (e) {
+            last_error = e;
+          }
         }
+        if (last_error) throw last_error;
+        return null;
       },
     }),
     workflow_ops: workflow_ops_result,

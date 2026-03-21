@@ -124,7 +124,7 @@ export interface AgentProviderStatusInfo {
   label: string;
   enabled: boolean;
   priority: number;
-  model_purpose: "chat" | "embedding";
+  model_purpose: "chat" | "embedding" | "image" | "video";
   supported_modes: string[];
   settings: Record<string, unknown>;
   connection_id?: string;

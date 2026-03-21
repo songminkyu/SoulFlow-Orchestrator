@@ -86,7 +86,7 @@ export async function handle_team_providers(ctx: RouteContext): Promise<boolean>
     }
     if (!workspace) { json(res, 503, { error: "workspace_not_configured" }); return true; }
 
-    if (req.method === "PATCH" || req.method === "DELETE") {
+    if (req.method === "PATCH" || req.method === "PUT" || req.method === "DELETE") {
       if (auth_user.role !== "superadmin") {
         const store = ctx.create_team_store(team_id);
         const membership = store.get_membership(auth_user.sub);
@@ -98,7 +98,7 @@ export async function handle_team_providers(ctx: RouteContext): Promise<boolean>
 
     const store = ctx.create_team_store(team_id);
 
-    if (req.method === "PATCH") {
+    if (req.method === "PATCH" || req.method === "PUT") {
       const body = await read_body(req);
       if (!body) { json(res, 400, { error: "invalid_body" }); return true; }
       const updated = store.update_provider(provider_id, {
@@ -154,7 +154,7 @@ export async function handle_team_providers(ctx: RouteContext): Promise<boolean>
     if (!auth_svc || !auth_user) { json(res, 401, { error: "unauthorized" }); return true; }
     if (auth_user.role !== "superadmin") { json(res, 403, { error: "forbidden" }); return true; }
 
-    if (req.method === "PATCH") {
+    if (req.method === "PATCH" || req.method === "PUT") {
       const body = await read_body(req);
       if (!body) { json(res, 400, { error: "invalid_body" }); return true; }
       const updated = auth_svc.update_shared_provider(gp_id, {

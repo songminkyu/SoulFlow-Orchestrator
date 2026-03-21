@@ -5,7 +5,7 @@ import type { AgentDefinition, CreateAgentDefinitionInput, UpdateAgentDefinition
 import type { AgentDefinitionStore, ScopeFilter } from "../../agent/agent-definition.store.js";
 
 /** 자연어 설명 → 구조화된 에이전트 정의 필드 생성 함수. scope로 provider 선택 범위를 제한. */
-export type AgentGenerateFn = (prompt: string, scope?: import("../../agent/provider-store.js").ProviderScopeFilter) => Promise<GeneratedAgentFields | null>;
+export type AgentGenerateFn = (prompt: string, scope?: import("../../agent/provider-store.js").ProviderScopeFilter, provider_id?: string) => Promise<GeneratedAgentFields | null>;
 
 export interface DashboardAgentDefinitionOps {
   list(scope_filter?: ScopeFilter): AgentDefinition[];
@@ -14,7 +14,7 @@ export interface DashboardAgentDefinitionOps {
   update(id: string, patch: UpdateAgentDefinitionInput): { ok: boolean; error?: string };
   delete(id: string): { ok: boolean; error?: string };
   fork(id: string): { ok: boolean; data?: AgentDefinition; error?: string };
-  generate(prompt: string, scope?: import("../../agent/provider-store.js").ProviderScopeFilter): Promise<{ ok: boolean; data?: GeneratedAgentFields; error?: string }>;
+  generate(prompt: string, scope?: import("../../agent/provider-store.js").ProviderScopeFilter, provider_id?: string): Promise<{ ok: boolean; data?: GeneratedAgentFields; error?: string }>;
 }
 
 export function create_agent_definition_ops(deps: {
@@ -67,10 +67,10 @@ export function create_agent_definition_ops(deps: {
       }
     },
 
-    async generate(prompt, scope) {
+    async generate(prompt, scope, provider_id?) {
       if (!generate_fn) return { ok: false, error: "generate_unavailable" };
       try {
-        const data = await generate_fn(prompt, scope);
+        const data = await generate_fn(prompt, scope, provider_id);
         if (!data) return { ok: false, error: "generate_failed" };
         return { ok: true, data };
       } catch (e) {

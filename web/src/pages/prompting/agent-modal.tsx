@@ -102,7 +102,7 @@ export function AgentModal({ mode, onClose, onSaved }: AgentModalProps) {
   async function handle_generate() {
     if (!aiPrompt.trim()) return;
     await runGenerate(async () => {
-      const data = await api.post<GeneratedAgentFields>("/api/agent-definitions/generate", { prompt: aiPrompt });
+      const data = await api.post<GeneratedAgentFields>("/api/agent-definitions/generate", { prompt: aiPrompt, provider_id: form.preferred_providers?.[0] || undefined });
       setForm((f) => ({
         ...f,
         name: data.name || f.name,

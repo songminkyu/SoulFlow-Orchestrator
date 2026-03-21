@@ -4,7 +4,7 @@ export interface ProviderInstance {
   label: string;
   enabled: boolean;
   priority: number;
-  model_purpose: "chat" | "embedding";
+  model_purpose: "chat" | "embedding" | "image" | "video";
   supported_modes: string[];
   settings: Record<string, unknown>;
   connection_id?: string;
@@ -39,18 +39,18 @@ export interface ModelInfo {
   id: string;
   name: string;
   provider: string;
-  purpose: "chat" | "embedding" | "both";
+  purpose: "chat" | "embedding" | "image" | "video" | "both";
   context_length?: number;
   pricing_input?: number;
   pricing_output?: number;
   cost_score?: number;
 }
 
-export type ModalMode = { kind: "add"; defaultPurpose?: "chat" | "embedding" } | { kind: "edit"; instance: ProviderInstance };
+export type ModalMode = { kind: "add"; defaultPurpose?: "chat" | "embedding" | "image" | "video" } | { kind: "edit"; instance: ProviderInstance };
 export type ConnectionModalMode = { kind: "add" } | { kind: "edit"; connection: ProviderConnection };
 
 export const MODE_OPTIONS = ["once", "agent", "task"] as const;
-export const PURPOSE_OPTIONS = ["chat", "embedding"] as const;
+export const PURPOSE_OPTIONS = ["chat", "embedding", "image", "video"] as const;
 
 export const TYPES_WITH_SETTINGS = new Set(["openai_compatible", "openrouter", "ollama"]);
 

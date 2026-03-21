@@ -8,8 +8,8 @@ export type AgentBackendId = string;
 /** 빌트인 프로바이더 타입. 확장 시 register_agent_provider_factory()로 등록. */
 export type AgentProviderType = "claude_cli" | "codex_cli" | "claude_sdk" | "codex_appserver" | (string & {});
 
-/** 모델 용도. chat = 대화/추론, embedding = 텍스트 벡터 변환. */
-export type ModelPurpose = "chat" | "embedding";
+/** 모델 용도. chat = 대화/추론, embedding = 텍스트 벡터 변환, image = 이미지 생성, video = 영상 생성. */
+export type ModelPurpose = "chat" | "embedding" | "image" | "video";
 
 /** 프로바이더 API 연결. 동일 API 키를 공유하는 여러 모델 프리셋의 부모. */
 export type ProviderConnection = {

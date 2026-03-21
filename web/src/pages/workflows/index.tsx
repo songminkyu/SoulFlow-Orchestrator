@@ -51,10 +51,6 @@ const STATUS_VARIANT: Record<string, "ok" | "warn" | "err" | "off"> = {
   waiting_user_input: "warn", pending: "off", reviewing: "warn",
 };
 
-const DESK_CLS: Record<string, string> = {
-  running: "desk--ok", completed: "desk--ok", failed: "desk--err", cancelled: "desk--off",
-  waiting_user_input: "desk--warn", pending: "desk--off", reviewing: "desk--warn",
-};
 
 /** 상태 우선순위: 실행 중 > 대기 > 실패 > 완료 > 취소. */
 const STATUS_ORDER: Record<string, number> = {
@@ -77,12 +73,10 @@ export default function WorkflowsPage() {
   const templateListRef = useRef<HTMLDivElement>(null);
 
   const [tab, setTab] = useState<"templates" | "running">("templates");
-  const [tpl_filter, setTplFilter] = useState<"all" | "my" | "shared">("all");
   const [selectedTpl, setSelectedTpl] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<string | null>(null);
-  const [quickObjective, setQuickObjective] = useState("");
 
   const { data: workflows, isLoading: wfLoading } = useQuery<PhaseLoopState[]>({
     queryKey: ["workflows"],
@@ -124,22 +118,6 @@ export default function WorkflowsPage() {
     },
   });
 
-  const quickRunMut = useMutation({
-    mutationFn: (objective: string) =>
-      api.post<{ ok: boolean; workflow_id?: string; error?: string }>("/api/workflow/runs", { objective, title: objective.slice(0, 60) }),
-    onSuccess: (data) => {
-      if (data.ok && data.workflow_id) {
-        setQuickObjective("");
-        void qc.invalidateQueries({ queryKey: ["workflows"] });
-        toast(t("workflows.created"), "ok");
-        navigate(`/workflows/${data.workflow_id}`);
-      } else {
-        toast(data.error || "Failed", "err");
-      }
-    },
-    onError: () => toast(t("workflows.create_failed"), "err"),
-  });
-
   const runFromTplMut = useMutation({
     mutationFn: (body: { template_name: string; title: string; objective: string }) =>
       api.post<{ ok: boolean; workflow_id?: string; error?: string }>("/api/workflow/runs", body),
@@ -156,17 +134,6 @@ export default function WorkflowsPage() {
     onError: () => toast(t("workflows.create_failed"), "err"),
   });
 
-  const handleQuickRun = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!quickObjective.trim()) return;
-    if (!selectedTpl) {
-      // 템플릿 미선택 → 빌더로 이동해 자연어 워크플로우 자동 생성
-      navigate(`/workflows/new?prompt=${encodeURIComponent(quickObjective.trim())}`);
-      return;
-    }
-    quickRunMut.mutate(quickObjective.trim());
-  };
-
   const sortedWorkflows = (workflows || []).slice().sort((a, b) => {
     const sa = STATUS_ORDER[a.status] ?? 9;
     const sb = STATUS_ORDER[b.status] ?? 9;
@@ -179,148 +146,109 @@ export default function WorkflowsPage() {
 
   return (
     <div className="page">
-      {/* 히어로 헤더 */}
-      <div className="wf-hero">
-        <div className="wf-hero__content">
-          <h1 className="wf-hero__title">{t("workflows.title")}</h1>
-          <p className="wf-hero__desc">{t("workflows.description")}</p>
-          {/* Quick Run */}
-          <form className="wf-hero__quick-run" onSubmit={handleQuickRun}>
-            <div className="wf-hero__input-wrap">
-              <svg className="wf-hero__input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
-              <input
-                autoFocus
-                className="wf-hero__input"
-                value={quickObjective}
-                onChange={(e) => setQuickObjective(e.target.value)}
-                placeholder={t("workflows.quick_run_placeholder")}
-              />
-              <button className="wf-hero__run-btn" type="submit" disabled={!quickObjective.trim() || quickRunMut.isPending}>
-                {quickRunMut.isPending ? <span className="btn__spinner" /> : null}
-                {t("workflows.quick_run")}
-              </button>
-            </div>
-          </form>
+      {/* Page Header — clean, no gradient */}
+      <header className="wf-page-header">
+        <div>
+          <h1 className="wf-page-header__title">{t("workflows.title")}</h1>
+          <p className="wf-page-header__desc">{t("workflows.description")}</p>
         </div>
-        <div className="wf-hero__actions">
+        <div className="wf-page-header__actions">
           {tab === "templates" && (
             <button className="btn btn--sm btn--ghost" onClick={() => setShowImport(true)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
               {t("workflows.import")}
             </button>
           )}
           <button className="btn btn--sm btn--accent" onClick={() => navigate("/workflows/new")}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            {t("workflows.new_workflow")}
+            + {t("workflows.new_workflow")}
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* 탭 */}
-      <div className="builder-tabs mb-3" role="tablist">
-        <button role="tab" aria-selected={tab === "templates"} className={`builder-tab${tab === "templates" ? " active" : ""}`} onClick={() => setTab("templates")}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
-          </svg>
+      {/* Tabs */}
+      <div className="wf-tabs" role="tablist">
+        <button role="tab" aria-selected={tab === "templates"} className={`wf-tab${tab === "templates" ? " wf-tab--active" : ""}`} onClick={() => setTab("templates")}>
           {t("workflows.templates")} ({tplCount})
         </button>
-        <button role="tab" aria-selected={tab === "running"} className={`builder-tab${tab === "running" ? " active" : ""}`} onClick={() => setTab("running")}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="5 3 19 12 5 21 5 3" />
-          </svg>
+        <button role="tab" aria-selected={tab === "running"} className={`wf-tab${tab === "running" ? " wf-tab--active" : ""}`} onClick={() => setTab("running")}>
           {t("workflows.running_tab")} ({runningCount})
         </button>
       </div>
 
-      {/* Templates 카탈로그 */}
+      {/* Templates */}
       {tab === "templates" && (
         <>
-          {/* My/Shared 필터 (B5.1) */}
-          <div className="wf-tpl-filter" style={{ display: "flex", gap: "4px", marginBottom: "var(--sp-2, 8px)" }}>
-            {(["all", "my", "shared"] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                className={`filter-chip${tpl_filter === f ? " filter-chip--active" : ""}`}
-                onClick={() => setTplFilter(f)}
-              >
-                {t(`workflows.filter_${f}`)}
-              </button>
-            ))}
-          </div>
           {tplLoading ? (
-            <SkeletonGrid count={4} cardStyle={{ height: 140 }} />
-          ) : !templates?.length ? (
-            <EmptyState title={t("workflows.no_templates")} actions={<>
-              <button className="btn btn--sm btn--accent" onClick={() => navigate("/workflows/new")}>
-                + {t("workflows.new_workflow")}
-              </button>
-              <button className="btn btn--sm" onClick={() => setShowImport(true)}>
-                {t("workflows.import")}
-              </button>
-            </>} />
+            <SkeletonGrid count={4} cardStyle={{ height: 180 }} />
           ) : (
-            <>
-              <div className="stat-grid stat-grid--wide" ref={templateListRef}>
-                {templates.map((tpl) => {
-                  const agent_count = tpl.phases.reduce((n, p) => n + p.agents.length, 0);
-                  const selected = selectedTpl === tpl.slug;
-                  return (
-                    <div
-                      key={tpl.slug}
-                      role="button"
-                      tabIndex={0}
-                      className={`stat-card desk--info tpl-catalog__card${selected ? " tpl-catalog__card--selected" : ""}`}
-                      onClick={() => setSelectedTpl(selected ? null : tpl.slug)}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedTpl(selected ? null : tpl.slug); } }}
-                    >
-                      <div className="stat-card__header">
-                        <Badge status={`${tpl.phases.length} phases`} variant="info" />
-                        <Badge status={`${agent_count} agents`} variant="off" />
-                      </div>
-                      <div className="stat-card__value stat-card__value--md">{tpl.title}</div>
-                      {tpl.objective && (
-                        <div className="stat-card__extra">
-                          {tpl.objective.length > 80 ? tpl.objective.slice(0, 80) + "…" : tpl.objective}
-                        </div>
-                      )}
-                      <div className="tpl-catalog__phases">
-                        {tpl.phases.map((p, i) => (
-                          <span key={p.phase_id} className="tpl-catalog__phase-chip">
-                            {i > 0 && <span className="tpl-catalog__arrow">→</span>}
-                            {p.title}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
+            <div className="wf-grid" ref={templateListRef}>
+              {/* Create New Card */}
+              <div
+                className="wf-create-card"
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate("/workflows/new")}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate("/workflows/new"); } }}
+              >
+                <div className="wf-create-card__icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </div>
+                <div className="wf-create-card__title">{t("workflows.new_workflow")}</div>
+                <div className="wf-create-card__desc">{t("workflows.quick_run_placeholder")}</div>
               </div>
 
-              {(() => {
-                const tplMatch = selectedTpl ? templates.find((t) => t.slug === selectedTpl) : undefined;
-                return tplMatch ? (
-                <TemplateDetailPanel
-                  template={tplMatch}
-                  initialObjective={quickObjective.trim() || undefined}
-                  onClose={() => setSelectedTpl(null)}
-                  onRun={(body) => {
-                    runFromTplMut.mutate(body);
-                  }}
-                  onEdit={() => navigate(`/workflows/edit/${encodeURIComponent(selectedTpl!)}`)}
-                  onDelete={() => setDeleteTarget(selectedTpl)}
-                  running={runFromTplMut.isPending}
-                />
-                ) : null;
-              })()}
-            </>
+              {/* Template Cards */}
+              {(templates || []).map((tpl) => {
+                const agent_count = tpl.phases.reduce((n, p) => n + p.agents.length, 0);
+                const selected = selectedTpl === tpl.slug;
+                return (
+                  <div
+                    key={tpl.slug}
+                    role="button"
+                    tabIndex={0}
+                    className={`wf-card${selected ? " wf-card--selected" : ""}`}
+                    onClick={() => setSelectedTpl(selected ? null : tpl.slug)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedTpl(selected ? null : tpl.slug); } }}
+                  >
+                    <div className="wf-card__header">
+                      <span className="wf-card__meta">{tpl.phases.length} phases · {agent_count} agents</span>
+                    </div>
+                    <h3 className="wf-card__title">{tpl.title}</h3>
+                    {tpl.objective && (
+                      <p className="wf-card__desc">
+                        {tpl.objective.length > 100 ? tpl.objective.slice(0, 100) + "…" : tpl.objective}
+                      </p>
+                    )}
+                    <div className="wf-card__phases">
+                      {tpl.phases.map((p, i) => (
+                        <span key={p.phase_id} className="wf-card__phase">
+                          {i > 0 && <span className="wf-card__arrow">→</span>}
+                          {p.title}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
+
+          {/* Template Detail */}
+          {(() => {
+            const tplMatch = selectedTpl ? templates?.find((t) => t.slug === selectedTpl) : undefined;
+            return tplMatch ? (
+              <TemplateDetailPanel
+                template={tplMatch}
+                initialObjective={undefined}
+                onClose={() => setSelectedTpl(null)}
+                onRun={(body) => { runFromTplMut.mutate(body); }}
+                onEdit={() => navigate(`/workflows/edit/${encodeURIComponent(selectedTpl!)}`)}
+                onDelete={() => setDeleteTarget(selectedTpl)}
+                running={runFromTplMut.isPending}
+              />
+            ) : null;
+          })()}
 
           <ImportModal
             open={showImport}
@@ -353,7 +281,7 @@ export default function WorkflowsPage() {
         confirmLabel={t("workflows.cancel_confirm_ok")}
       />
 
-      {/* Running 탭 */}
+      {/* Running */}
       {tab === "running" && (
         <>
           {wfLoading ? (
@@ -361,31 +289,25 @@ export default function WorkflowsPage() {
           ) : !sortedWorkflows.length ? (
             <EmptyState title={t("workflows.empty")} description={t("workflows.empty_hint")} />
           ) : (
-            <div className="stat-grid stat-grid--wide">
+            <div className="wf-grid">
               {sortedWorkflows.map((wf) => {
                 const pct = progress_percent(wf);
                 const agent_count = wf.phases.reduce((n, p) => n + p.agents.length, 0);
-                const critic_count = wf.phases.filter((p) => p.critic).length;
                 return (
-                  <div key={wf.workflow_id} className={`stat-card ${DESK_CLS[wf.status] || "desk--off"}`}>
-                    <div className="stat-card__header">
+                  <div key={wf.workflow_id} className={`wf-card wf-card--${wf.status}`}>
+                    <div className="wf-card__header">
                       <Badge status={wf.status} variant={STATUS_VARIANT[wf.status] || "off"} />
-                      <span className="text-xs text-muted" title={new Date(wf.updated_at).toLocaleString()}>
+                      <span className="wf-card__meta" title={new Date(wf.updated_at).toLocaleString()}>
                         {time_ago(wf.updated_at)}
-                        {wf.status === "running" && wf.created_at && (
-                          <> · {time_ago(wf.created_at)} {t("workflows.elapsed")}</>
-                        )}
                       </span>
                     </div>
-                    <div className="stat-card__value stat-card__value--md">{wf.title}</div>
-                    <div className="stat-card__extra">
+                    <h3 className="wf-card__title">{wf.title}</h3>
+                    <p className="wf-card__desc">
                       {wf.objective.length > 100 ? wf.objective.slice(0, 100) + "…" : wf.objective}
-                    </div>
-                    <div className="stat-card__tags">
-                      <Badge status={`Phase ${wf.current_phase + 1}/${wf.phases.length}`} variant="info" />
-                      <Badge status={`${agent_count} agents`} variant="off" />
-                      {critic_count > 0 && <Badge status={`${critic_count} critics`} variant="off" />}
-                    </div>
+                    </p>
+                    <span className="wf-card__meta">
+                      Phase {wf.current_phase + 1}/{wf.phases.length} · {agent_count} agents
+                    </span>
                     <div className="wf-progress" title={`${pct}%`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={t("workflows.progress")}>
                       <div
                         className={`wf-progress__bar${wf.status === "failed" ? " wf-progress__bar--err" : wf.status === "running" ? " wf-progress__bar--running" : ""}`}
@@ -393,17 +315,12 @@ export default function WorkflowsPage() {
                       />
                       <span className="wf-progress__label">{pct}%</span>
                     </div>
-                    <div className="stat-card__actions">
+                    <div className="wf-card__actions">
                       <button className="btn btn--sm btn--ghost" onClick={() => navigate(`/workflows/${wf.workflow_id}`)}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                         {t("workflows.view_detail")}
                       </button>
                       {(wf.status === "running" || wf.status === "waiting_user_input") && (
-                        <button
-                          className="btn btn--sm btn--danger"
-                          onClick={() => setCancelTarget(wf.workflow_id)}
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                        <button className="btn btn--sm btn--danger" onClick={() => setCancelTarget(wf.workflow_id)}>
                           {t("workflows.cancel")}
                         </button>
                       )}

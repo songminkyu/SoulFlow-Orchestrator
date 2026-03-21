@@ -1653,6 +1653,8 @@
   "providers.provider_type": "프로바이더 유형",
   "providers.purpose_chat": "채팅",
   "providers.purpose_embedding": "임베딩",
+  "providers.purpose_image": "이미지 생성",
+  "providers.purpose_video": "영상 생성",
   "providers.remove_confirm": "\"{label}\"을(를) 제거하시겠습니까?",
   "providers.remove_failed": "제거 실패: {error}",
   "providers.remove_title": "프로바이더 제거",

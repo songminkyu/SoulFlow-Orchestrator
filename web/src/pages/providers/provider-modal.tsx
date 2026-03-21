@@ -55,7 +55,7 @@ export function ProviderModal({ mode, connections, onClose, onSaved }: ProviderM
   const [label, setLabel] = useState(initial?.label || "");
   const [enabled, setEnabled] = useState(initial?.enabled ?? true);
   const [priority, setPriority] = useState(initial?.priority ?? 10);
-  const [modelPurpose, setModelPurpose] = useState<"chat" | "embedding">(initial?.model_purpose || defaultPurpose || "chat");
+  const [modelPurpose, setModelPurpose] = useState<"chat" | "embedding" | "image" | "video">(initial?.model_purpose || defaultPurpose || "chat");
   const [token, setToken] = useState("");
   const [selectedModes, setSelectedModes] = useState<Set<string>>(
     new Set(initial?.supported_modes ?? ["once", "agent", "task"]),
@@ -252,7 +252,7 @@ export function ProviderModal({ mode, connections, onClose, onSaved }: ProviderM
           {PURPOSE_OPTIONS.map((p) => (
             <label key={p} className={`chip-label${modelPurpose === p ? " chip-label--active" : ""}`}>
               <input type="radio" name="model_purpose" value={p} checked={modelPurpose === p} onChange={() => setModelPurpose(p)} className="sr-only" />
-              {p === "chat" ? t("providers.purpose_chat") : t("providers.purpose_embedding")}
+              {p === "chat" ? t("providers.purpose_chat") : p === "embedding" ? t("providers.purpose_embedding") : p === "image" ? t("providers.purpose_image") : t("providers.purpose_video")}
             </label>
           ))}
         </div>

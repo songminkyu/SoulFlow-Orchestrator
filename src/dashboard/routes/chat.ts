@@ -111,7 +111,7 @@ export async function handle_chat(ctx: RouteContext): Promise<boolean> {
   }
 
   // PATCH /api/chat/sessions/:id — 세션 이름 변경
-  if (id_match && req.method === "PATCH") {
+  if (id_match && (req.method === "PATCH" || req.method === "PUT")) {
     const session_id = decodeURIComponent(id_match[1]);
     const session = chat_sessions.get(session_id);
     if (!session || session.user_id !== user_id || session.team_id !== team_id) { json(res, 404, { error: "not_found" }); return true; }

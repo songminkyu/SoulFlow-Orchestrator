@@ -115,7 +115,7 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
   // ── PATCH /api/admin/users/:id/password ──
 
   const pw_m = RE_USER_PW.exec(url.pathname);
-  if (pw_m && req.method === "PATCH") {
+  if (pw_m && (req.method === "PATCH" || req.method === "PUT")) {
     const body = await read_body(req);
     if (!body) { json(res, 400, { error: "invalid_body" }); return true; }
     const password = typeof body.password === "string" ? body.password : "";
@@ -128,7 +128,7 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
   // ── PATCH /api/admin/users/:id/team ──
 
   const tm_m = RE_USER_TM.exec(url.pathname);
-  if (tm_m && req.method === "PATCH") {
+  if (tm_m && (req.method === "PATCH" || req.method === "PUT")) {
     const body = await read_body(req);
     if (!body) { json(res, 400, { error: "invalid_body" }); return true; }
     const team_id = typeof body.team_id === "string" ? body.team_id.trim() : "";
@@ -236,7 +236,7 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
     const [, team_id, user_id] = mbr_u_m;
     if (!workspace) { json(res, 503, { error: "workspace_not_configured" }); return true; }
 
-    if (req.method === "PATCH") {
+    if (req.method === "PATCH" || req.method === "PUT") {
       const body = await read_body(req);
       const raw_role = body?.role;
       const role: TeamRole = VALID_ROLES.includes(raw_role as TeamRole) ? raw_role as TeamRole : "member";
@@ -266,7 +266,7 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
       return true;
     }
 
-    if (req.method === "PATCH") {
+    if (req.method === "PATCH" || req.method === "PUT") {
       if (!team) { json(res, 404, { error: "not_found" }); return true; }
       const body = await read_body(req);
       const name = typeof body?.name === "string" ? body.name.trim() : "";

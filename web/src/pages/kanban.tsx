@@ -192,14 +192,14 @@ export default function KanbanPage() {
 
   const move_card = (card_id: string, column_id: string) =>
     run_action(
-      () => api.patch(`/api/kanban/cards/${encodeURIComponent(card_id)}`, { column_id }).then(refresh),
+      () => api.put(`/api/kanban/cards/${encodeURIComponent(card_id)}`, { column_id }).then(refresh),
       undefined,
       t("kanban.move_failed"),
     );
 
   const update_card = (card_id: string, data: Record<string, unknown>) =>
     run_action(
-      () => api.patch(`/api/kanban/cards/${encodeURIComponent(card_id)}`, data).then(refresh),
+      () => api.put(`/api/kanban/cards/${encodeURIComponent(card_id)}`, data).then(refresh),
       undefined,
       t("kanban.update_failed"),
     );

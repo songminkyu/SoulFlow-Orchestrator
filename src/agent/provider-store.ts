@@ -28,7 +28,7 @@ const INIT_SQL = `
     label           TEXT NOT NULL DEFAULT '',
     enabled         INTEGER NOT NULL DEFAULT 1,
     priority        INTEGER NOT NULL DEFAULT 100,
-    model_purpose   TEXT NOT NULL DEFAULT 'chat' CHECK(model_purpose IN ('chat','embedding')),
+    model_purpose   TEXT NOT NULL DEFAULT 'chat' CHECK(model_purpose IN ('chat','embedding','image','video')),
     supported_modes TEXT NOT NULL DEFAULT '["once","agent","task"]',
     settings_json   TEXT NOT NULL DEFAULT '{}',
     connection_id   TEXT,
@@ -38,7 +38,7 @@ const INIT_SQL = `
 `;
 
 const MIGRATE_MODEL_PURPOSE = `
-  ALTER TABLE agent_providers ADD COLUMN model_purpose TEXT NOT NULL DEFAULT 'chat' CHECK(model_purpose IN ('chat','embedding'));
+  ALTER TABLE agent_providers ADD COLUMN model_purpose TEXT NOT NULL DEFAULT 'chat' CHECK(model_purpose IN ('chat','embedding','image','video'));
 `;
 
 const MIGRATE_CONNECTION_ID = `
@@ -95,7 +95,7 @@ function row_to_config(r: ProviderRow): AgentProviderConfig {
     label: r.label,
     enabled: r.enabled === 1,
     priority: r.priority,
-    model_purpose: (r.model_purpose === "embedding" ? "embedding" : "chat") as ModelPurpose,
+    model_purpose: (["chat", "embedding", "image", "video"].includes(r.model_purpose) ? r.model_purpose : "chat") as ModelPurpose,
     supported_modes: safe_parse_modes(r.supported_modes),
     settings: JSON.parse(r.settings_json),
     connection_id: r.connection_id || undefined,
@@ -138,6 +138,29 @@ export class AgentProviderStore {
         "SELECT 1 FROM pragma_table_info('agent_providers') WHERE name='connection_id'",
       ).get();
       if (!has_conn) db.exec(MIGRATE_CONNECTION_ID);
+      // 마이그레이션: model_purpose CHECK 확장 (image, video 추가)
+      // SQLite는 CHECK를 ALTER로 변경할 수 없으므로 테이블 재생성
+      try {
+        db.exec("INSERT INTO agent_providers (instance_id, model_purpose) VALUES ('__check_test__', 'image')");
+        db.exec("DELETE FROM agent_providers WHERE instance_id = '__check_test__'");
+      } catch {
+        // CHECK 실패 → 기존 스키마가 image/video 미지원 → 테이블 재생성
+        // 기존 컬럼 목록을 동적으로 읽어서 안전하게 복사
+        const cols = (db.prepare("SELECT name FROM pragma_table_info('agent_providers')").all() as Array<{ name: string }>).map((c) => c.name);
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS agent_providers_new (
+            instance_id TEXT PRIMARY KEY, provider_type TEXT NOT NULL, label TEXT NOT NULL DEFAULT '',
+            enabled INTEGER NOT NULL DEFAULT 1, priority INTEGER NOT NULL DEFAULT 100,
+            model_purpose TEXT NOT NULL DEFAULT 'chat' CHECK(model_purpose IN ('chat','embedding','image','video')),
+            supported_modes TEXT NOT NULL DEFAULT '["once","agent","task"]', settings_json TEXT NOT NULL DEFAULT '{}',
+            connection_id TEXT, scope_type TEXT NOT NULL DEFAULT 'global', scope_id TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
+          INSERT OR IGNORE INTO agent_providers_new (${cols.join(",")}) SELECT ${cols.join(",")} FROM agent_providers;
+          DROP TABLE agent_providers;
+          ALTER TABLE agent_providers_new RENAME TO agent_providers;
+        `);
+      }
       // 마이그레이션: scope 컬럼 추가 (3-tier 리소스 스코핑)
       const has_scope = db.prepare(
         "SELECT 1 FROM pragma_table_info('agent_providers') WHERE name='scope_type'",
