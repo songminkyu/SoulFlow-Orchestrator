@@ -697,6 +697,31 @@ export function AgentEditModal({ workflow, subNodeId, onChange, onClose, onSubNo
             </div>
             <textarea className="input input--sm" rows={5} value={agent.system_prompt} onChange={(e) => updateAgent({ system_prompt: e.target.value })} />
           </BuilderField>
+          {/* 구조화된 출력 */}
+          <BuilderField label={t("workflows.llm_structured_output")}>
+            <label className="builder-checkbox-label">
+              <input
+                type="checkbox"
+                checked={!!(agent as Record<string, unknown>).output_json_schema}
+                onChange={(e) => {
+                  if (!e.target.checked) updateAgent({ output_json_schema: undefined } as Partial<AgentDef>);
+                  else updateAgent({ output_json_schema: '{"type":"object","properties":{}}' } as unknown as Partial<AgentDef>);
+                }}
+              />
+              {t("workflows.llm_structured_output")}
+            </label>
+          </BuilderField>
+          {(agent as Record<string, unknown>).output_json_schema && (
+            <BuilderField label={t("workflows.llm_schema")}>
+              <textarea
+                className="input input--sm code-textarea"
+                rows={4}
+                value={String((agent as Record<string, unknown>).output_json_schema || "")}
+                onChange={(e) => updateAgent({ output_json_schema: e.target.value } as unknown as Partial<AgentDef>)}
+                placeholder='{"type": "object", "properties": {...}}'
+              />
+            </BuilderField>
+          )}
         </div>
         <div className="modal__footer">
           <button className="btn btn--sm" onClick={onClose}>{t("workflows.close")}</button>

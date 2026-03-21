@@ -223,7 +223,7 @@ export function PhaseNode({
       )}
       <rect width={pos.width} height={pos.height} rx={12} fill="var(--node-bg, #1e272f)"
         stroke={borderColor} strokeWidth={isRunning ? 2.5 : isSelected ? 2.5 : 1} filter="url(#node-shadow)" />
-      {/* Left color strip — reference feature8 */}
+      {/* Left color strip */}
       <rect x={0} y={4} width={3.5} height={pos.height - 8} rx={2} fill={borderColor} opacity={0.85} />
       <clipPath id={`clip-header-${phase.phase_id}`}>
         <rect width={pos.width} height={HEADER_H} rx={12} />
@@ -246,11 +246,26 @@ export function PhaseNode({
           }} title={phase.description}>{phase.description}</div>
         </foreignObject>
       ) : (
-        <text x={12} y={HEADER_H + 14} fill="var(--muted, #a0adb8)" fontSize={10}>
-          {phase.agents.length} agent{phase.agents.length !== 1 ? "s" : ""}
-          {phase.critic ? " · critic" : ""}
-          {mode !== "parallel" ? ` · ${MODE_ICON[mode]}` : ""}
-        </text>
+        <>
+          <text x={12} y={HEADER_H + 14} fill="var(--muted, #a0adb8)" fontSize={10}>
+            {phase.agents.length} agent{phase.agents.length !== 1 ? "s" : ""}
+            {phase.critic ? " · critic" : ""}
+            {mode !== "parallel" ? ` · ${MODE_ICON[mode]}` : ""}
+          </text>
+          {/* context_template {{변수명}} 표시 */}
+          {(() => {
+            const tpl = (phase as Record<string, unknown>).context_template as string | undefined;
+            if (!tpl) return null;
+            const vars = [...new Set((tpl.match(/\{\{(\w+)\}\}/g) || []).map((m: string) => m.slice(2, -2)))].slice(0, 4);
+            if (!vars.length) return null;
+            return vars.map((v, i) => (
+              <g key={v} transform={`translate(12, ${HEADER_H + 24 + i * 14})`}>
+                <circle cx={4} cy={-3} r={2.5} fill="var(--accent, #89b4fa)" opacity={0.6} />
+                <text x={10} y={0} fill="var(--muted, #a0adb8)" fontSize={9}>{v}</text>
+              </g>
+            ));
+          })()}
+        </>
       )}
 
       {phase.depends_on?.length ? (
@@ -485,8 +500,42 @@ function OrcheRectNode({ node, pos, nodeStatus, onFieldDragStart }: {
           {subtitle.length > 24 ? subtitle.slice(0, 24) + "…" : subtitle}
         </text>
       )}
-      <rect x={-5} y={pos.height / 2 - 5} width={10} height={10} rx={5} fill="var(--panel-elevated, #1e272f)" stroke="var(--muted, #6c7086)" strokeWidth={1.5} className="graph-port graph-port--in" />
-      <OutputPort nodeWidth={pos.width} nodeHeight={pos.height} nodeId={node.id} onFieldDragStart={onFieldDragStart} />
+      {/* flow 노드: output_schema 기반 멀티 포트 */}
+      {(() => {
+        const desc = get_frontend_node(node.type);
+        const is_flow = desc?.category === "flow";
+        const outputs = desc?.output_schema || [];
+        if (is_flow && outputs.length > 1) {
+          const PORT_COLORS = ["#3498db", "#2ecc71", "#e91e63", "#f39c12", "#9b59b6", "#00bcd4"];
+          return (
+            <>
+              {outputs.slice(0, 6).map((out, i) => {
+                const py = HEADER_H + 20 + i * 16;
+                const pc = PORT_COLORS[i % PORT_COLORS.length];
+                return (
+                  <g key={out.name}>
+                    <circle cx={6} cy={py} r={3} fill={pc} opacity={0.7} />
+                    <text x={14} y={py + 3} fill="var(--muted, #a0adb8)" fontSize={8}>{out.name}</text>
+                    <circle cx={pos.width} cy={py} r={14} fill="transparent"
+                      className="graph-port graph-port--field" data-port-name={out.name}
+                      style={{ cursor: "crosshair" }}
+                      onMouseDown={onFieldDragStart ? (e) => { e.stopPropagation(); onFieldDragStart(node.id, out.name, e); } : undefined}
+                    />
+                    <circle cx={pos.width} cy={py} r={FIELD_PORT_R} fill={pc} stroke={pc} strokeWidth={1} pointerEvents="none" />
+                  </g>
+                );
+              })}
+              <rect x={-5} y={pos.height / 2 - 5} width={10} height={10} rx={5} fill="var(--panel-elevated, #1e272f)" stroke="var(--muted, #6c7086)" strokeWidth={1.5} className="graph-port graph-port--in" />
+            </>
+          );
+        }
+        return (
+          <>
+            <rect x={-5} y={pos.height / 2 - 5} width={10} height={10} rx={5} fill="var(--panel-elevated, #1e272f)" stroke="var(--muted, #6c7086)" strokeWidth={1.5} className="graph-port graph-port--in" />
+            <OutputPort nodeWidth={pos.width} nodeHeight={pos.height} nodeId={node.id} onFieldDragStart={onFieldDragStart} />
+          </>
+        );
+      })()}
     </g>
   );
 }

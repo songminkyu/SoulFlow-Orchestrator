@@ -2,7 +2,7 @@
  * Inspector parameter panels — Phase, Agent, Critic, Tool, Skill, EndTarget, SubNode.
  */
 
-import { useState, type ReactNode } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import type { NodeOptions } from "./node-registry";
@@ -11,6 +11,88 @@ import { END_TARGET_PARAMS } from "./output-schema";
 import type { PhaseDef, AgentDef, CriticDef, ToolNodeDef, SkillNodeDef, WorkflowDef, RolePreset } from "./workflow-types";
 import type { TFunction } from "../../../../src/i18n/protocol";
 import { handleFieldDrop, handleDragOver } from "./inspector-dnd";
+
+/** 뱃지 렌더링 가능한 텍스트 에디터 — {{node.field}} 참조를 인라인 뱃지로 표시 */
+function RichRefEditor({ value, onChange, onDrop, placeholder, rows }: {
+  value: string;
+  onChange: (v: string) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  placeholder?: string;
+  rows?: number;
+}) {
+  const [editing, setEditing] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  // 편집 모드: 일반 textarea
+  if (editing) {
+    return (
+      <textarea ref={taRef} className="input input--sm inspector-droppable" rows={rows || 2}
+        autoFocus value={value} onChange={(e) => onChange(e.target.value)}
+        onBlur={() => setEditing(false)}
+        onDrop={onDrop} onDragOver={handleDragOver}
+        placeholder={placeholder} data-droppable="true"
+      />
+    );
+  }
+
+  const refs = [...(value.matchAll(/\{\{([^}]+)\}\}/g))].map((m) => ({ full: m[0], inner: m[1]!, index: m.index! }));
+
+  if (refs.length === 0) {
+    return (
+      <textarea className="input input--sm inspector-droppable" rows={rows || 2}
+        value={value} onChange={(e) => onChange(e.target.value)}
+        onDrop={onDrop} onDragOver={handleDragOver}
+        placeholder={placeholder} data-droppable="true"
+      />
+    );
+  }
+
+  // 뱃지 뷰 — 클릭하면 편집 모드 전환
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+  refs.forEach((ref, i) => {
+    if (ref.index > cursor) parts.push(<span key={`t${i}`} className="rich-ref-text">{value.slice(cursor, ref.index)}</span>);
+    const [nodeId, ...fieldParts] = ref.inner.split(".");
+    parts.push(
+      <span key={`r${i}`} className="var-ref-chip" style={{ display: "inline-flex", gap: "2px", fontSize: "11px", padding: "1px 6px", verticalAlign: "middle" }}>
+        <span className="var-ref-chip__node">{nodeId}</span>
+        {fieldParts.length > 0 && <><span className="var-ref-chip__dot">.</span><span className="var-ref-chip__field">{fieldParts.join(".")}</span></>}
+        <button type="button" className="var-ref-chip__remove" onClick={(e) => { e.stopPropagation(); onChange(value.replace(ref.full, "")); }}>&times;</button>
+      </span>
+    );
+    cursor = ref.index + ref.full.length;
+  });
+  if (cursor < value.length) parts.push(<span key="tail" className="rich-ref-text">{value.slice(cursor)}</span>);
+
+  return (
+    <div className="rich-ref-editor inspector-droppable" data-droppable="true"
+      onDrop={onDrop} onDragOver={handleDragOver}
+      onClick={() => setEditing(true)}
+    >
+      <div className="rich-ref-editor__content">{parts}</div>
+    </div>
+  );
+}
+
+/** 텍스트에서 {{...}} 참조를 뱃지로 표시 (읽기 전용 미리보기) */
+function RefBadgePreview({ text, onRemove }: { text: string; onRemove: (ref: string) => void }) {
+  const refs = [...(text.matchAll(/\{\{([^}]+)\}\}/g))].map((m) => ({ full: m[0], inner: m[1]! }));
+  if (refs.length === 0) return null;
+  return (
+    <div className="ref-badge-preview">
+      {refs.map((ref, i) => {
+        const [nodeId, ...fieldParts] = ref.inner.split(".");
+        return (
+          <span key={i} className="var-ref-chip" style={{ display: "inline-flex", gap: "2px", fontSize: "11px", padding: "1px 6px" }}>
+            <span className="var-ref-chip__node">{nodeId}</span>
+            {fieldParts.length > 0 && <><span className="var-ref-chip__dot">.</span><span className="var-ref-chip__field">{fieldParts.join(".")}</span></>}
+            <button type="button" className="var-ref-chip__remove" onClick={() => onRemove(ref.full)}>&times;</button>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 // ── Phase Parameters Panel ──
 
@@ -24,6 +106,19 @@ export function PhaseParamsPanel({ phase, workflow, onChange, onPhaseIdChange, t
 }) {
   const pi = workflow.phases.findIndex((p) => p.phase_id === phase.phase_id);
   if (pi < 0) return null;
+
+  // upstream 필드 수집 (삽입 버튼용)
+  const upstreamFields: string[] = (() => {
+    const deps = phase.depends_on || (pi > 0 ? [workflow.phases[pi - 1]!.phase_id] : []);
+    const fields: string[] = [];
+    for (const depId of deps) {
+      const dep = workflow.phases.find((p) => p.phase_id === depId);
+      if (dep) { fields.push(`${depId}.result`, `${depId}.agents`); }
+      const orche = (workflow.orche_nodes || []).find((n) => n.node_id === depId);
+      if (orche) { fields.push(`${depId}.output`); }
+    }
+    return fields;
+  })();
 
   const updatePhase = (patch: Partial<PhaseDef>) => {
     const oldId = phase.phase_id;
@@ -92,10 +187,12 @@ export function PhaseParamsPanel({ phase, workflow, onChange, onPhaseIdChange, t
       </BuilderRowPair>
 
       <BuilderField label={t("workflows.phase_description")}>
-        <textarea className="input input--sm" rows={2}
+        <RichRefEditor
           value={phase.description || ""}
-          onChange={(e) => updatePhase({ description: e.target.value })}
+          onChange={(v) => updatePhase({ description: v })}
+          onDrop={(e) => handleFieldDrop(e, (ref) => updatePhase({ description: (phase.description || "") + ref }))}
           placeholder={t("workflows.phase_description_placeholder")}
+          rows={2}
         />
       </BuilderField>
 
@@ -150,13 +247,12 @@ export function PhaseParamsPanel({ phase, workflow, onChange, onPhaseIdChange, t
       </BuilderRowPair>
 
       <BuilderField label={t("workflows.context_template")} hint={t("workflows.context_template_hint")}>
-        <textarea className="input input--sm inspector-droppable" rows={2}
+        <RichRefEditor
           value={phase.context_template || ""}
-          onChange={(e) => updatePhase({ context_template: e.target.value })}
+          onChange={(v) => updatePhase({ context_template: v })}
           onDrop={(e) => handleFieldDrop(e, (ref) => updatePhase({ context_template: (phase.context_template || "") + ref }))}
-          onDragOver={handleDragOver}
           placeholder="{{prev_phase.result}}"
-          data-droppable="true"
+          rows={2}
         />
       </BuilderField>
 
@@ -341,12 +437,11 @@ export function AgentSummaryCard({ agent, index, phase, workflow, onChange, onNo
             </BuilderField>
           </BuilderRowPair>
           <BuilderField label={t("workflows.system_prompt")}>
-            <textarea className="input input--sm inspector-droppable" rows={4}
+            <RichRefEditor
               value={agent.system_prompt}
-              onChange={(e) => updateAgent({ system_prompt: e.target.value })}
+              onChange={(v) => updateAgent({ system_prompt: v })}
               onDrop={(e) => handleFieldDrop(e, (ref) => updateAgent({ system_prompt: agent.system_prompt + ref }))}
-              onDragOver={handleDragOver}
-              data-droppable="true"
+              rows={4}
             />
           </BuilderField>
           <div className="inspector-card__actions">
@@ -425,12 +520,11 @@ export function CriticSummaryCard({ critic, phase, workflow, onChange, t, option
             </BuilderField>
           )}
           <BuilderField label={t("workflows.system_prompt")}>
-            <textarea className="input input--sm inspector-droppable" rows={4}
+            <RichRefEditor
               value={critic.system_prompt}
-              onChange={(e) => updateCritic({ system_prompt: e.target.value })}
+              onChange={(v) => updateCritic({ system_prompt: v })}
               onDrop={(e) => handleFieldDrop(e, (ref) => updateCritic({ system_prompt: critic.system_prompt + ref }))}
-              onDragOver={handleDragOver}
-              data-droppable="true"
+              rows={4}
             />
           </BuilderField>
     </CollapsibleCard>

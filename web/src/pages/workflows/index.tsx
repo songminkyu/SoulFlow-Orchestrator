@@ -589,7 +589,7 @@ function ImportModal({ open, onClose, onImported }: {
   );
 }
 
-// ── Creation Wizard Modal (레퍼런스: feature5.png) ──
+// ── Creation Wizard Modal ──
 
 function CreateWizardModal({ onClose, onCreateBlank, onCreateWithPrompt }: {
   onClose: () => void;

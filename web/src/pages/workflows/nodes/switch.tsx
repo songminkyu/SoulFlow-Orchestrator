@@ -3,14 +3,8 @@ import type { FrontendNodeDescriptor, EditPanelProps } from "../node-registry";
 
 type SwitchCase = { value: string; targets: string[] };
 
-const CASE_COLORS = [
-  "color-mix(in srgb, #3498db 25%, transparent)",
-  "color-mix(in srgb, #2ecc71 25%, transparent)",
-  "color-mix(in srgb, #e91e63 25%, transparent)",
-  "color-mix(in srgb, #f39c12 25%, transparent)",
-  "color-mix(in srgb, #9b59b6 25%, transparent)",
-  "color-mix(in srgb, #00bcd4 25%, transparent)",
-];
+const CASE_COLORS_SOLID = ["#3498db", "#2ecc71", "#e91e63", "#f39c12", "#9b59b6", "#00bcd4"];
+const CASE_COLORS_BG = CASE_COLORS_SOLID.map((c) => `color-mix(in srgb, ${c} 12%, transparent)`);
 
 function SwitchEditPanel({ node, update, t, options }: EditPanelProps) {
   const cases = (node.cases as SwitchCase[]) || [];
@@ -30,25 +24,25 @@ function SwitchEditPanel({ node, update, t, options }: EditPanelProps) {
       </BuilderField>
       <div className="builder-row">
         <label className="label">{t("workflows.switch_cases")}</label>
-        {cases.map((c, i) => (
-          <div key={i} className="builder-nested-block switch-case-block" data-case-index={i}>
-            <div className="builder-inline-row" style={{ marginBottom: "4px" }}>
-              <span
-                className="switch-case-label"
-                style={{ background: CASE_COLORS[i % CASE_COLORS.length] }}
-              >
-                CASE {i + 1}
-              </span>
-              <input className="input input--sm" style={{ flex: 1 }} value={c.value} onChange={(e) => update_case(i, { value: e.target.value })} placeholder="success" />
-              <button type="button" className="btn btn--xs btn--danger" onClick={() => remove_case(i)}>{"\u2715"}</button>
+        {cases.map((c, i) => {
+          const color = CASE_COLORS_SOLID[i % CASE_COLORS_SOLID.length];
+          return (
+            <div key={i} className="switch-case-block" style={{ borderLeft: `3px solid ${color}`, background: CASE_COLORS_BG[i % CASE_COLORS_BG.length], borderRadius: "var(--radius-md)", padding: "var(--sp-2) var(--sp-3)", marginBottom: "var(--sp-2)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)", marginBottom: "var(--sp-1)" }}>
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                <input className="input input--sm" style={{ flex: 1 }} value={c.value} onChange={(e) => update_case(i, { value: e.target.value })} placeholder={`condition-${i + 1}`} />
+                <button type="button" className="btn btn--xs btn--ghost" onClick={() => remove_case(i)} style={{ color: "var(--err)" }}>{"\u2715"}</button>
+              </div>
+              <NodeMultiSelect value={c.targets} onChange={(ids) => update_case(i, { targets: ids })} nodes={wf_nodes} placeholder={t("workflows.switch_target_hint")} />
             </div>
-            <NodeMultiSelect value={c.targets} onChange={(ids) => update_case(i, { targets: ids })} nodes={wf_nodes} placeholder="target-node" />
-          </div>
-        ))}
+          );
+        })}
         <button type="button" className="btn btn--xs" onClick={add_case}>+ {t("workflows.switch_add_case")}</button>
       </div>
       <BuilderField label={t("workflows.switch_default")}>
-        <NodeMultiSelect value={default_targets} onChange={(ids) => update({ default_targets: ids })} nodes={wf_nodes} placeholder="fallback-node" />
+        <div style={{ borderLeft: "3px solid var(--muted)", background: "var(--hover)", borderRadius: "var(--radius-md)", padding: "var(--sp-2) var(--sp-3)" }}>
+          <NodeMultiSelect value={default_targets} onChange={(ids) => update({ default_targets: ids })} nodes={wf_nodes} placeholder="fallback-node" />
+        </div>
       </BuilderField>
     </>
   );

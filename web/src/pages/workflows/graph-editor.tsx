@@ -520,7 +520,7 @@ export function GraphEditor({
     // 모든 노드의 모든 입력 포트 위치를 계산하여 가장 가까운 포트 탐지
     let target_id: string | null = null;
     let target_port: string | null = null;
-    let min_dist = 30;
+    let min_dist = 60;
 
     for (const [id, pos] of positions) {
       if (id === drag.from_id) continue;

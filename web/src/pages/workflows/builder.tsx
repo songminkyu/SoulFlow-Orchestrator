@@ -11,6 +11,7 @@ import { useT } from "../../i18n";
 import { GraphEditor, type WorkflowDef, type AgentDef, type PhaseDef, type ToolNodeDef, type SkillNodeDef, type OrcheNodeDef, type TriggerNodeDef } from "./graph-editor";
 import { NodeInspector, type UpstreamRef } from "./node-inspector";
 import { get_output_fields } from "./output-schema";
+import { get_frontend_node } from "./node-registry";
 import { PhaseEditModal, CronEditModal, TriggerNodeEditModal, ChannelEditModal, OrcheNodeEditModal, AgentEditModal } from "./builder-modals";
 import { WorkflowPromptBar, NodeRunInputBar } from "./builder-bars";
 import { workflow_def_to_mermaid } from "./workflow-diagram";
@@ -140,6 +141,85 @@ function empty_workflow(): WorkflowDef {
 }
 
 // ── Page ──
+
+function TestRunInlinePanel({ nodeId, nodeResult, inputSchema, onRunWithInput, t }: {
+  nodeId: string;
+  nodeResult: { id: string; mode: string; result?: Record<string, unknown>; error?: string; loading: boolean } | null;
+  inputSchema: Array<{ name: string; type: string }>;
+  onRunWithInput: (mode: "test" | "run", inputMemory: Record<string, unknown>) => void;
+  t: (k: string) => string;
+}) {
+  const [tab, setTab] = useState<"input" | "result">("input");
+  const [inputs, setInputs] = useState<Record<string, string>>({});
+  const active = nodeResult?.id === nodeId;
+
+  const updateInput = (name: string, value: string) => setInputs((prev) => ({ ...prev, [name]: value }));
+  const buildMemory = () => {
+    const mem: Record<string, unknown> = {};
+    for (const field of inputSchema) {
+      const val = inputs[field.name] ?? "";
+      if (!val) continue;
+      if (field.type === "number") mem[field.name] = Number(val) || 0;
+      else if (field.type === "boolean") mem[field.name] = val === "true";
+      else mem[field.name] = val;
+    }
+    return mem;
+  };
+
+  return (
+    <div className="builder-test-run">
+      <div className="builder-test-run__header">
+        <span className="builder-test-run__title">Test Run</span>
+      </div>
+      <div className="builder-test-run__tabs">
+        <button className={`builder-test-run__tab${tab === "input" ? " builder-test-run__tab--active" : ""}`} onClick={() => setTab("input")}>Input</button>
+        <button className={`builder-test-run__tab${tab === "result" ? " builder-test-run__tab--active" : ""}`} onClick={() => setTab("result")}>Result</button>
+      </div>
+      <div className="builder-test-run__body">
+        {tab === "input" ? (
+          <div>
+            {inputSchema.length > 0 ? (
+              <div className="builder-test-run__fields">
+                {inputSchema.map((field) => (
+                  <div key={field.name} className="builder-test-run__field">
+                    <label className="builder-test-run__field-label">{field.name} <span style={{ color: "var(--muted)", fontSize: "10px" }}>{field.type}</span></label>
+                    {field.type === "string" || field.type === "unknown" ? (
+                      <textarea className="input input--sm" rows={2} value={inputs[field.name] ?? ""} onChange={(e) => updateInput(field.name, e.target.value)} placeholder={`{{${field.name}}}`} />
+                    ) : (
+                      <input className="input input--sm" value={inputs[field.name] ?? ""} onChange={(e) => updateInput(field.name, e.target.value)} placeholder={field.type} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="builder-test-run__empty" style={{ padding: "var(--sp-2)" }}>{t("workflows.test_run_no_inputs")}</div>
+            )}
+            <div className="builder-test-run__actions">
+              <button className="btn btn--sm btn--accent" onClick={() => { onRunWithInput("test", buildMemory()); setTab("result"); }} disabled={active && nodeResult?.loading}>
+                {active && nodeResult?.loading ? <><span className="btn__spinner" /> {t("workflows.running_node")}</> : <>{"\u25B6"} Test</>}
+              </button>
+              <button className="btn btn--sm btn--ghost" onClick={() => { onRunWithInput("run", buildMemory()); setTab("result"); }} disabled={active && nodeResult?.loading}>
+                {"\u25B6\u25B6"} Run
+              </button>
+            </div>
+          </div>
+        ) : (
+          active ? (
+            nodeResult.loading ? (
+              <div className="builder-test-run__loading"><span className="btn__spinner" /> {t("workflows.running_node")}</div>
+            ) : nodeResult.error ? (
+              <pre className="builder-test-run__error">{nodeResult.error}</pre>
+            ) : (
+              <pre className="builder-test-run__result">{JSON.stringify(nodeResult.result, null, 2)}</pre>
+            )
+          ) : (
+            <div className="builder-test-run__empty">{t("workflows.test_run_hint")}</div>
+          )
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function WorkflowBuilderPage() {
   const { name } = useParams<{ name: string }>();
@@ -673,26 +753,32 @@ export default function WorkflowBuilderPage() {
   const upstreamRefs: UpstreamRef[] = (() => {
     if (!inspectorNodeId) return [];
     const refs: UpstreamRef[] = [];
-    // Phase의 depends_on (명시적) 또는 배열 순서 기반 암시적 의존성
-    const phase = workflow.phases.find((p) => p.phase_id === inspectorNodeId);
-    const orcheNode = (workflow.orche_nodes || []).find((n) => n.node_id === inspectorNodeId);
-    let deps: string[] = phase?.depends_on || (orcheNode?.depends_on as string[] | undefined) || [];
-    // Phase에 depends_on이 없으면 배열에서 이전 Phase를 암시적 의존성으로 추가
-    if (phase && !deps.length) {
-      const pi = workflow.phases.indexOf(phase);
-      if (pi > 0) deps = [workflow.phases[pi - 1]!.phase_id];
-    }
-    for (const depId of deps) {
-      const depPhase = workflow.phases.find((p) => p.phase_id === depId);
-      if (depPhase) {
-        refs.push({ node_id: depId, node_label: depPhase.title || depId, fields: get_output_fields(depPhase) });
-        continue;
+    const visited = new Set<string>();
+
+    // 재귀적으로 모든 상위 노드 수집
+    const collect = (nodeId: string) => {
+      const phase = workflow.phases.find((p) => p.phase_id === nodeId);
+      const orcheNode = (workflow.orche_nodes || []).find((n) => n.node_id === nodeId);
+      let deps: string[] = phase?.depends_on || (orcheNode?.depends_on as string[] | undefined) || [];
+      if (phase && !deps.length) {
+        const pi = workflow.phases.indexOf(phase);
+        if (pi > 0) deps = [workflow.phases[pi - 1]!.phase_id];
       }
-      const depOrche = (workflow.orche_nodes || []).find((n) => n.node_id === depId);
-      if (depOrche) {
-        refs.push({ node_id: depId, node_label: depOrche.title || depId, fields: get_output_fields(depOrche) });
+      for (const depId of deps) {
+        if (visited.has(depId)) continue;
+        visited.add(depId);
+        const depPhase = workflow.phases.find((p) => p.phase_id === depId);
+        if (depPhase) {
+          refs.push({ node_id: depId, node_label: depPhase.title || depId, fields: get_output_fields(depPhase) });
+        }
+        const depOrche = (workflow.orche_nodes || []).find((n) => n.node_id === depId);
+        if (depOrche) {
+          refs.push({ node_id: depId, node_label: depOrche.title || depId, fields: get_output_fields(depOrche) });
+        }
+        collect(depId); // 재귀
       }
-    }
+    };
+    collect(inspectorNodeId);
     // field_mappings에서 이 노드를 to_node로 참조하는 소스들
     for (const m of workflow.field_mappings || []) {
       if (m.to_node !== inspectorNodeId) continue;
@@ -905,29 +991,67 @@ export default function WorkflowBuilderPage() {
               />
             )}
           </div>
-          {/* 우측 노드 인스펙터 패널 */}
+          {/* 우측 패널: 인스펙터 + Test Run */}
           {inspectorNodeId && inspectorData && (
-            <NodeInspector
-              node={inspectorData.node}
-              node_id={inspectorNodeId}
-              node_type={inspectorData.node_type}
-              node_label={inspectorData.node_label}
-              execution_state={nodeRunResult && nodeRunResult.id === inspectorNodeId ? {
-                node_id: nodeRunResult.id,
-                node_type: inspectorData.node_type,
-                status: nodeRunResult.loading ? "running" : nodeRunResult.error ? "failed" : "completed",
-                result: nodeRunResult.result,
-                error: nodeRunResult.error,
-              } : undefined}
-              onUpdate={inspectorData.onUpdate}
-              onClose={() => setInspectorNodeId(null)}
-              t={t}
-              options={nodeOptions}
-              workflow={workflow}
-              onWorkflowChange={setWorkflow}
-              upstream_refs={upstreamRefs}
-              onNodeIdChange={setInspectorNodeId}
-            />
+            <div className="builder-right-panel">
+              <NodeInspector
+                node={inspectorData.node}
+                node_id={inspectorNodeId}
+                node_type={inspectorData.node_type}
+                node_label={inspectorData.node_label}
+                execution_state={nodeRunResult && nodeRunResult.id === inspectorNodeId ? {
+                  node_id: nodeRunResult.id,
+                  node_type: inspectorData.node_type,
+                  status: nodeRunResult.loading ? "running" : nodeRunResult.error ? "failed" : "completed",
+                  result: nodeRunResult.result,
+                  error: nodeRunResult.error,
+                } : undefined}
+                onUpdate={inspectorData.onUpdate}
+                onClose={() => setInspectorNodeId(null)}
+                t={t}
+                options={nodeOptions}
+                workflow={workflow}
+                onWorkflowChange={setWorkflow}
+                upstream_refs={upstreamRefs}
+                onNodeIdChange={setInspectorNodeId}
+                onConnectNode={(targetId) => {
+                  const mappings = [...(workflow.field_mappings || [])];
+                  mappings.push({ from_node: inspectorNodeId, from_field: "output", to_node: targetId, to_field: "input" });
+                  const phases = workflow.phases.map((p) => {
+                    if (p.phase_id !== targetId) return p;
+                    const deps = new Set(p.depends_on || []);
+                    deps.add(inspectorNodeId);
+                    return { ...p, depends_on: [...deps] };
+                  });
+                  const orche_nodes = (workflow.orche_nodes || []).map((n) => {
+                    if (n.node_id !== targetId) return n;
+                    const deps = new Set((n.depends_on as string[] | undefined) || []);
+                    deps.add(inspectorNodeId);
+                    return { ...n, depends_on: [...deps] };
+                  });
+                  setWorkflow({ ...workflow, field_mappings: mappings, phases, orche_nodes });
+                }}
+              />
+              {/* Test Run 패널 */}
+              <TestRunInlinePanel
+                nodeId={inspectorNodeId}
+                nodeResult={nodeRunResult}
+                inputSchema={(() => {
+                  const desc = inspectorData ? (get_frontend_node(inspectorData.node_type)?.input_schema || []) : [];
+                  return desc;
+                })()}
+                onRunWithInput={(mode, inputMemory) => {
+                  const phase = workflow.phases.find((p) => p.phase_id === inspectorNodeId);
+                  const orche = (workflow.orche_nodes || []).find((n) => n.node_id === inspectorNodeId);
+                  const node: Record<string, unknown> | undefined = phase
+                    ? { node_type: "phase", node_id: inspectorNodeId, title: phase.title, agents: phase.agents, critic: phase.critic, context_template: phase.context_template }
+                    : orche as Record<string, unknown> | undefined;
+                  if (!node) return;
+                  void executeNode(inspectorNodeId, mode, node, inputMemory);
+                }}
+                t={t}
+              />
+            </div>
           )}
           {editPhaseId && (
             <PhaseEditModal

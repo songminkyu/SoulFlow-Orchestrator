@@ -4,7 +4,7 @@
  * Output 탭: 실행 결과 스키마 기반 표시 + 드래그 가능 필드.
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { get_frontend_node, type NodeOptions } from "./node-registry";
 import type { OutputField } from "./output-schema";
 import type { TFunction } from "../../../../src/i18n/protocol";
@@ -66,11 +66,13 @@ export interface NodeInspectorProps {
   upstream_refs?: UpstreamRef[];
   /** Phase/Agent 등 ID 변경 시 부모의 inspectorNodeId 동기화. */
   onNodeIdChange?: (newId: string) => void;
+  /** 다음 노드 연결 — 기존 노드 검색 후 연결. */
+  onConnectNode?: (targetNodeId: string) => void;
 }
 
 export function NodeInspector({
   node, node_id, node_type, node_label, execution_state,
-  onUpdate, onClose, t, options, workflow, onWorkflowChange, upstream_refs, onNodeIdChange,
+  onUpdate, onClose, t, options, workflow, onWorkflowChange, upstream_refs, onNodeIdChange, onConnectNode,
 }: NodeInspectorProps) {
   const desc = get_frontend_node(node_type);
 
@@ -139,11 +141,20 @@ export function NodeInspector({
       <div className="inspector-resize-handle" onMouseDown={onResizeStart} />
       <div className="inspector-header">
         <span className="inspector-icon" style={{ color }}>{svgIcon}</span>
-        <span className="inspector-title">{node_label || node_type}</span>
-        <span className="inspector-node-id">{node_id}</span>
-        <button className="inspector-close" onClick={onClose} title={t("workflows.close")} aria-label={t("workflows.close")}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+        <div className="inspector-header__info">
+          <span className="inspector-title">{node_label || node_type}</span>
+          <span className="inspector-node-id">{node_id}</span>
+        </div>
+        <div className="inspector-header__actions">
+          {onNodeIdChange && (
+            <button className="inspector-action-btn" onClick={() => { /* run via parent */ }} title="Test Run">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </button>
+          )}
+          <button className="inspector-close" onClick={onClose} title={t("workflows.close")} aria-label={t("workflows.close")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
       </div>
 
       <div className="inspector-body">
@@ -159,6 +170,7 @@ export function NodeInspector({
                 upstream_refs={upstream_refs || []}
                 node_id={node_id}
                 workflow={workflow}
+                onWorkflowChange={onWorkflowChange}
               />
             )}
           </div>
@@ -215,6 +227,85 @@ export function NodeInspector({
             <NodeOutputView state={execution_state} schema={output_schema} node_id={node_id} />
           )}
         </div>
+
+        {/* 연결된 노드 */}
+        <div className="inspector-section-block">
+          <div className="inspector-connections">
+            <span className="inspector-connections__label">{t("workflows.connected_nodes")}</span>
+            {upstream_refs && upstream_refs.length > 0 && (
+              <div className="inspector-connections__list">
+                {upstream_refs.map((ref) => (
+                  <button key={`${ref.node_id}`} className="inspector-connections__chip" onClick={() => onNodeIdChange?.(ref.node_id)}>
+                    <span className="inspector-connections__dot" style={{ background: `var(--accent)` }} />
+                    <span>{ref.node_label || ref.node_id}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {onConnectNode && workflow && (
+              <NextNodeSearch
+                currentNodeId={node_id}
+                workflow={workflow}
+                onSelect={onConnectNode}
+                t={t}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 다음 노드 검색 + 연결 UI */
+function NextNodeSearch({ currentNodeId, workflow, onSelect, t }: {
+  currentNodeId: string;
+  workflow: WorkflowDef;
+  onSelect: (nodeId: string) => void;
+  t: TFunction;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const candidates = useMemo(() => {
+    const all = [
+      ...workflow.phases.map((p) => ({ id: p.phase_id, label: p.title || p.phase_id, type: "phase" })),
+      ...(workflow.orche_nodes || []).map((n) => ({ id: n.node_id, label: n.title || n.node_id, type: n.type })),
+    ].filter((n) => n.id !== currentNodeId);
+    if (!query) return all;
+    const q = query.toLowerCase();
+    return all.filter((n) => n.label.toLowerCase().includes(q) || n.id.toLowerCase().includes(q) || n.type.toLowerCase().includes(q));
+  }, [workflow, currentNodeId, query]);
+
+  useEffect(() => { if (open) { setQuery(""); setTimeout(() => inputRef.current?.focus(), 0); } }, [open]);
+
+  if (!open) {
+    return (
+      <button className="btn btn--xs" style={{ marginTop: "var(--sp-2)" }} onClick={() => setOpen(true)}>
+        + {t("workflows.connect_next_node")}
+      </button>
+    );
+  }
+
+  return (
+    <div className="inspector-node-search" style={{ marginTop: "var(--sp-2)" }}>
+      <input
+        ref={inputRef}
+        className="input input--sm"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder={t("workflows.search_node")}
+        onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
+      />
+      <div className="inspector-node-search__list">
+        {candidates.slice(0, 8).map((n) => (
+          <button key={n.id} className="inspector-node-search__item" onClick={() => { onSelect(n.id); setOpen(false); }}>
+            <span className="inspector-node-search__label">{n.label}</span>
+            <span className="inspector-node-search__type">{n.type}</span>
+          </button>
+        ))}
+        {candidates.length === 0 && <div className="inspector-node-search__empty">{t("workflows.no_results")}</div>}
       </div>
     </div>
   );

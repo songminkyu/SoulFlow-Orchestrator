@@ -5,6 +5,80 @@ import { BuilderField, BackendModelPicker, BuilderRowPair, TemperatureField, Jso
 type MessageRole = "system" | "user" | "assistant";
 interface LlmMessage { role: MessageRole; content: string }
 
+/** 스키마 필드별 체크박스 편집기 — JSON 스키마를 시각적으로 편집 */
+function SchemaFieldEditor({ schema, onUpdate, t }: { schema: unknown; onUpdate: (v: unknown) => void; t: (k: string) => string }) {
+  const [rawMode, setRawMode] = useState(false);
+  const parsed = (() => {
+    try {
+      const obj = typeof schema === "string" ? JSON.parse(schema) : schema;
+      if (obj?.type === "object" && obj.properties) return obj as { type: string; properties: Record<string, { type: string; description?: string }>; required?: string[] };
+    } catch { /* ignore */ }
+    return null;
+  })();
+
+  if (rawMode || !parsed) {
+    return (
+      <div>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "var(--sp-1)" }}>
+          {parsed && <button type="button" className="btn btn--xs btn--ghost" onClick={() => setRawMode(false)}>Fields</button>}
+        </div>
+        <textarea
+          className="input input--sm code-textarea"
+          rows={4}
+          value={typeof schema === "string" ? schema : JSON.stringify(schema, null, 2)}
+          onChange={(e) => onUpdate(e.target.value)}
+          placeholder='{"type": "object", "properties": {...}}'
+        />
+      </div>
+    );
+  }
+
+  const fields = Object.entries(parsed.properties);
+  const required = new Set(parsed.required || []);
+
+  const toggle_field = (name: string) => {
+    const props = { ...parsed.properties };
+    if (props[name]) { delete props[name]; }
+    else { props[name] = { type: "string" }; }
+    const req = Object.keys(props).filter((k) => required.has(k));
+    onUpdate(JSON.stringify({ type: "object", properties: props, required: req }));
+  };
+
+  const add_field = () => {
+    const name = `field_${fields.length + 1}`;
+    const props = { ...parsed.properties, [name]: { type: "string" } };
+    onUpdate(JSON.stringify({ type: "object", properties: props, required: parsed.required }));
+  };
+
+  const update_field_type = (name: string, type: string) => {
+    const props = { ...parsed.properties, [name]: { ...parsed.properties[name], type } };
+    onUpdate(JSON.stringify({ type: "object", properties: props, required: parsed.required }));
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--sp-2)" }}>
+        <span className="label" style={{ margin: 0 }}>{t("workflows.llm_schema")}</span>
+        <button type="button" className="btn btn--xs btn--ghost" onClick={() => setRawMode(true)}>JSON</button>
+      </div>
+      {fields.map(([name, def]) => (
+        <div key={name} style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)", padding: "var(--sp-1) 0", borderBottom: "1px solid var(--line)" }}>
+          <input type="checkbox" checked={true} onChange={() => toggle_field(name)} />
+          <input className="input input--sm" value={name} style={{ flex: 1 }} readOnly />
+          <select className="input input--sm" value={def.type} onChange={(e) => update_field_type(name, e.target.value)} style={{ width: 90 }}>
+            <option value="string">string</option>
+            <option value="number">number</option>
+            <option value="boolean">boolean</option>
+            <option value="array">array</option>
+            <option value="object">object</option>
+          </select>
+        </div>
+      ))}
+      <button type="button" className="btn btn--xs" onClick={add_field} style={{ marginTop: "var(--sp-2)" }}>+ Field</button>
+    </div>
+  );
+}
+
 const ROLES: MessageRole[] = ["system", "user", "assistant"];
 
 /**
@@ -31,8 +105,8 @@ function LlmEditPanel({ node, update, t, options }: EditPanelProps) {
     const updated = messages.map((m, j) => j === i ? { ...m, ...patch } : m);
     update({ messages: updated });
   };
-  const add_message = () => {
-    update({ messages: [...messages, { role: "user", content: "" }] });
+  const add_message = (role: MessageRole = "user") => {
+    update({ messages: [...messages, { role, content: "" }] });
   };
   const remove_message = (i: number) => {
     update({ messages: messages.filter((_, j) => j !== i) });
@@ -103,7 +177,11 @@ function LlmEditPanel({ node, update, t, options }: EditPanelProps) {
               />
             </div>
           ))}
-          <button type="button" className="btn btn--xs" onClick={add_message}>+ {t("workflows.llm_add_message")}</button>
+          <div style={{ display: "flex", gap: "var(--sp-1)" }}>
+            {ROLES.map((r) => (
+              <button key={r} type="button" className="btn btn--xs" onClick={() => add_message(r)}>+ {r.toUpperCase()}</button>
+            ))}
+          </div>
         </div>
       ) : (
         <>
@@ -138,7 +216,7 @@ function LlmEditPanel({ node, update, t, options }: EditPanelProps) {
         </label>
       </div>
       {structured_output && (
-        <JsonField label={t("workflows.llm_schema")} value={node.output_json_schema} onUpdate={(v) => update({ output_json_schema: v })} rows={3} placeholder='{"type": "object", "properties": {...}}' />
+        <SchemaFieldEditor schema={node.output_json_schema} onUpdate={(v) => update({ output_json_schema: v })} t={t} />
       )}
     </>
   );

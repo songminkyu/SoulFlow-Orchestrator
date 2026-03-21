@@ -11,11 +11,17 @@ import { handleOutputFieldDragStart, handleTreeFieldDrag } from "./inspector-dnd
 
 // ── Input Section: 입력 스키마 + 상류 드래그 소스 ──
 
-export function InputSectionPanel({ input_schema, upstream_refs, node_id, workflow }: {
+/** 마지막 활성 편집 필드에 참조 삽입 — 글로벌 이벤트 기반 */
+function insertRefToActiveEditor(ref: string) {
+  window.dispatchEvent(new CustomEvent("insert-field-ref", { detail: { ref } }));
+}
+
+export function InputSectionPanel({ input_schema, upstream_refs, node_id, workflow, onWorkflowChange }: {
   input_schema: OutputField[];
   upstream_refs: UpstreamRef[];
   node_id: string;
   workflow?: WorkflowDef;
+  onWorkflowChange?: (w: WorkflowDef) => void;
 }) {
   const t = useT();
   const mappings = workflow?.field_mappings || [];
@@ -37,7 +43,22 @@ export function InputSectionPanel({ input_schema, upstream_refs, node_id, workfl
                 {field.description && <div className="field-description">{field.description}</div>}
                 {mapped && (
                   <div className="input-schema-row__mapped">
-                    {`← {{${mapped.from_node}.${mapped.from_field}}}`}
+                    <span style={{ color: "var(--muted)", marginRight: "4px" }}>←</span>
+                    <span className="var-ref-chip" data-ft="string" style={{ display: "inline-flex", gap: "2px", fontSize: "11px", padding: "1px 6px" }}>
+                      <span className="var-ref-chip__node">{mapped.from_node}</span>
+                      <span className="var-ref-chip__dot">.</span>
+                      <span className="var-ref-chip__field">{mapped.from_field}</span>
+                    </span>
+                    {workflow && onWorkflowChange && (
+                      <button type="button" className="var-ref-chip__remove" style={{ marginLeft: "4px" }}
+                        onClick={() => {
+                          const updated = (workflow.field_mappings || []).filter(
+                            (m) => !(m.to_node === node_id && m.to_field === field.name && m.from_node === mapped.from_node && m.from_field === mapped.from_field)
+                          );
+                          onWorkflowChange({ ...workflow, field_mappings: updated });
+                        }}
+                      >&times;</button>
+                    )}
                   </div>
                 )}
               </div>
@@ -58,11 +79,18 @@ export function InputSectionPanel({ input_schema, upstream_refs, node_id, workfl
                   className="upstream-refs__field"
                   draggable
                   onDragStart={(e) => handleOutputFieldDragStart(e, ref.node_id, field.name)}
+                  style={{ cursor: "grab" }}
                 >
                   <span className="field-drag-handle">⠿</span>
-                  <span className="field-name">{field.name}</span>
-                  <span className="field-type" data-ft={field.type}>{field.type}</span>
-                  <span className="field-ref-tag">{`{{${ref.node_id}.${field.name}}}`}</span>
+                  <span className="var-ref-chip" data-ft={field.type} style={{ display: "inline-flex", gap: "2px", fontSize: "11px", padding: "1px 6px" }}>
+                    <span className="var-ref-chip__node">{ref.node_id}</span>
+                    <span className="var-ref-chip__dot">.</span>
+                    <span className="var-ref-chip__field">{field.name}</span>
+                    <span className="var-ref-chip__type" data-ft={field.type}>{field.type}</span>
+                  </span>
+                  <button type="button" className="btn btn--xs btn--ghost" style={{ padding: "0 4px", fontSize: "10px", marginLeft: "auto" }}
+                    onClick={(e) => { e.stopPropagation(); insertRefToActiveEditor(`{{${ref.node_id}.${field.name}}}`); }}
+                    title="Insert">+</button>
                 </div>
               ))}
             </div>

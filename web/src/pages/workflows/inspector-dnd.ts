@@ -13,26 +13,15 @@ export function handleOutputFieldDragStart(e: DragEvent, node_id: string, field_
   e.dataTransfer.effectAllowed = "copy";
 }
 
-/** 드롭 타겟에서 필드 참조 수신. */
+/** 드롭 타겟에서 필드 참조 수신. onInsert 콜백만 사용 (native setter 제거 — 중복 삽입 방지). */
 export function handleFieldDrop(e: DragEvent<HTMLTextAreaElement | HTMLInputElement>, onInsert: (ref: string) => void) {
   e.preventDefault();
+  e.stopPropagation();
   const refData = e.dataTransfer.getData("application/x-field-ref");
   if (refData) {
     try {
       const { ref } = JSON.parse(refData) as { ref: string };
-      const target = e.target as HTMLTextAreaElement | HTMLInputElement;
-      const start = target.selectionStart ?? target.value.length;
-      const before = target.value.slice(0, start);
-      const after = target.value.slice(target.selectionEnd ?? start);
-      const newVal = before + ref + after;
-      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
-        || Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-      if (nativeInputValueSetter) {
-        nativeInputValueSetter.call(target, newVal);
-        target.dispatchEvent(new Event('input', { bubbles: true }));
-      } else {
-        onInsert(ref);
-      }
+      onInsert(ref);
     } catch {
       const plain = e.dataTransfer.getData("text/plain");
       if (plain) onInsert(plain);
