@@ -223,6 +223,8 @@ export function PhaseNode({
       )}
       <rect width={pos.width} height={pos.height} rx={12} fill="var(--node-bg, #1e272f)"
         stroke={borderColor} strokeWidth={isRunning ? 2.5 : isSelected ? 2.5 : 1} filter="url(#node-shadow)" />
+      {/* Left color strip — reference feature8 */}
+      <rect x={0} y={4} width={3.5} height={pos.height - 8} rx={2} fill={borderColor} opacity={0.85} />
       <clipPath id={`clip-header-${phase.phase_id}`}>
         <rect width={pos.width} height={HEADER_H} rx={12} />
       </clipPath>
@@ -460,6 +462,8 @@ function OrcheRectNode({ node, pos, nodeStatus, onFieldDragStart }: {
     <g transform={`translate(${pos.x}, ${pos.y})`}
       role="button" aria-label={`${node.type}: ${node.label}${subtitle ? `. ${subtitle}` : ""}`}>
       <rect width={pos.width} height={pos.height} rx={12} fill="var(--node-bg, #1e272f)" stroke="var(--line, #2b3742)" strokeWidth={1} filter="url(#node-shadow)" />
+      {/* Left color strip */}
+      <rect x={0} y={4} width={3.5} height={pos.height - 8} rx={2} fill={color} opacity={0.85} />
       <clipPath id={`clip-orche-${node.id}`}>
         <rect width={pos.width} height={HEADER_H} rx={12} />
       </clipPath>
@@ -580,6 +584,8 @@ function EndNode({ node: _node, pos }: { node: GraphNode; pos: NodePos }) {
   return (
     <g transform={`translate(${pos.x}, ${pos.y})`}>
       <rect width={w} height={h} rx={12} fill="var(--node-bg, #1e272f)" stroke={color} strokeWidth={2} filter="url(#node-shadow)" />
+      {/* Left color strip */}
+      <rect x={0} y={4} width={3.5} height={h - 8} rx={2} fill={color} opacity={0.85} />
       <rect x={3} y={3} width={w - 6} height={h - 6} rx={10} fill="none" stroke={color} strokeWidth={0.8} opacity={0.4} />
       <text x={24} y={22} textAnchor="middle" fontSize={16}>⏹</text>
       <text x={44} y={17} fill="var(--text, #cdd6f4)" fontSize={12} fontWeight={700}>{t("workflows.end_label")}</text>

@@ -471,9 +471,179 @@
 .wf-card--reviewing { border-left: 3px solid var(--warn); }
 .wf-card--pending { border-left: 3px solid var(--muted); }
 
+/* Section title */
+.wf-section__title {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  margin: 0 0 var(--sp-3);
+  color: var(--text);
+}
+
+/* Card avatar */
+.wf-card__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* ===== Creation Wizard Modal (feature5 reference) ===== */
+.wf-wizard {
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  width: min(780px, 92vw);
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+.wf-wizard__header {
+  padding: var(--sp-5) var(--sp-5) var(--sp-3);
+  position: relative;
+}
+.wf-wizard__title {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  margin: 0;
+}
+.wf-wizard__subtitle {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  margin: var(--sp-1) 0 0;
+}
+.wf-wizard__close {
+  position: absolute;
+  top: var(--sp-4);
+  right: var(--sp-4);
+}
+.wf-wizard__body {
+  display: flex;
+  gap: var(--sp-5);
+  padding: 0 var(--sp-5) var(--sp-4);
+}
+.wf-wizard__steps {
+  flex: 1;
+  min-width: 0;
+}
+.wf-wizard__step {
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.wf-wizard__step:last-of-type {
+  border-bottom: none;
+}
+.wf-wizard__step-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.wf-wizard__step-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.wf-wizard__step-desc {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  line-height: 1.5;
+}
+.wf-wizard__objective {
+  width: 100%;
+  margin-top: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--duration-normal) ease;
+}
+.wf-wizard__objective:focus {
+  border-color: var(--accent);
+}
+.wf-wizard__objective::placeholder {
+  color: var(--muted);
+}
+.wf-wizard__catalog {
+  flex-shrink: 0;
+  width: 240px;
+}
+.wf-wizard__catalog-label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: var(--sp-2);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.wf-wizard__catalog-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+}
+.wf-wizard__node-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  cursor: pointer;
+  transition: border-color var(--duration-normal) ease, box-shadow var(--duration-normal) ease;
+}
+.wf-wizard__node-btn:hover {
+  border-color: var(--node-color, var(--accent));
+  box-shadow: 0 0 0 1px var(--node-color, var(--accent));
+}
+.wf-wizard__node-icon {
+  font-size: 24px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--node-color, var(--accent)) 12%, transparent);
+}
+.wf-wizard__node-label {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text);
+}
+.wf-wizard__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--line);
+}
+.wf-wizard__hint {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin: 0;
+}
+.wf-wizard__actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
 @media (max-width: 640px) {
   .wf-page-header { flex-direction: column; gap: var(--sp-2); }
   .wf-grid { grid-template-columns: 1fr; }
+  .wf-wizard__body { flex-direction: column; }
+  .wf-wizard__catalog { width: 100%; }
 }
 
 /* compact stat-card variant for agent cards inside phases */

@@ -12,6 +12,24 @@ import { useToast } from "../../components/toast";
 import { useT } from "../../i18n";
 import { time_ago } from "../../utils/format";
 
+/** 노드 타입별 아이콘+색상 매핑 — 생성 위저드용 */
+const NODE_TYPE_CATALOG = [
+  { id: "research", icon: "🔍", label: "Research", color: "#4a9eff" },
+  { id: "code", icon: "💻", label: "Code", color: "#8b5cf6" },
+  { id: "chatbot", icon: "💬", label: "Chatbot", color: "#10b981" },
+  { id: "analysis", icon: "📊", label: "Analysis", color: "#f59e0b" },
+  { id: "template", icon: "📋", label: "Template", color: "#ec4899" },
+  { id: "automation", icon: "⚡", label: "Automation", color: "#6366f1" },
+] as const;
+
+/** 템플릿 제목 첫 글자 기반 아바타 색상 */
+function tpl_avatar_color(title: string): string {
+  const colors = ["#4a9eff", "#8b5cf6", "#10b981", "#f59e0b", "#ec4899", "#6366f1", "#14b8a6", "#ef4444"];
+  let hash = 0;
+  for (let i = 0; i < title.length; i++) hash = ((hash << 5) - hash + title.charCodeAt(i)) | 0;
+  return colors[Math.abs(hash) % colors.length];
+}
+
 // ── Types ──
 
 interface PhaseLoopState {
@@ -75,6 +93,7 @@ export default function WorkflowsPage() {
   const [tab, setTab] = useState<"templates" | "running">("templates");
   const [selectedTpl, setSelectedTpl] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<string | null>(null);
 
@@ -158,7 +177,7 @@ export default function WorkflowsPage() {
               {t("workflows.import")}
             </button>
           )}
-          <button className="btn btn--sm btn--accent" onClick={() => navigate("/workflows/new")}>
+          <button className="btn btn--sm btn--accent" onClick={() => setShowWizard(true)}>
             + {t("workflows.new_workflow")}
           </button>
         </div>
@@ -180,14 +199,17 @@ export default function WorkflowsPage() {
           {tplLoading ? (
             <SkeletonGrid count={4} cardStyle={{ height: 180 }} />
           ) : (
+            <>
+            {/* My Workflows */}
+            <h2 className="wf-section__title">My Workflows</h2>
             <div className="wf-grid" ref={templateListRef}>
               {/* Create New Card */}
               <div
                 className="wf-create-card"
                 role="button"
                 tabIndex={0}
-                onClick={() => navigate("/workflows/new")}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate("/workflows/new"); } }}
+                onClick={() => setShowWizard(true)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowWizard(true); } }}
               >
                 <div className="wf-create-card__icon">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -197,41 +219,51 @@ export default function WorkflowsPage() {
                 <div className="wf-create-card__title">{t("workflows.new_workflow")}</div>
                 <div className="wf-create-card__desc">{t("workflows.quick_run_placeholder")}</div>
               </div>
-
-              {/* Template Cards */}
-              {(templates || []).map((tpl) => {
-                const agent_count = tpl.phases.reduce((n, p) => n + p.agents.length, 0);
-                const selected = selectedTpl === tpl.slug;
-                return (
-                  <div
-                    key={tpl.slug}
-                    role="button"
-                    tabIndex={0}
-                    className={`wf-card${selected ? " wf-card--selected" : ""}`}
-                    onClick={() => setSelectedTpl(selected ? null : tpl.slug)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedTpl(selected ? null : tpl.slug); } }}
-                  >
-                    <div className="wf-card__header">
-                      <span className="wf-card__meta">{tpl.phases.length} phases · {agent_count} agents</span>
-                    </div>
-                    <h3 className="wf-card__title">{tpl.title}</h3>
-                    {tpl.objective && (
-                      <p className="wf-card__desc">
-                        {tpl.objective.length > 100 ? tpl.objective.slice(0, 100) + "…" : tpl.objective}
-                      </p>
-                    )}
-                    <div className="wf-card__phases">
-                      {tpl.phases.map((p, i) => (
-                        <span key={p.phase_id} className="wf-card__phase">
-                          {i > 0 && <span className="wf-card__arrow">→</span>}
-                          {p.title}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
             </div>
+
+            {/* Shared Workflows */}
+            {(templates || []).length > 0 && (
+              <>
+                <h2 className="wf-section__title" style={{ marginTop: "var(--sp-5)" }}>Shared Workflows</h2>
+                <div className="wf-grid">
+                  {(templates || []).map((tpl) => {
+                    const agent_count = tpl.phases.reduce((n, p) => n + p.agents.length, 0);
+                    const selected = selectedTpl === tpl.slug;
+                    const avatar_color = tpl_avatar_color(tpl.title);
+                    return (
+                      <div
+                        key={tpl.slug}
+                        role="button"
+                        tabIndex={0}
+                        className={`wf-card${selected ? " wf-card--selected" : ""}`}
+                        onClick={() => setSelectedTpl(selected ? null : tpl.slug)}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedTpl(selected ? null : tpl.slug); } }}
+                      >
+                        <div className="wf-card__header">
+                          <span className="wf-card__avatar" style={{ background: avatar_color }}>{tpl.title.charAt(0).toUpperCase()}</span>
+                          <span className="wf-card__meta">{tpl.phases.length} phases · {agent_count} agents</span>
+                        </div>
+                        <h3 className="wf-card__title">{tpl.title}</h3>
+                        {tpl.objective && (
+                          <p className="wf-card__desc">
+                            {tpl.objective.length > 100 ? tpl.objective.slice(0, 100) + "…" : tpl.objective}
+                          </p>
+                        )}
+                        <div className="wf-card__phases">
+                          {tpl.phases.map((p, i) => (
+                            <span key={p.phase_id} className="wf-card__phase">
+                              {i > 0 && <span className="wf-card__arrow">→</span>}
+                              {p.title}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </>
           )}
 
           {/* Template Detail */}
@@ -269,6 +301,15 @@ export default function WorkflowsPage() {
             confirmLabel={t("workflows.delete_template")}
           />
         </>
+      )}
+
+      {/* Creation Wizard Modal */}
+      {showWizard && (
+        <CreateWizardModal
+          onClose={() => setShowWizard(false)}
+          onCreateBlank={() => { setShowWizard(false); navigate("/workflows/new"); }}
+          onCreateWithPrompt={(prompt) => { setShowWizard(false); navigate(`/workflows/new?prompt=${encodeURIComponent(prompt)}`); }}
+        />
       )}
 
       {/* Cancel Workflow Confirm */}
@@ -542,6 +583,99 @@ function ImportModal({ open, onClose, onImported }: {
             )}
             {t("workflows.import")}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Creation Wizard Modal (레퍼런스: feature5.png) ──
+
+function CreateWizardModal({ onClose, onCreateBlank, onCreateWithPrompt }: {
+  onClose: () => void;
+  onCreateBlank: () => void;
+  onCreateWithPrompt: (prompt: string) => void;
+}) {
+  const t = useT();
+  const [objective, setObjective] = useState("");
+  useModalEffects(true, onClose);
+
+  return (
+    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="wf-wizard" onClick={(e) => e.stopPropagation()}>
+        <div className="wf-wizard__header">
+          <h2 className="wf-wizard__title">{t("workflows.title")}</h2>
+          <p className="wf-wizard__subtitle">{t("workflows.description")}</p>
+          <button className="wf-wizard__close btn btn--xs btn--ghost" onClick={onClose} aria-label="close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div className="wf-wizard__body">
+          {/* Left: Steps */}
+          <div className="wf-wizard__steps">
+            <div className="wf-wizard__step">
+              <span className="wf-wizard__step-icon">🔥</span>
+              <div>
+                <div className="wf-wizard__step-title">{t("workflows.wizard_step1_title")}</div>
+                <div className="wf-wizard__step-desc">{t("workflows.wizard_step1_desc")}</div>
+              </div>
+            </div>
+            <div className="wf-wizard__step">
+              <span className="wf-wizard__step-icon">🔧</span>
+              <div>
+                <div className="wf-wizard__step-title">{t("workflows.wizard_step2_title")}</div>
+                <div className="wf-wizard__step-desc">{t("workflows.wizard_step2_desc")}</div>
+              </div>
+            </div>
+            <div className="wf-wizard__step">
+              <span className="wf-wizard__step-icon">🎯</span>
+              <div>
+                <div className="wf-wizard__step-title">{t("workflows.wizard_step3_title")}</div>
+                <div className="wf-wizard__step-desc">{t("workflows.wizard_step3_desc")}</div>
+              </div>
+            </div>
+
+            <textarea
+              className="wf-wizard__objective"
+              value={objective}
+              onChange={(e) => setObjective(e.target.value)}
+              placeholder={t("workflows.quick_run_placeholder")}
+              rows={3}
+            />
+          </div>
+
+          {/* Right: Node Type Catalog */}
+          <div className="wf-wizard__catalog">
+            <div className="wf-wizard__catalog-label">{t("workflows.wizard_node_types")}</div>
+            <div className="wf-wizard__catalog-grid">
+              {NODE_TYPE_CATALOG.map((node) => (
+                <button
+                  key={node.id}
+                  className="wf-wizard__node-btn"
+                  style={{ "--node-color": node.color } as React.CSSProperties}
+                  onClick={() => onCreateWithPrompt(objective.trim() || node.label)}
+                >
+                  <span className="wf-wizard__node-icon">{node.icon}</span>
+                  <span className="wf-wizard__node-label">{node.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="wf-wizard__footer">
+          <p className="wf-wizard__hint">{t("workflows.wizard_hint")}</p>
+          <div className="wf-wizard__actions">
+            <button className="btn btn--sm btn--ghost" onClick={onCreateBlank}>{t("workflows.wizard_blank")}</button>
+            <button
+              className="btn btn--sm btn--accent"
+              disabled={!objective.trim()}
+              onClick={() => onCreateWithPrompt(objective.trim())}
+            >
+              {t("workflows.create")}
+            </button>
+          </div>
         </div>
       </div>
     </div>
