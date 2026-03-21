@@ -147,7 +147,7 @@ export function ModelsTab() {
   });
 
   const switchMut = useMutation({
-    mutationFn: (name: string) => api.patch("/api/models/runtime", { name }),
+    mutationFn: (name: string) => api.put("/api/models/runtime", { name }),
     onSuccess: () => { toast(t("models.switched"), "ok"); void qc.invalidateQueries({ queryKey: ["models-runtime"] }); },
     onError: () => toast(t("models.switch_failed"), "err"),
   });

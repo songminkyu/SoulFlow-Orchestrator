@@ -78,16 +78,35 @@ function last_response(ctx: RouteContext & { _responses?: Array<{ status: number
 // ══════════════════════════════════════════
 
 describe("config.ts — superadmin guard", () => {
-  it("GET /api/config → 일반 유저 403 (TN-6b: raw config에 민감 정보)", async () => {
+  it("GET /api/config → 일반 유저 200 (raw 빈 객체, sections만 반환)", async () => {
+    const raw = { webhookSecret: "s3cret" };
     const ctx = make_ctx({
       method: "GET",
       pathname: "/api/config",
       auth_user: { role: "user", sub: "u1", tid: "t1" },
-      config_ops: { get_current_config: () => ({}), get_sections: async () => [] },
+      config_ops: { get_current_config: () => raw, get_sections: async () => [{ id: "general", label: "General", fields: [] }] },
     });
     const handled = await handle_config(ctx);
     expect(handled).toBe(true);
-    expect(last_response(ctx).status).toBe(403);
+    const resp = last_response(ctx);
+    expect(resp.status).toBe(200);
+    expect((resp.body as { raw: Record<string, unknown> }).raw).toEqual({});
+    expect((resp.body as { sections: unknown[] }).sections).toHaveLength(1);
+  });
+
+  it("GET /api/config → superadmin은 raw 전체 반환", async () => {
+    const raw = { webhookSecret: "s3cret", channel: { debug: false } };
+    const ctx = make_ctx({
+      method: "GET",
+      pathname: "/api/config",
+      auth_user: { role: "superadmin", sub: "admin1" },
+      config_ops: { get_current_config: () => raw, get_sections: async () => [] },
+    });
+    const handled = await handle_config(ctx);
+    expect(handled).toBe(true);
+    const resp = last_response(ctx);
+    expect(resp.status).toBe(200);
+    expect((resp.body as { raw: Record<string, unknown> }).raw).toEqual(raw);
   });
 
   it("PUT /api/config/values → 비superadmin 403", async () => {

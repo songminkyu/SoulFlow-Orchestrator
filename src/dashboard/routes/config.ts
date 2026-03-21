@@ -1,6 +1,6 @@
 import { set_locale, get_locale, parse_locale } from "../../i18n/index.js";
 import type { RouteContext } from "../route-context.js";
-import { require_superadmin, require_superadmin_for_write, build_scope_filter } from "../route-context.js";
+import { require_superadmin_for_write, build_scope_filter } from "../route-context.js";
 
 export async function handle_config(ctx: RouteContext): Promise<boolean> {
   if (!require_superadmin_for_write(ctx)) return true;
@@ -22,19 +22,18 @@ export async function handle_config(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // GET /api/config — TN-6b: raw config에 webhookSecret 등 민감 정보 포함 → superadmin only
+  // GET /api/config — TN-6b: raw에 webhookSecret 등 포함 → superadmin만 raw 반환, 일반 사용자는 sections만
   if (path === "/api/config" && req.method === "GET") {
-    if (!require_superadmin(ctx)) return true;
     const ops = options.config_ops;
     if (!ops) { json(res, 503, { error: "config_unavailable" }); return true; }
-    json(res, 200, { raw: ops.get_current_config(), sections: await ops.get_sections() });
+    const is_super = !options.auth_svc || ctx.auth_user?.role === "superadmin";
+    json(res, 200, { raw: is_super ? ops.get_current_config() : {}, sections: await ops.get_sections() });
     return true;
   }
 
-  // GET /api/config/sections/:section — TN-6b: superadmin only
+  // GET /api/config/sections/:section — 인증된 사용자 허용
   const section_match = path.match(/^\/api\/config\/sections\/([^/]+)$/);
   if (section_match && req.method === "GET") {
-    if (!require_superadmin(ctx)) return true;
     const ops = options.config_ops;
     if (!ops) { json(res, 503, { error: "config_unavailable" }); return true; }
     const name = decodeURIComponent(section_match[1]);

@@ -584,21 +584,21 @@ describe("TN-6c: DELETE /api/processes — 크로스유저 차단", () => {
 // TN-6c: GET /api/config/sections/:section superadmin only
 // ══════════════════════════════════════════
 
-describe("TN-6c: GET /api/config/sections — superadmin only", () => {
-  it("일반 유저 → 403", async () => {
+describe("TN-6c: GET /api/config/sections — 인증 사용자 허용", () => {
+  it("일반 유저 → 200 (sections 읽기 허용)", async () => {
     const { default: handle_config } = await import("@src/dashboard/routes/config.js").then(m => ({ default: m.handle_config }));
     const sent: Array<{ status: number; body: unknown }> = [];
     const ctx = {
       req: { method: "GET", headers: {} }, res: {},
       url: new URL("/api/config/sections/general", "http://localhost"),
-      options: { auth_svc: {}, config_ops: { get_section: async () => ({}) } },
+      options: { auth_svc: {}, config_ops: { get_section: async () => ({ id: "general", label: "General", fields: [] }) } },
       auth_user: { role: "user", sub: "u1", tid: "t1" },
       team_context: { team_id: "t1", team_role: "member" },
       json: (_r: unknown, s: number, b: unknown) => { sent.push({ status: s, body: b }); },
       read_body: async () => null,
     } as never;
     await handle_config(ctx);
-    expect(sent[0].status).toBe(403);
+    expect(sent[0].status).toBe(200);
   });
 });
 

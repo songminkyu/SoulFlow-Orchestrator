@@ -31,8 +31,8 @@ export async function handle_models(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // PATCH /api/models/runtime { name }
-  if (path === "/api/models/runtime" && req.method === "PATCH") {
+  // PUT /api/models/runtime { name }
+  if (path === "/api/models/runtime" && req.method === "PUT") {
     if (!ops) { json(res, 503, { error: "model_ops_unavailable" }); return true; }
     const body = await read_body(req);
     const name = String(body?.name || "").trim();

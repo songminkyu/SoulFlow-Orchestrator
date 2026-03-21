@@ -124,8 +124,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // PUT /api/kanban/boards/:id
-  if (board_match && method === "PUT") {
+  // PATCH /api/kanban/boards/:id
+  if (board_match && method === "PATCH") {
     const store = store_or_503(ctx);
     if (!store) return true;
     const board_id = decodeURIComponent(board_match[1]);
@@ -205,8 +205,8 @@ export async function handle_kanban(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // PUT /api/kanban/cards/:id — FE-6a: board 소유권 검사 추가
-  if (card_match && method === "PUT") {
+  // PATCH /api/kanban/cards/:id — FE-6a: board 소유권 검사 추가
+  if (card_match && method === "PATCH") {
     const store = store_or_503(ctx);
     if (!store) return true;
     const card_id = decodeURIComponent(card_match[1]);

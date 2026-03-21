@@ -407,12 +407,12 @@ describe("dlq replay — require_team_manager (FE-6a)", () => {
 });
 
 // ══════════════════════════════════════════
-// 보강: kanban card PUT/DELETE — board ownership
+// 보강: kanban card PATCH/DELETE — board ownership
 // ══════════════════════════════════════════
 
 import { handle_kanban } from "@src/dashboard/routes/kanban.ts";
 
-describe("kanban card PUT/DELETE — board ownership (FE-6a)", () => {
+describe("kanban card PATCH/DELETE — board ownership (FE-6a)", () => {
   function make_kanban_store(opts: { card_board_id?: string; board_scope?: { scope_type: string; scope_id: string } } = {}) {
     const board_id = opts.card_board_id ?? "b1";
     const scope = opts.board_scope ?? { scope_type: "team", scope_id: "alpha" };
@@ -426,16 +426,16 @@ describe("kanban card PUT/DELETE — board ownership (FE-6a)", () => {
     };
   }
 
-  it("PUT card: 자기 팀 board → 200", async () => {
+  it("PATCH card: 자기 팀 board → 200", async () => {
     const store = make_kanban_store();
-    const ctx = make_ctx({ ...USER_ALPHA, method: "PUT", pathname: "/api/kanban/cards/c1", body: { title: "new" }, kanban_store: store });
+    const ctx = make_ctx({ ...USER_ALPHA, method: "PATCH", pathname: "/api/kanban/cards/c1", body: { title: "new" }, kanban_store: store });
     await handle_kanban(ctx);
     expect(last(ctx).status).toBe(200);
   });
 
-  it("PUT card: 타팀 board → 403", async () => {
+  it("PATCH card: 타팀 board → 403", async () => {
     const store = make_kanban_store({ board_scope: { scope_type: "team", scope_id: "beta" } });
-    const ctx = make_ctx({ ...USER_ALPHA, method: "PUT", pathname: "/api/kanban/cards/c1", body: { title: "new" }, kanban_store: store });
+    const ctx = make_ctx({ ...USER_ALPHA, method: "PATCH", pathname: "/api/kanban/cards/c1", body: { title: "new" }, kanban_store: store });
     await handle_kanban(ctx);
     expect(last(ctx).status).toBe(403);
   });
