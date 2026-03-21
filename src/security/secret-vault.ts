@@ -271,7 +271,7 @@ export class SecretVaultService implements SecretVaultLike {
     const iv = b64url_decode(parts[1]);
     const tag = b64url_decode(parts[2]);
     const content = b64url_decode(parts[3]);
-    const decipher = createDecipheriv("aes-256-gcm", key, iv);
+    const decipher = createDecipheriv("aes-256-gcm", key, iv, { authTagLength: 16 } as never);
     if (aad) decipher.setAAD(Buffer.from(String(aad), "utf-8"));
     decipher.setAuthTag(tag);
     const plain = Buffer.concat([decipher.update(content), decipher.final()]);

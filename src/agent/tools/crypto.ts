@@ -68,7 +68,7 @@ export class CryptoTool extends Tool {
     if (key.length !== 64) return "Error: key must be 64 hex chars";
     if (!iv || !tag) return "Error: iv and auth_tag are required";
     try {
-      const d = createDecipheriv("aes-256-gcm", Buffer.from(key, "hex"), Buffer.from(iv, "hex"));
+      const d = createDecipheriv("aes-256-gcm", Buffer.from(key, "hex"), Buffer.from(iv, "hex"), { authTagLength: 16 } as never);
       d.setAuthTag(Buffer.from(tag, "hex"));
       let pt = d.update(ct, "hex", "utf8");
       pt += d.final("utf8");
