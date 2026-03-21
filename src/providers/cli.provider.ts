@@ -373,14 +373,18 @@ export class CliHeadlessProvider extends BaseLlmProvider {
       });
     }
     const merged_output = `${result.stdout}\n${result.stderr}`;
-    const tool_calls = parse_tool_calls_from_output(merged_output);
-    if (tool_calls.length > 0) {
-      return new LlmResponse({
-        content: null,
-        tool_calls,
-        finish_reason: "tool_calls",
-        metadata: json_state.metadata,
-      });
+    // tools: [] 명시 = 텍스트 전용 → tool_calls 무시하고 텍스트 추출 우선
+    const skip_tool_calls = Array.isArray(options.tools) && options.tools.length === 0;
+    if (!skip_tool_calls) {
+      const tool_calls = parse_tool_calls_from_output(merged_output);
+      if (tool_calls.length > 0) {
+        return new LlmResponse({
+          content: null,
+          tool_calls,
+          finish_reason: "tool_calls",
+          metadata: json_state.metadata,
+        });
+      }
     }
     const jsonText = extract_final_from_json_output(merged_output) || final_from_json;
     const protocolText = extract_protocol_output(result.stdout) || extract_protocol_output(result.stderr);
