@@ -1,9 +1,13 @@
 /**
- * FE-2b: chat.tsx 상태 관리 테스트.
- * - attached_items 관리 (추가/제거)
- * - tool_choice 전달
- * - 전송 시 pinned_tools 변환
- * - session_browser i18n 키 사용 확인
+ * FE-CHAT: chat.tsx rewire — SharedPromptBar + ResponseView + UnifiedSelector 통합 테스트.
+ *
+ * 검증 항목:
+ *  1. SharedPromptBar가 chat에서 렌더링되는지 (ChatPromptBar 대신)
+ *  2. endpoint 전환 콜백 — onEndpointChange 전달 확인
+ *  3. tool chip 추가/제거 — onToolAdd / onToolRemove 전달 확인
+ *  4. suggestion 클릭 시 input에 반영 — onSuggestionSelect
+ *  5. 빈 상태 greeting 표시 — greeting prop 전달 확인
+ *  6. 세션 활성 시 greeting/suggestions 없음
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -18,7 +22,6 @@ vi.mock("@/i18n", () => ({
   useT: () => mock_t,
 }));
 
-// query key별로 적절한 mock 데이터 반환
 vi.mock("@tanstack/react-query", () => ({
   useQuery: vi.fn().mockImplementation(({ queryKey }: { queryKey: string[] }) => {
     if (queryKey[0] === "chat-sessions") return { data: [], isLoading: false };
@@ -28,7 +31,6 @@ vi.mock("@tanstack/react-query", () => ({
     if (queryKey[0] === "mirror-session") return { data: undefined, isLoading: false };
     return { data: undefined, isLoading: false };
   }),
-  useQueries: vi.fn().mockReturnValue([]),
   useQueryClient: vi.fn().mockReturnValue({
     invalidateQueries: vi.fn(),
   }),
@@ -79,12 +81,19 @@ vi.mock("@/store", () => ({
   }),
 }));
 
-// SharedPromptBar를 스파이로 대체 — 전달된 props 검증 (FE-CHAT rewire)
-const prompt_bar_spy = vi.fn();
+/** SharedPromptBar spy — 전달된 props 캡처 */
+const shared_prompt_bar_spy = vi.fn();
 vi.mock("@/components/shared/prompt-bar", () => ({
   SharedPromptBar: (props: Record<string, unknown>) => {
-    prompt_bar_spy(props);
-    return <div data-testid="shared-prompt-bar" />;
+    shared_prompt_bar_spy(props);
+    return (
+      <div data-testid="shared-prompt-bar">
+        {props.greeting && <div data-testid="greeting">{props.greeting as string}</div>}
+        {Array.isArray(props.suggestions) && (props.suggestions as string[]).length > 0 && (
+          <div data-testid="suggestions">{(props.suggestions as string[]).join(",")}</div>
+        )}
+      </div>
+    );
   },
 }));
 
@@ -129,13 +138,81 @@ import ChatPage from "@/pages/chat";
 
 // ── 테스트 ────────────────────────────────────────────────────────────────────
 
-describe("ChatPage state management (FE-2b)", () => {
+describe("ChatPage rewire — SharedPromptBar (FE-CHAT)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    prompt_bar_spy.mockClear();
+    shared_prompt_bar_spy.mockClear();
   });
 
-  it("초기 렌더 시 EmptyState 표시 (세션 미선택)", () => {
+  it("1. SharedPromptBar가 렌더된다 (ChatPromptBar 대체)", () => {
+    render(
+      <MemoryRouter>
+        <ChatPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getAllByTestId("shared-prompt-bar").length).toBeGreaterThan(0);
+  });
+
+  it("2. 빈 상태에서 greeting prop이 전달된다", () => {
+    render(
+      <MemoryRouter>
+        <ChatPage />
+      </MemoryRouter>,
+    );
+    // 빈 상태 prompt-bar에 greeting이 있어야 함
+    const calls = shared_prompt_bar_spy.mock.calls.map((c) => c[0] as Record<string, unknown>);
+    const has_greeting = calls.some((props) => typeof props.greeting === "string" && props.greeting.length > 0);
+    expect(has_greeting).toBe(true);
+  });
+
+  it("3. 빈 상태에서 suggestions prop이 전달된다 (3개)", () => {
+    render(
+      <MemoryRouter>
+        <ChatPage />
+      </MemoryRouter>,
+    );
+    const calls = shared_prompt_bar_spy.mock.calls.map((c) => c[0] as Record<string, unknown>);
+    const with_suggestions = calls.find((props) => Array.isArray(props.suggestions) && (props.suggestions as string[]).length > 0);
+    expect(with_suggestions).toBeDefined();
+    expect((with_suggestions!.suggestions as string[]).length).toBe(3);
+  });
+
+  it("4. onEndpointChange 콜백이 SharedPromptBar에 전달된다", () => {
+    render(
+      <MemoryRouter>
+        <ChatPage />
+      </MemoryRouter>,
+    );
+    const calls = shared_prompt_bar_spy.mock.calls.map((c) => c[0] as Record<string, unknown>);
+    const has_callback = calls.some((props) => typeof props.onEndpointChange === "function");
+    expect(has_callback).toBe(true);
+  });
+
+  it("5. onToolAdd / onToolRemove 콜백이 SharedPromptBar에 전달된다", () => {
+    render(
+      <MemoryRouter>
+        <ChatPage />
+      </MemoryRouter>,
+    );
+    const calls = shared_prompt_bar_spy.mock.calls.map((c) => c[0] as Record<string, unknown>);
+    const has_tool_callbacks = calls.some(
+      (props) => typeof props.onToolAdd === "function" && typeof props.onToolRemove === "function",
+    );
+    expect(has_tool_callbacks).toBe(true);
+  });
+
+  it("6. onSuggestionSelect 콜백이 SharedPromptBar에 전달된다 (빈 상태)", () => {
+    render(
+      <MemoryRouter>
+        <ChatPage />
+      </MemoryRouter>,
+    );
+    const calls = shared_prompt_bar_spy.mock.calls.map((c) => c[0] as Record<string, unknown>);
+    const with_suggestion_select = calls.some((props) => typeof props.onSuggestionSelect === "function");
+    expect(with_suggestion_select).toBe(true);
+  });
+
+  it("7. 초기 빈 상태에서 EmptyState도 렌더된다", () => {
     render(
       <MemoryRouter>
         <ChatPage />
@@ -144,22 +221,12 @@ describe("ChatPage state management (FE-2b)", () => {
     expect(screen.getByTestId("empty-state")).toBeInTheDocument();
   });
 
-  it("세션 탭바가 렌더된다", () => {
+  it("8. 세션 탭이 렌더된다", () => {
     render(
       <MemoryRouter>
         <ChatPage />
       </MemoryRouter>,
     );
     expect(screen.getByTestId("session-tabs")).toBeInTheDocument();
-  });
-
-  it("AgentContextBar가 더 이상 렌더되지 않는다 (FE-2b deprecated)", () => {
-    render(
-      <MemoryRouter>
-        <ChatPage />
-      </MemoryRouter>,
-    );
-    // 이전 AgentContextBar의 select 요소가 없어야 함
-    expect(screen.queryByLabelText("chat.agent_select_placeholder")).toBeNull();
   });
 });

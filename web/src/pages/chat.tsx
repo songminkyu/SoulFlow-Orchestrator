@@ -4,13 +4,14 @@ import { useLocation } from "react-router-dom";
 import { api } from "../api/client";
 import { Badge } from "../components/badge";
 import { DeleteConfirmModal } from "../components/modal";
-import { ChatPromptBar } from "../components/chat-prompt-bar";
 import { useToast } from "../components/toast";
 import { useAsyncState } from "../hooks/use-async-state";
 import { useApprovals } from "../hooks/use-approvals";
 import { useNdjsonStream } from "../hooks/use-ndjson-stream";
 import { useDashboardStore } from "../store";
 import { useT } from "../i18n";
+import { SharedPromptBar } from "../components/shared/prompt-bar";
+import type { SharedPromptBarProps, UnifiedSelectorItem } from "../components/shared/prompt-bar";
 import { MessageList } from "./chat/message-list";
 import { EmptyState } from "./chat/empty-state";
 import { ChatSessionTabs } from "./chat/chat-session-tabs";
@@ -21,7 +22,6 @@ import { CanvasPanel } from "./chat/canvas-panel";
 import type { ChatSessionSummary, ChatSession, ChatMessage, ChatMediaItem } from "./chat/types";
 import type { AgentDefinition } from "../../../src/agent/agent-definition.types";
 import type { MentionItem } from "../components/mention-picker";
-import type { ToolChoiceMode } from "../../../src/contracts";
 
 type MirrorSessionEntry = { key: string; provider: string; chat_id: string; alias: string; thread?: string; updated_at: string; message_count: number };
 type MirrorSession = { key: string; provider: string; chat_id: string; alias: string; messages: ChatMessage[] };
@@ -36,7 +36,6 @@ export default function ChatPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [mirrorKey, setMirrorKey] = useState<string | null>(null);
   const [input, setInput] = useState("");
-  const [input_history, setInputHistory] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
   const [waiting_response, setWaitingResponse] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -53,7 +52,7 @@ export default function ChatPage() {
   /** FE-2b: @mention 첨부 아이템 (에이전트/도구/워크플로우) */
   const [attached_items, setAttachedItems] = useState<MentionItem[]>([]);
   /** FE-2b: 도구 선택 정책 */
-  const [tool_choice, setToolChoice] = useState<ToolChoiceMode>("auto");
+  const [tool_choice, setToolChoice] = useState<"auto" | "manual" | "none">("auto");
   const messagesRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sent_msg_count, setSentMsgCount] = useState(0);
@@ -207,16 +206,32 @@ export default function ChatPage() {
     setAttachedItems((prev) => prev.filter((i) => i.id !== id));
   };
 
-  /** 에이전트 목록을 MentionItem으로 변환 */
-  const agent_mentions: MentionItem[] = useMemo(() =>
-    agentDefinitions.map((d) => ({
-      type: "agent" as const,
-      id: d.id,
-      name: `${d.icon} ${d.name}`,
-      description: d.role_skill ? d.role_skill.replace("role:", "") : undefined,
-    })),
-    [agentDefinitions],
-  );
+  /** UnifiedSelectorItem → MentionItem 변환 후 handle_mention_select 위임 */
+  const handle_tool_add = (item: UnifiedSelectorItem) => {
+    const mention_type: MentionItem["type"] =
+      item.type === "mcp-tool" || item.type === "app-tool" ? "tool" :
+      item.type === "workflow" ? "workflow" :
+      "agent";
+    handle_mention_select({
+      type: mention_type,
+      id: item.id,
+      name: item.name,
+      description: item.description,
+    });
+  };
+
+  /** endpoint 변경 시 model + agent 동기화 */
+  const handle_endpoint_change = (ep: { type: string; id: string; label: string }) => {
+    setSelectedModel(ep.id);
+    if (ep.type === "agent") {
+      const def = agentDefinitions.find((d) => d.id === ep.id) ?? null;
+      if (def) {
+        setActiveDefinition(def);
+        setSystemPromptOverride(compose_agent_prompt(def));
+        setSelectedProvider(def.preferred_providers[0] ?? "");
+      }
+    }
+  };
 
   const send = () => {
     if (!activeId || (!input.trim() && pending_media.length === 0) || sending || stream_inflight.current) return;
@@ -234,7 +249,6 @@ export default function ChatPage() {
     if (tool_choice !== "auto") body.tool_choice = tool_choice;
     const pinned = pinned_tools_from_items(attached_items);
     if (pinned.length > 0) body.pinned_tools = pinned;
-    if (trimmed) setInputHistory((prev) => [...prev, trimmed]);
     setInput("");
     setPendingMedia([]);
     setSending(false);
@@ -307,7 +321,6 @@ export default function ChatPage() {
   const last_msg = messages.length > 0 ? messages[messages.length - 1] : null;
   const last_is_user = last_msg?.direction === "user";
   const has_active = !!activeId || is_mirror;
-  const can_send = !sending && (is_mirror ? !!input.trim() : (!!input.trim() || pending_media.length > 0));
   const is_busy = sending || waiting_response || is_streaming;
 
   const session_label = is_mirror
@@ -321,6 +334,61 @@ export default function ChatPage() {
 
   const select_and_close = (id: string) => { select_session(id); setSessionsOpen(false); };
   const mirror_and_close = (key: string) => { select_mirror(key); setSessionsOpen(false); };
+
+  /** SharedPromptBar props — mirror 모드에서는 간소화 */
+  const endpoint_value = selectedModel
+    ? { type: "model" as const, id: selectedModel, label: selectedModel }
+    : null;
+
+  const prompt_bar_tools = useMemo(() =>
+    attached_items
+      .filter((i) => i.type === "tool" || i.type === "workflow")
+      .map((i) => ({ id: i.id, name: i.name, description: i.description })),
+    [attached_items],
+  );
+
+  // Mirror mode: simple send (no tools, no endpoint change)
+  const mirror_send_handler = () => { void send_mirror(); };
+  const normal_send_handler = () => { void send(); };
+
+  const promptBarProps: SharedPromptBarProps = is_mirror ? {
+    input,
+    onInputChange: setInput,
+    onSend: mirror_send_handler,
+    sending: is_busy,
+    streaming: false,
+    endpoint: null,
+    onEndpointChange: () => {},
+    tools: [],
+    onToolAdd: () => {},
+    onToolRemove: () => {},
+    toolChoice: "auto",
+    onToolChoiceChange: () => {},
+    disabled: !mirrorKey,
+  } : {
+    input,
+    onInputChange: setInput,
+    onSend: normal_send_handler,
+    sending: is_busy,
+    streaming: is_streaming,
+    onStop: cancel_active,
+    endpoint: endpoint_value,
+    onEndpointChange: handle_endpoint_change,
+    tools: prompt_bar_tools,
+    onToolAdd: handle_tool_add,
+    onToolRemove: handle_mention_remove,
+    toolChoice: tool_choice,
+    onToolChoiceChange: setToolChoice,
+    suggestions: !has_active ? [
+      t("chat.suggestion_ask_agent"),
+      t("chat.suggestion_run_workflow"),
+      t("chat.suggestion_explore_tools"),
+    ] : undefined,
+    onSuggestionSelect: !has_active ? (text: string) => {
+      void create_session().then(() => setInput(text));
+    } : undefined,
+    greeting: !has_active ? t("chat.greeting") : undefined,
+  };
 
   return (
     <div className="chat-page">
@@ -365,17 +433,15 @@ export default function ChatPage() {
           onDelete={(id) => setDeleteConfirmId(id)}
         />
       ) : !has_active ? (
-        <EmptyState
-          onNewSession={create_session}
-          suggestions={[
-            t("chat.suggestion_ask_agent"),
-            t("chat.suggestion_run_workflow"),
-            t("chat.suggestion_explore_tools"),
-          ]}
-          onSuggestionSelect={(text) => {
-            void create_session().then(() => setInput(text));
-          }}
-        />
+        <div className="chat-empty-hub">
+          <EmptyState
+            onNewSession={create_session}
+          />
+          <SharedPromptBar
+            {...promptBarProps}
+            className="chat-empty-hub__prompt-bar"
+          />
+        </div>
       ) : (activeSessionLoading || mirrorSessionLoading) ? (
         <div className="chat-loading">
           <div className="spinner" aria-label={t("chat.loading")}></div>
@@ -417,26 +483,7 @@ export default function ChatPage() {
               execution_route={ndjson_routing?.execution_route}
               onStop={cancel_active}
             />
-            <ChatPromptBar
-              input={input}
-              setInput={setInput}
-              history={input_history}
-              sending={is_busy}
-              is_streaming={is_streaming}
-              can_send={can_send}
-              onSend={() => void (is_mirror ? send_mirror() : send())}
-              pending_media={is_mirror ? [] : pending_media}
-              onAttach={is_mirror ? undefined : () => fileInputRef.current?.click()}
-              onRemoveMedia={is_mirror ? undefined : (idx: number) => setPendingMedia((prev) => prev.filter((_, i) => i !== idx))}
-              selectedModel={is_mirror ? undefined : selectedModel}
-              onModelChange={is_mirror ? undefined : setSelectedModel}
-              attached_items={is_mirror ? undefined : attached_items}
-              onMentionSelect={is_mirror ? undefined : handle_mention_select}
-              onMentionRemove={is_mirror ? undefined : handle_mention_remove}
-              agent_mentions={is_mirror ? undefined : agent_mentions}
-              tool_choice={is_mirror ? undefined : tool_choice}
-              onToolChoiceChange={is_mirror ? undefined : setToolChoice}
-            />
+            <SharedPromptBar {...promptBarProps} />
           </div>
           {!is_mirror && (
             <input

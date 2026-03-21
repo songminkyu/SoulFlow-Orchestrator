@@ -409,6 +409,7 @@
   "chat.agent_clear": "Clear agent",
   "chat.system_prompt_label": "System prompt",
   "chat.system_prompt_placeholder": "Agent system prompt (auto if empty)",
+  "chat.greeting": "Let us know when you're ready",
   "chat.suggestion_ask_agent": "Ask an agent a question",
   "chat.suggestion_run_workflow": "Run a workflow",
   "chat.suggestion_explore_tools": "Explore available tools",

@@ -409,6 +409,7 @@
   "chat.agent_clear": "에이전트 해제",
   "chat.system_prompt_label": "시스템 프롬프트",
   "chat.system_prompt_placeholder": "에이전트 시스템 프롬프트 (비워두면 자동 선택)",
+  "chat.greeting": "준비가 되면 알려주세요",
   "chat.suggestion_ask_agent": "에이전트에게 질문하기",
   "chat.suggestion_run_workflow": "워크플로우 실행하기",
   "chat.suggestion_explore_tools": "사용 가능한 도구 탐색하기",
