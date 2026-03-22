@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
+import type { ApiScopedProviderList } from "../api/contracts";
 
 export interface ScopedProvider {
   id: string;
@@ -28,8 +29,8 @@ export function useScopedProviders(team_id: string | null) {
   return useQuery<ScopedProvider[]>({
     queryKey: ["scoped-providers", team_id],
     queryFn: async () => {
-      const res = await api.get<{ providers: ScopedProvider[] }>(`/api/teams/${team_id}/providers`);
-      return res.providers;
+      const res = await api.get<ApiScopedProviderList>(`/api/teams/${team_id}/providers`);
+      return res.providers as ScopedProvider[];
     },
     enabled: !!team_id,
     staleTime: 30_000,
@@ -41,8 +42,8 @@ export function useGlobalProviders() {
   return useQuery<ScopedProvider[]>({
     queryKey: ["global-providers"],
     queryFn: async () => {
-      const res = await api.get<{ providers: ScopedProvider[] }>("/api/admin/global-providers");
-      return res.providers;
+      const res = await api.get<ApiScopedProviderList>("/api/admin/global-providers");
+      return res.providers as ScopedProvider[];
     },
     staleTime: 30_000,
   });

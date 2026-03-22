@@ -2,6 +2,7 @@ import { MAX_CHAT_SESSIONS, MAX_MESSAGES_PER_SESSION, type ChatMediaItem, type C
 import { now_iso, short_id } from "../../utils/common.js";
 import type { RouteContext } from "../route-context.js";
 import { set_no_cache, require_team_manager, get_filter_team_id } from "../route-context.js";
+import type { ApiChatSessionCreated, ApiChatSessionUpdated } from "../../contracts/api-responses.js";
 
 type ParsedBody = {
   text: string;
@@ -95,7 +96,7 @@ export async function handle_chat(ctx: RouteContext): Promise<boolean> {
       const store_session = await session_store.get_or_create(session_store_key(id));
       await session_store.save(store_session);
     }
-    json(res, 201, { id, created_at: session.created_at });
+    json(res, 201, { id, created_at: session.created_at } satisfies ApiChatSessionCreated);
     return true;
   }
 
@@ -118,7 +119,7 @@ export async function handle_chat(ctx: RouteContext): Promise<boolean> {
     const body = await read_body(req);
     const name = typeof body?.name === "string" ? body.name.trim().slice(0, 100) : undefined;
     if (name !== undefined) session.name = name || undefined;
-    json(res, 200, { id: session.id, name: session.name ?? null });
+    json(res, 200, { id: session.id, name: session.name ?? null } satisfies ApiChatSessionUpdated);
     return true;
   }
 

@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStatus, useLogin, type AuthUser } from "../hooks/use-auth";
 import { useI18n } from "../i18n";
 import { api } from "../api/client";
+import type { ApiSetupResult } from "../api/contracts";
 
 /** 좌측 아트 패널: samples/better-chatbot-login.png 레퍼런스
  *  - 흰/밝은 배경 + 흑색 커브 라인 (하단부에서 올라오는 곡선)
@@ -107,7 +108,7 @@ function SetupForm() {
 
   const setup = useMutation({
     mutationFn: (creds: { username: string; password: string }) =>
-      api.post<{ ok: boolean; username: string; role: string }>("/api/auth/setup", creds),
+      api.post<ApiSetupResult>("/api/auth/setup", creds),
     onSuccess: () => {
       qc.clear();
       void qc.prefetchQuery({

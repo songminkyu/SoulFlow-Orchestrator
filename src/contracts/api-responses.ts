@@ -35,8 +35,27 @@ export type ApiAuthMe = {
 };
 
 export type ApiMyTeams = {
-  teams: Array<{ id: string; name: string; role: string }>;
+  teams: Array<{ id: string; name: string; created_at: string; role: string }>;
 };
+
+export type ApiBootstrapStatus = { needed: boolean };
+
+export type ApiSetupResult = { ok: true; username: string; role: string };
+
+export type ApiScopedProvider = {
+  id: string;
+  name: string;
+  type: string;
+  model: string;
+  config: Record<string, unknown>;
+  api_key_ref: string;
+  enabled: boolean;
+  created_at: string;
+  scope: "global" | "team" | "personal";
+  team_id?: string;
+};
+
+export type ApiScopedProviderList = { providers: ApiScopedProvider[] };
 
 /* ─── Admin ──────────────────────────────────────────────────────────── */
 
@@ -224,9 +243,9 @@ export type ApiHealthz = { ok: true; at: string };
 
 export type ApiToolsInfo = {
   names: string[];
-  definitions: Record<string, unknown>;
-  mcp_servers: Record<string, unknown>;
-  native_tools: string[];
+  definitions: Array<Record<string, unknown>>;
+  mcp_servers: Array<{ name: string; connected: boolean; tools: string[]; error?: string }>;
+  native_tools: readonly string[];
 };
 
 /* ─── Reconcile ──────────────────────────────────────────────────────── */

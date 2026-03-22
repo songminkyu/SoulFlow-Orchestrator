@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
+import type { ApiAdminUserList, ApiAdminTeamList, ApiTeamMemberList, ApiMyTeams } from "../api/contracts";
 
 export interface AuthStatus {
   enabled: boolean;
@@ -109,8 +110,8 @@ export function useAdminUsers() {
   return useQuery<AdminUserRecord[]>({
     queryKey: ["admin-users"],
     queryFn: async () => {
-      const res = await api.get<{ users: AdminUserRecord[] }>("/api/admin/users");
-      return res.users;
+      const res = await api.get<ApiAdminUserList>("/api/admin/users");
+      return res.users as AdminUserRecord[];
     },
     staleTime: 30_000,
   });
@@ -120,8 +121,8 @@ export function useAdminTeams() {
   return useQuery<TeamRecord[]>({
     queryKey: ["admin-teams"],
     queryFn: async () => {
-      const res = await api.get<{ teams: TeamRecord[] }>("/api/admin/teams");
-      return res.teams;
+      const res = await api.get<ApiAdminTeamList>("/api/admin/teams");
+      return res.teams as TeamRecord[];
     },
     staleTime: 30_000,
   });
@@ -131,8 +132,8 @@ export function useTeamMembers(team_id: string | null) {
   return useQuery<TeamMember[]>({
     queryKey: ["team-members", team_id],
     queryFn: async () => {
-      const res = await api.get<{ members: TeamMember[] }>(`/api/admin/teams/${team_id}/members`);
-      return res.members;
+      const res = await api.get<ApiTeamMemberList>(`/api/admin/teams/${team_id}/members`);
+      return res.members as TeamMember[];
     },
     enabled: !!team_id,
     staleTime: 30_000,
@@ -191,8 +192,8 @@ export function useMyTeams() {
   return useQuery<MyTeam[]>({
     queryKey: ["my-teams"],
     queryFn: async () => {
-      const res = await api.get<{ teams: MyTeam[] }>("/api/auth/my-teams");
-      return res.teams;
+      const res = await api.get<ApiMyTeams>("/api/auth/my-teams");
+      return res.teams as MyTeam[];
     },
     enabled: status?.enabled === true,
     staleTime: 60_000,

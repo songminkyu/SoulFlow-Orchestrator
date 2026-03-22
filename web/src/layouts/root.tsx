@@ -8,6 +8,7 @@ import { useI18n } from "../i18n";
 import { api } from "../api/client";
 import { useRef, useState } from "react";
 import { useAuthStatus, useAuthUser } from "../hooks/use-auth";
+import type { ApiBootstrapStatus } from "../api/contracts";
 import { useToast } from "../components/toast";
 import { useStatus } from "../api/hooks";
 import type { DashboardState } from "../pages/overview/types";
@@ -60,7 +61,7 @@ export function RootLayout() {
     if (location.pathname === "/login") return;
     if (auth_status === undefined) return;
     if (auth_status.enabled && !auth_user) return;
-    api.get<{ needed: boolean }>("/api/bootstrap/status")
+    api.get<ApiBootstrapStatus>("/api/bootstrap/status")
       .then((res) => { if (res.needed) navigate("/setup"); })
       .catch(() => {});
   }, [location.pathname, navigate, auth_status, auth_user]);

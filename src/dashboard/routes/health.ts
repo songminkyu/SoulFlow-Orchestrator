@@ -2,6 +2,7 @@ import type { IncomingMessage } from "node:http";
 import { now_iso } from "../../utils/common.js";
 import type { RouteContext } from "../route-context.js";
 import { get_filter_team_id, get_filter_user_id, require_team_manager, require_superadmin } from "../route-context.js";
+import type { ApiHealthz, ApiToolsInfo } from "../../contracts/api-responses.js";
 
 const CLAUDE_CODE_NATIVE_TOOLS = [
   "Bash", "Read", "Write", "Edit", "Glob", "Grep",
@@ -123,13 +124,13 @@ export async function handle_health(ctx: RouteContext): Promise<boolean> {
       definitions: ops.get_definitions(),
       mcp_servers: ops.list_mcp_servers(),
       native_tools: CLAUDE_CODE_NATIVE_TOOLS,
-    });
+    } satisfies ApiToolsInfo);
     return true;
   }
 
   // healthz
   if (url.pathname === "/healthz") {
-    json(res, 200, { ok: true, at: now_iso() });
+    json(res, 200, { ok: true, at: now_iso() } satisfies ApiHealthz);
     return true;
   }
 

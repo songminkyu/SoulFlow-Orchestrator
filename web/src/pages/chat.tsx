@@ -23,6 +23,7 @@ import { CanvasPanel } from "./chat/canvas-panel";
 import type { ChatSessionSummary, ChatSession, ChatMessage, ChatMediaItem } from "./chat/types";
 import type { AgentDefinition } from "../../../src/agent/agent-definition.types";
 import type { MentionItem } from "../components/mention-picker";
+import type { ApiChatSessionCreated } from "../api/contracts";
 
 type MirrorSessionEntry = { key: string; provider: string; chat_id: string; alias: string; thread?: string; updated_at: string; message_count: number };
 type MirrorSession = { key: string; provider: string; chat_id: string; alias: string; messages: ChatMessage[] };
@@ -152,7 +153,7 @@ export default function ChatPage() {
   const stream_content_len = (ndjson_stream?.content?.length ?? 0) + (web_stream?.content?.length ?? 0);
 
   const create_session = () => run_create(async () => {
-    const res = await api.post<{ id: string }>("/api/chat/sessions");
+    const res = await api.post<ApiChatSessionCreated>("/api/chat/sessions");
     setActiveId(res.id);
     void qc.invalidateQueries({ queryKey: ["chat-sessions"] });
   }, t("chat.session_created"), t("chat.create_failed"));
@@ -160,7 +161,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!init_def) return;
     void (async () => {
-      const res = await api.post<{ id: string }>("/api/chat/sessions");
+      const res = await api.post<ApiChatSessionCreated>("/api/chat/sessions");
       await api.patch(`/api/chat/sessions/${encodeURIComponent(res.id)}`, { name: `${init_def.icon} ${init_def.name}` });
       setActiveId(res.id);
       void qc.invalidateQueries({ queryKey: ["chat-sessions"] });

@@ -13,6 +13,7 @@ import { join } from "node:path";
 import type { RouteContext } from "../route-context.js";
 import { make_auth_cookie, clear_auth_cookie } from "../../auth/auth-middleware.js";
 import { LoginRateLimiter } from "../../auth/login-rate-limiter.js";
+import type { ApiAuthStatus, ApiAuthMe, ApiMyTeams } from "../../contracts/api-responses.js";
 
 /** H-8: 로그인/셋업 brute-force 방어. 모듈 수준 싱글턴. */
 const login_limiter = new LoginRateLimiter({ max_attempts: 5, window_ms: 15 * 60 * 1000 });
@@ -31,10 +32,10 @@ export async function handle_auth(ctx: RouteContext): Promise<boolean> {
 
   if (url.pathname === "/api/auth/status" && req.method === "GET") {
     if (!auth_svc) {
-      json(res, 200, { enabled: false, initialized: false });
+      json(res, 200, { enabled: false, initialized: false } satisfies ApiAuthStatus);
       return true;
     }
-    json(res, 200, { enabled: true, initialized: auth_svc.is_initialized() });
+    json(res, 200, { enabled: true, initialized: auth_svc.is_initialized() } satisfies ApiAuthStatus);
     return true;
   }
 
@@ -153,7 +154,7 @@ export async function handle_auth(ctx: RouteContext): Promise<boolean> {
       if (existsSync(db)) team_role = ctx.create_team_store(p.tid).get_membership(p.sub)?.role ?? null;
     }
 
-    json(res, 200, { sub: p.sub, username: p.usr, role: p.role, tid: p.tid, wdir: p.wdir, exp: p.exp, team_role });
+    json(res, 200, { sub: p.sub, username: p.usr, role: p.role, tid: p.tid, wdir: p.wdir, exp: p.exp, team_role } satisfies ApiAuthMe);
     return true;
   }
 
@@ -169,7 +170,7 @@ export async function handle_auth(ctx: RouteContext): Promise<boolean> {
 
     // superadmin은 모든 팀, 일반 사용자는 멤버십이 있는 팀만
     if (p.role === "superadmin") {
-      json(res, 200, { teams: all_teams.map((t) => ({ ...t, role: "owner" as const })) });
+      json(res, 200, { teams: all_teams.map((t) => ({ ...t, role: "owner" as const })) } satisfies ApiMyTeams);
       return true;
     }
 
@@ -180,7 +181,7 @@ export async function handle_auth(ctx: RouteContext): Promise<boolean> {
       const membership = ctx.create_team_store(team.id).get_membership(p.sub);
       if (membership) my_teams.push({ ...team, role: membership.role });
     }
-    json(res, 200, { teams: my_teams });
+    json(res, 200, { teams: my_teams } satisfies ApiMyTeams);
     return true;
   }
 
