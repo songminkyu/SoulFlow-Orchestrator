@@ -88,6 +88,7 @@ describe("Task Progress via MessageBus", () => {
       provider: "discord",
       chat_id: "ch",
       at: new Date().toISOString(),
+      team_id: "test-team",
     });
 
     const received = await consume_promise;

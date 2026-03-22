@@ -98,15 +98,14 @@ describe("G-11/G-12: i18n locale keys", () => {
 
 /* ── G-11: root.tsx 소스에서 pending 배지 동작 구조 직접 검증 ── */
 
-describe("G-11: root.tsx pending badge behavioral contract", () => {
+describe("G-11: user-card.tsx pending badge behavioral contract", () => {
   let src: string;
   beforeAll(() => {
-    src = readFileSync(join(REPO_ROOT, "web/src/layouts/root.tsx"), "utf8");
+    src = readFileSync(join(REPO_ROOT, "web/src/components/user-card.tsx"), "utf8");
   });
 
-  it("switch_team.isPending 조건부로 topbar__team-badge--pending CSS 적용", () => {
-    // switch_team.isPending이 실제로 badge CSS를 제어하는지 조건부 표현식 구조 검증
-    expect(src).toMatch(/switch_team\.isPending\s*\?\s*["` ]*topbar__team-badge--pending/);
+  it("switch_team.isPending 조건부로 team-badge--pending CSS 적용", () => {
+    expect(src).toMatch(/switch_team\.isPending\s*\?\s*["` ]*user-card__team-badge--pending/);
   });
 
   it("switch_team.isPending 조건부로 t(\"team.switching\") 렌더링", () => {
@@ -119,8 +118,15 @@ describe("G-11: root.tsx pending badge behavioral contract", () => {
     expect(src).toMatch(/disabled=\{switch_team\.isPending\}/);
   });
 
+});
+
+describe("G-11: root.tsx locale button behavioral contract", () => {
+  let src: string;
+  beforeAll(() => {
+    src = readFileSync(join(REPO_ROOT, "web/src/layouts/root.tsx"), "utf8");
+  });
+
   it("locale 버튼이 하드코딩 없이 t() 키 사용", () => {
-    // I-1: 한국어/English가 하드코딩되지 않고 locale key 사용
     expect(src).toMatch(/t\("sidebar\.locale_ko"\)/);
     expect(src).toMatch(/t\("sidebar\.locale_en"\)/);
     expect(src).not.toMatch(/"한국어"/);
@@ -130,10 +136,10 @@ describe("G-11: root.tsx pending badge behavioral contract", () => {
 
 /* ── G-12: root.tsx 소스에서 denial toast 호출 경로 직접 검증 ── */
 
-describe("G-12: root.tsx denial toast behavioral contract", () => {
+describe("G-12: user-card.tsx denial toast behavioral contract", () => {
   let src: string;
   beforeAll(() => {
-    src = readFileSync(join(REPO_ROOT, "web/src/layouts/root.tsx"), "utf8");
+    src = readFileSync(join(REPO_ROOT, "web/src/components/user-card.tsx"), "utf8");
   });
 
   it("onError 핸들러에서 error code 분기 후 toast(msg, \"err\") 호출", () => {

@@ -20,6 +20,7 @@ describe("CronService — pure logic", () => {
   });
 
   afterEach(async () => {
+    await (svc as any).initialized?.catch(() => {});
     await svc.stop().catch(() => {});
     await rm(store_path, { recursive: true, force: true }).catch(() => {});
   });

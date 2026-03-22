@@ -85,7 +85,10 @@ describe("with_sqlite — 예외 → return null", () => {
   });
 
   it("존재하지 않는 디렉토리 → DB 열기 실패 → null 반환", () => {
-    const result = with_sqlite("/nonexistent/path/test.db", (db) => {
+    const bad_path = process.platform === "win32"
+      ? "Z:\\__nonexistent_dir__\\deep\\test.db"
+      : "/nonexistent/path/test.db";
+    const result = with_sqlite(bad_path, (db) => {
       db.exec("SELECT 1");
       return "should not reach";
     });

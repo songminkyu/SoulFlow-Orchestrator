@@ -155,12 +155,12 @@ describe("CronService — status", () => {
 // ══════════════════════════════════════════════════════════
 
 describe("CronService — health_check", () => {
-  it("start 이전 → ok=false", () => {
+  it("start 이전 → ok=false", async () => {
     const svc = make_svc();
     const h = svc.health_check();
     expect(h.ok).toBe(false);
     expect(h.details?.paused).toBe(false);
-    // start()를 호출하지 않았으므로 stop() 불필요 — 호출 시 lazy DB init이 삭제된 tmpdir에서 실패
+    await (svc as any).initialized;
   });
 
   it("start 이후 → ok=true", async () => {

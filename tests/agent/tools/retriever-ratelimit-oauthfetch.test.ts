@@ -102,16 +102,15 @@ describe("RetrieverTool — vector action", () => {
     expect(r).toContain("collection is required");
   });
 
-  it("collection 지정 → 빈 results + note 포함", async () => {
-    const r = JSON.parse(await new RetrieverTool().execute({ action: "vector", query: "test", collection: "my_col" }));
-    expect(r.results).toHaveLength(0);
-    expect(r.source).toBe("vector");
-    expect(r.note).toContain("vector_store");
+  it("collection 지정 + store 미구성 → Error 문자열", async () => {
+    const r = await new RetrieverTool().execute({ action: "vector", query: "test", collection: "my_col" });
+    expect(r).toContain("Error");
+    expect(r).toContain("no reference store");
   });
 
-  it("min_score 포함", async () => {
-    const r = JSON.parse(await new RetrieverTool().execute({ action: "vector", query: "test", collection: "col", min_score: 0.8 }));
-    expect(r.min_score).toBe(0.8);
+  it("min_score 포함 + store 미구성 → Error 문자열", async () => {
+    const r = await new RetrieverTool().execute({ action: "vector", query: "test", collection: "col", min_score: 0.8 });
+    expect(r).toContain("Error");
   });
 });
 

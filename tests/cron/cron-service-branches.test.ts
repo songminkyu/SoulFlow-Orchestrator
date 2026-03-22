@@ -234,6 +234,7 @@ describe("CronService — 공개 API 추가 경로", () => {
 
   it("every() 등록 후 stop() → 타이머 정리", async () => {
     const svc = make_svc();
+    await (svc as any).initialized;
     let count = 0;
     svc.every(60_000, async () => { count++; });
     await svc.stop();
@@ -323,6 +324,7 @@ describe("CronService — _load_store / _recompute", () => {
 describe("CronService — _on_timer", () => {
   it("paused=true → 즉시 반환 (cov7)", async () => {
     const svc = make_svc();
+    await (svc as any).initialized;
     (svc as any)._running = true;
     (svc as any)._paused = true;
     await expect((svc as any)._on_timer()).resolves.toBeUndefined();
@@ -331,6 +333,7 @@ describe("CronService — _on_timer", () => {
 
   it("running=false → 즉시 반환 (cov7)", async () => {
     const svc = make_svc();
+    await (svc as any).initialized;
     (svc as any)._running = false;
     await expect((svc as any)._on_timer()).resolves.toBeUndefined();
     await svc.stop().catch(() => {});

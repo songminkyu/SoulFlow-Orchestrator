@@ -67,7 +67,7 @@ describe("ChannelManager bus inbound consumer", () => {
 describe("MessageBus publish/consume 기본 동작", () => {
   it("publish → consume 정상 순환", async () => {
     const bus = new MessageBus();
-    const msg = { id: "1", provider: "test", channel: "ch", sender_id: "u", chat_id: "c", content: "hi", at: new Date().toISOString() };
+    const msg = { id: "1", provider: "test", channel: "ch", sender_id: "u", chat_id: "c", content: "hi", at: new Date().toISOString(), team_id: "test-team" };
     await bus.publish_inbound(msg);
     const consumed = await bus.consume_inbound({ timeout_ms: 100 });
     expect(consumed).not.toBeNull();
