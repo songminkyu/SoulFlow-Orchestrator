@@ -15,6 +15,28 @@ vi.mock("@/components/badge", () => ({ Badge: ({ status }: { status: string }) =
 vi.mock("@/components/section-header", () => ({
   SectionHeader: ({ title, children }: { title: string; children?: React.ReactNode }) => <div>{title}{children}</div>,
 }));
+vi.mock("@/i18n", () => ({
+  useT: () => (key: string) => key,
+  useI18n: () => ({ t: (key: string) => key, locale: "en", set_locale: vi.fn() }),
+}));
+vi.mock("@/components/studio-model-picker", () => ({
+  StudioModelPicker: ({
+    value,
+    onChange,
+  }: {
+    value: { provider_id: string; model: string };
+    onChange: (v: { provider_id: string; model: string }) => void;
+  }) => (
+    <input
+      data-testid="eval-model-picker"
+      value={`${value.provider_id}:${value.model}`}
+      onChange={(e) => {
+        const [provider_id, model] = e.target.value.split(":");
+        onChange({ provider_id: provider_id ?? "", model: model ?? "" });
+      }}
+    />
+  ),
+}));
 
 import { EvalPanel } from "@/pages/prompting/eval-panel";
 
@@ -32,7 +54,7 @@ beforeEach(() => {
 describe("EvalPanel", () => {
   it("초기 상태 — Load 버튼 렌더", () => {
     render(<EvalPanel />);
-    expect(screen.getByText("Load Eval Bundles")).toBeInTheDocument();
+    expect(screen.getByText("prompting.eval_load")).toBeInTheDocument();
   });
 
   it("Load 클릭 → 번들 목록 렌더", async () => {
@@ -41,7 +63,7 @@ describe("EvalPanel", () => {
       { name: "safety", description: "Safety tests", smoke: true, dataset_files: ["safety.json"] },
     ]);
     render(<EvalPanel />);
-    fireEvent.click(screen.getByText("Load Eval Bundles"));
+    fireEvent.click(screen.getByText("prompting.eval_load"));
     await waitFor(() => {
       expect(screen.getByText("routing")).toBeInTheDocument();
       expect(screen.getByText("safety")).toBeInTheDocument();
@@ -54,10 +76,10 @@ describe("EvalPanel", () => {
       { name: "routing", description: "Route tests", smoke: true, dataset_files: [] },
     ]);
     render(<EvalPanel />);
-    fireEvent.click(screen.getByText("Load Eval Bundles"));
+    fireEvent.click(screen.getByText("prompting.eval_load"));
     await waitFor(() => screen.getByText("routing"));
     fireEvent.click(screen.getByText("routing"));
-    expect(screen.getByText("Run")).toBeInTheDocument();
+    expect(screen.getByText("prompting.eval_run")).toBeInTheDocument();
   });
 
   it("Run 클릭 → scorecard 렌더", async () => {
@@ -76,10 +98,10 @@ describe("EvalPanel", () => {
       summaries: [{ dataset: "routing", total: 2, passed: 1, failed: 1, error_count: 0, duration_ms: 100 }],
     });
     render(<EvalPanel />);
-    fireEvent.click(screen.getByText("Load Eval Bundles"));
+    fireEvent.click(screen.getByText("prompting.eval_load"));
     await waitFor(() => screen.getByText("routing"));
     fireEvent.click(screen.getByText("routing"));
-    fireEvent.click(screen.getByText("Run"));
+    fireEvent.click(screen.getByText("prompting.eval_run"));
     await waitFor(() => {
       expect(screen.getByTestId("eval-scorecard")).toBeInTheDocument();
       expect(screen.getByText("c1")).toBeInTheDocument();
@@ -103,12 +125,12 @@ describe("EvalPanel", () => {
       summaries: [],
     });
     render(<EvalPanel />);
-    fireEvent.click(screen.getByText("Load Eval Bundles"));
+    fireEvent.click(screen.getByText("prompting.eval_load"));
     await waitFor(() => screen.getByText("routing"));
     fireEvent.click(screen.getByText("routing"));
-    fireEvent.click(screen.getByText("Run"));
+    fireEvent.click(screen.getByText("prompting.eval_run"));
     await waitFor(() => screen.getByTestId("eval-scorecard"));
-    fireEvent.click(screen.getByText("Save as Baseline"));
+    fireEvent.click(screen.getByText("prompting.eval_save_baseline"));
     expect(localStorage.getItem("eval_baseline_routing")).not.toBeNull();
   });
 
@@ -138,20 +160,20 @@ describe("EvalPanel", () => {
       .mockResolvedValueOnce({ report: report2, summaries: [] });
 
     render(<EvalPanel />);
-    fireEvent.click(screen.getByText("Load Eval Bundles"));
+    fireEvent.click(screen.getByText("prompting.eval_load"));
     await waitFor(() => screen.getByText("routing"));
     fireEvent.click(screen.getByText("routing"));
 
     // 1차 실행 + baseline 저장
-    fireEvent.click(screen.getByText("Run"));
+    fireEvent.click(screen.getByText("prompting.eval_run"));
     await waitFor(() => screen.getByTestId("eval-scorecard"));
-    fireEvent.click(screen.getByText("Save as Baseline"));
+    fireEvent.click(screen.getByText("prompting.eval_save_baseline"));
     expect(localStorage.getItem("eval_baseline_routing")).not.toBeNull();
 
     // 2차 실행 → diff 표시
-    fireEvent.click(screen.getByText("Run"));
+    fireEvent.click(screen.getByText("prompting.eval_run"));
     await waitFor(() => screen.getByTestId("eval-baseline-diff"));
-    expect(screen.getByText("Update Baseline")).toBeInTheDocument();
+    expect(screen.getByText("prompting.eval_update_baseline")).toBeInTheDocument();
     expect(screen.getAllByText(/improved/).length).toBeGreaterThan(0);
   });
 
@@ -165,13 +187,125 @@ describe("EvalPanel", () => {
       summaries: [],
     });
     render(<EvalPanel />);
-    fireEvent.click(screen.getByText("Load Eval Bundles"));
+    fireEvent.click(screen.getByText("prompting.eval_load"));
     await waitFor(() => screen.getByText("routing"));
     fireEvent.click(screen.getByText("routing"));
-    fireEvent.click(screen.getByText("Run"));
+    fireEvent.click(screen.getByText("prompting.eval_run"));
     await waitFor(() => screen.getByTestId("eval-scorecard"));
     // bundle 전환
     fireEvent.click(screen.getByText("safety"));
     expect(screen.queryByTestId("eval-scorecard")).toBeNull();
+  });
+
+  it("QC-4: compiler_verdict=pass 있는 scorecard에 compiler badge 렌더", async () => {
+    mockGet.mockResolvedValue([
+      { name: "routing", description: "Route tests", smoke: true, dataset_files: [] },
+    ]);
+    mockPost.mockResolvedValue({
+      report: {
+        dataset: "routing", timestamp: "2026-01-01", total: 1, passed: 1, failed: 0,
+        duration_ms: 50,
+        scorecards: [
+          {
+            case_id: "c1",
+            entries: [{ dimension: "overall", passed: true, score: 1 }],
+            overall_passed: true,
+            overall_score: 1,
+            compiler_verdict: "pass",
+            direct_node_hint: "use direct node",
+          },
+        ],
+      },
+      summaries: [],
+    });
+    render(<EvalPanel />);
+    fireEvent.click(screen.getByText("prompting.eval_load"));
+    await waitFor(() => screen.getByText("routing"));
+    fireEvent.click(screen.getByText("routing"));
+    fireEvent.click(screen.getByText("prompting.eval_run"));
+    await waitFor(() => screen.getByTestId("eval-scorecard"));
+    expect(screen.getByTestId("eval-compiler-badge")).toBeInTheDocument();
+    expect(screen.getByTestId("eval-compiler-badge").textContent).toContain("PASS");
+  });
+
+  it("QC-4: compiler_verdict=fail → fail badge 렌더", async () => {
+    mockGet.mockResolvedValue([
+      { name: "routing", description: "Route tests", smoke: true, dataset_files: [] },
+    ]);
+    mockPost.mockResolvedValue({
+      report: {
+        dataset: "routing", timestamp: "2026-01-01", total: 1, passed: 0, failed: 1,
+        duration_ms: 50,
+        scorecards: [
+          {
+            case_id: "c1",
+            entries: [{ dimension: "overall", passed: false, score: 0 }],
+            overall_passed: false,
+            overall_score: 0,
+            compiler_verdict: "fail",
+          },
+        ],
+      },
+      summaries: [],
+    });
+    render(<EvalPanel />);
+    fireEvent.click(screen.getByText("prompting.eval_load"));
+    await waitFor(() => screen.getByText("routing"));
+    fireEvent.click(screen.getByText("routing"));
+    fireEvent.click(screen.getByText("prompting.eval_run"));
+    await waitFor(() => screen.getByTestId("eval-scorecard"));
+    const badge = screen.getByTestId("eval-compiler-badge");
+    expect(badge.className).toContain("ps-chip--score-err");
+    expect(badge.textContent).toContain("FAIL");
+  });
+
+  it("compiler_verdict 없으면 compiler badge 미렌더", async () => {
+    mockGet.mockResolvedValue([
+      { name: "routing", description: "Route tests", smoke: true, dataset_files: [] },
+    ]);
+    mockPost.mockResolvedValue({
+      report: {
+        dataset: "routing", timestamp: "2026-01-01", total: 1, passed: 1, failed: 0,
+        duration_ms: 50,
+        scorecards: [
+          { case_id: "c1", entries: [{ dimension: "overall", passed: true, score: 1 }], overall_passed: true, overall_score: 1 },
+        ],
+      },
+      summaries: [],
+    });
+    render(<EvalPanel />);
+    fireEvent.click(screen.getByText("prompting.eval_load"));
+    await waitFor(() => screen.getByText("routing"));
+    fireEvent.click(screen.getByText("routing"));
+    fireEvent.click(screen.getByText("prompting.eval_run"));
+    await waitFor(() => screen.getByTestId("eval-scorecard"));
+    expect(screen.queryAllByTestId("eval-compiler-badge")).toHaveLength(0);
+  });
+
+  it("엔드포인트 선택 시 api.post에 provider_id 포함", async () => {
+    mockGet.mockResolvedValue([
+      { name: "routing", description: "Route tests", smoke: true, dataset_files: [] },
+    ]);
+    mockPost.mockResolvedValue({
+      report: { dataset: "routing", timestamp: "2026-01-01", total: 1, passed: 1, failed: 0, duration_ms: 50, scorecards: [] },
+      summaries: [],
+    });
+    render(<EvalPanel />);
+    fireEvent.click(screen.getByText("prompting.eval_load"));
+    await waitFor(() => screen.getByText("routing"));
+    fireEvent.click(screen.getByText("routing"));
+
+    // Select endpoint
+    const picker = screen.getByTestId("eval-model-picker");
+    fireEvent.change(picker, { target: { value: "openai:gpt-4" } });
+
+    fireEvent.click(screen.getByText("prompting.eval_run"));
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith("/api/eval/run", {
+        bundle: "routing",
+        provider_id: "openai",
+        model: "gpt-4",
+      });
+    });
   });
 });

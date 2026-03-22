@@ -24,14 +24,14 @@ export function ComparePanel() {
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<CompareResult[]>([]);
 
-  const add_target = () => setTargets((t) => [...t, EMPTY_TARGET()]);
-  const remove_target = (i: number) => setTargets((t) => t.filter((_, idx) => idx !== i));
+  const add_target = () => setTargets((prev) => [...prev, EMPTY_TARGET()]);
+  const remove_target = (i: number) => setTargets((prev) => prev.filter((_, idx) => idx !== i));
   const update_target = (i: number, v: StudioModelValue) =>
-    setTargets((t) => t.map((x, idx) => (idx === i ? v : x)));
+    setTargets((prev) => prev.map((x, idx) => (idx === i ? v : x)));
 
   const handle_run = async () => {
     if (!prompt.trim()) return;
-    const active = targets.filter((t) => t.provider_id);
+    const active = targets.filter((tgt) => tgt.provider_id);
     if (!active.length) return;
     setRunning(true);
     setResults([]);
@@ -52,8 +52,13 @@ export function ComparePanel() {
     }
   };
 
-  const temp_label = temperature <= 0.3 ? t("prompting.temp_precise") : temperature <= 0.7 ? t("prompting.temp_balance") : t("prompting.temp_creative");
-  const active_count = targets.filter((t) => t.provider_id).length;
+  const temp_label =
+    temperature <= 0.3
+      ? t("prompting.temp_precise")
+      : temperature <= 0.7
+        ? t("prompting.temp_balance")
+        : t("prompting.temp_creative");
+  const active_count = targets.filter((tgt) => tgt.provider_id).length;
 
   return (
     <div className="ps-split">
@@ -69,10 +74,10 @@ export function ComparePanel() {
         </div>
 
         <div className="ps-pane-sec">
-          <span className="ps-pane-sec__label">Parameters</span>
+          <span className="ps-pane-sec__label">{t("prompting.compare_params")}</span>
           <div className="ps-setting-row">
             <span className="ps-setting-row__label">
-              Temperature <span style={{ fontWeight: 400, opacity: 0.65 }}>({temp_label})</span>
+              {t("prompting.temperature")} <span style={{ fontWeight: 400, opacity: 0.65 }}>({temp_label})</span>
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input type="range" style={{ width: 88 }} min={0} max={2} step={0.1}
@@ -81,7 +86,7 @@ export function ComparePanel() {
             </div>
           </div>
           <div className="ps-setting-row">
-            <span className="ps-setting-row__label">Max Tokens</span>
+            <span className="ps-setting-row__label">{t("prompting.compare_max_tokens")}</span>
             <input className="input input--sm" style={{ width: 88, textAlign: "right" }}
               type="number" min={1} placeholder="default" value={max_tokens ?? ""}
               onChange={(e) => setMaxTokens(e.target.value ? Number(e.target.value) : undefined)} />
@@ -90,18 +95,18 @@ export function ComparePanel() {
 
         <div className="ps-pane-sec">
           <span className="ps-pane-sec__label">
-            System Prompt <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+            {t("prompting.compare_system")} <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>({t("prompting.optional")})</span>
           </span>
           <textarea className="ps-prompt-area" style={{ minHeight: 64 }}
             value={system} onChange={(e) => setSystem(e.target.value)}
-            placeholder="You are a helpful assistant." />
+            placeholder={t("prompting.system_prompt_ph")} />
         </div>
 
         <div className="ps-pane-sec ps-pane-sec--grow ps-pane-sec--noborder">
-          <span className="ps-pane-sec__label">Prompt</span>
+          <span className="ps-pane-sec__label">{t("prompting.compare_prompt")}</span>
           <textarea className="ps-prompt-area ps-prompt-area--grow"
             value={prompt} onChange={(e) => setPrompt(e.target.value)}
-            placeholder="비교할 프롬프트를 입력하세요…" />
+            placeholder={t("prompting.compare_prompt_ph")} />
           <button
             className={`ps-run-btn-main${running ? " ps-run-btn-main--running" : ""}`}
             style={{ marginTop: 4 }}
@@ -109,12 +114,12 @@ export function ComparePanel() {
             onClick={() => void handle_run()}
           >
             {running
-              ? <>⏳ Running…</>
+              ? <>{t("prompting.compare_running")}</>
               : <>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                     <polygon points="5 3 19 12 5 21 5 3"/>
                   </svg>
-                  Compare
+                  {t("prompting.compare_run_btn")}
                   <span className="ps-shortcut">⌘↵</span>
                 </>
             }
@@ -133,28 +138,28 @@ export function ComparePanel() {
                 <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
               </svg>
             </span>
-            <span className="ps-preview-head__title">Models</span>
+            <span className="ps-preview-head__title">{t("prompting.compare_models_label")}</span>
           </div>
-          <div className="ps-preview-head__sub">최대 6개 모델까지 동시 비교.</div>
+          <div className="ps-preview-head__sub">{t("prompting.compare_models_sub")}</div>
         </div>
 
         {/* 모델 선택 목록 */}
         <div className="ps-compare__model-list">
-          {targets.map((t, i) => (
+          {targets.map((tgt, i) => (
             <div key={i} className="ps-compare__model-row">
               <div style={{ flex: 1, minWidth: 0 }}>
-                <StudioModelPicker compact value={t} onChange={(v) => update_target(i, v)} />
+                <StudioModelPicker compact value={tgt} onChange={(v) => update_target(i, v)} />
               </div>
               {targets.length > 2 && (
                 <button className="btn btn--xs btn--danger"
-                  onClick={() => remove_target(i)} aria-label="Remove"
+                  onClick={() => remove_target(i)} aria-label={t("prompting.compare_remove_model")}
                   style={{ flexShrink: 0 }}>✕</button>
               )}
             </div>
           ))}
           {targets.length < 6 && (
             <button className="btn btn--xs" style={{ alignSelf: "flex-start" }} onClick={add_target}>
-              + Add Model
+              {t("prompting.compare_add_model")}
             </button>
           )}
         </div>
@@ -168,18 +173,18 @@ export function ComparePanel() {
                   <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
                 </svg>
               </div>
-              <span>프롬프트를 입력하고 Compare를 실행하세요.</span>
+              <span>{t("prompting.compare_empty")}</span>
             </div>
           ) : (
             <div
               className="ps-compare__grid"
               style={{ "--col-count": String(Math.max(results.length, active_count)) } as React.CSSProperties}
             >
-              {targets.filter((t) => t.provider_id).map((t, i) => (
+              {targets.filter((tgt) => tgt.provider_id).map((tgt, i) => (
                 <div key={i} className="ps-compare__cell">
                   <div className="ps-compare__cell-header">
-                    <span className="ps-chip">{t.provider_id}</span>
-                    {t.model && <span className="ps-chip ps-chip--model">{t.model}</span>}
+                    <span className="ps-chip">{tgt.provider_id}</span>
+                    {tgt.model && <span className="ps-chip ps-chip--model">{tgt.model}</span>}
                     {/* QC-2: rubric verdict badge per cell */}
                     {results[i]?.rubric_verdict && (
                       <span
