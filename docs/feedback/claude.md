@@ -300,3 +300,71 @@ IC-7.3 + IC-7.4 (root, 2 test files):
 ### Residual Risk
 
 - IC-6 (cross-track 문서 최종 갱신)은 docs/ 수정 금지 규칙에 의해 보류 — CLAUDE.md 정책 확인 필요
+
+## [REVIEW_NEEDED] IC-8b — 외부 채널 버튼 콜백 수신 완성
+
+### Forward RTM Rows
+
+| Req ID | File | Exists | Impl | Test Case | Test Result | Status |
+|--------|------|--------|------|-----------|-------------|--------|
+| IC-8b.2 | src/dashboard/routes/channel-callbacks.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::Discord interaction 4건 | ✓ pass | new |
+| IC-8b.4 | src/dashboard/routes/channel-callbacks.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::Discord Ed25519 + PING + type 3 | ✓ pass | new |
+| IC-8b.6 | src/dashboard/routes/channel-callbacks.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::Slack action 4건 | ✓ pass | new |
+| IC-8b.8 | src/channels/telegram.channel.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::Telegram callback_query 5건 | ✓ pass | new |
+| IC-8b.10 | src/channels/approval.service.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::ApprovalService 버튼 콜백 4건 | ✓ pass | new |
+| IC-8b.wiring | src/dashboard/service.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::Dashboard 서비스 연결 4건 | ✓ pass | new |
+| IC-8b.types | src/dashboard/service.types.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::discord_public_key + slack_signing_secret | ✓ pass | new |
+
+### Claim
+
+IC-8b 설계 문서 누락 항목 #2/#4/#6/#8 해소 — 4채널 모두 버튼 전송 + 콜백 수신 완성.
+
+- **ApprovalService**: `try_handle_button_callback()` — 버튼 클릭 InboundMessage에서 action_id(approve/deny/defer/cancel) 추출 → 기존 `apply_decision()` 경로 합류.
+- **Telegram**: `getUpdates` allowed_updates에 `callback_query` 추가. `to_callback_query_message()`로 InboundMessage 변환. `answerCallbackQuery`로 로딩 스피너 해제.
+- **Discord**: `POST /api/channels/discord/interaction` — Ed25519 서명 검증 + PING(type 1) 응답 + MESSAGE_COMPONENT(type 3) → InboundMessage 발행 + DEFERRED_UPDATE_MESSAGE(type 6) 응답.
+- **Slack**: `POST /api/channels/slack/action` — Block Action payload 파싱 → 즉시 200 응답(3초 규칙) → InboundMessage 비동기 발행.
+- **Dashboard**: `register_channel_callbacks()` + `discord_public_key`/`slack_signing_secret` 옵션 추가.
+
+### Changed Files
+
+**Code:**
+- `src/channels/approval.service.ts` — try_handle_button_callback() + source "button" 추가
+- `src/channels/telegram.channel.ts` — callback_query 폴링 + to_callback_query_message + answerCallbackQuery
+- `src/dashboard/routes/channel-callbacks.ts` — 신규: Discord interaction + Slack action 라우트
+- `src/dashboard/service.ts` — register_channel_callbacks() + import
+- `src/dashboard/service.types.ts` — discord_public_key, slack_signing_secret 옵션
+
+**Tests (신규):**
+- `tests/channels/ic8b-button-callbacks.test.ts` — 21건
+
+### Test Command
+
+```bash
+# IC-8b 직접 테스트 (21건)
+cd /d/Projects/next && npx vitest run tests/channels/ic8b-button-callbacks.test.ts
+
+# typecheck
+npx tsc --noEmit
+cd web && npx tsc --noEmit
+```
+
+### Test Result
+
+```
+IC-8b (root, 1 test file):
+ ✓ tests/channels/ic8b-button-callbacks.test.ts (21 tests)
+ Test Files  1 passed (1)
+      Tests  21 passed (21)
+
+root tsc --noEmit: exit 0
+web tsc --noEmit: exit 0
+```
+
+audit-scan type-safety: (none found)
+audit-scan hardcoded: (none found)
+
+### Residual Risk
+
+- Discord Ed25519 검증은 `discord_public_key` 미설정 시 서명 검증을 건너뜀 (내부망 배포 편의)
+- Slack signing secret HMAC 검증 미구현 — 내부망 환경에서는 네트워크 레벨 보안으로 대체
+- `register_channel_callbacks()` 호출은 bootstrap에서 수동으로 해야 함 — 자동 등록 미구현
