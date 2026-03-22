@@ -4,7 +4,8 @@
  * 인메모리 SQLite DB를 사용. 전역 singleton 금지 (주입형).
  */
 
-import Database from "better-sqlite3";
+import { open_sqlite } from "../utils/sqlite-helper.js";
+import type { DatabaseSync } from "../utils/sqlite-helper.js";
 import type { SkillMetadata } from "../agent/skills.types.js";
 import { extract_intents, extract_file_extensions, extract_code_hints } from "./intent-patterns.js";
 import type { SemanticScorerPort } from "./semantic-scorer-port.js";
@@ -32,14 +33,14 @@ export class SkillIndex {
   private readonly db_path = ":memory:";
   private built = false;
 
-  /** SQLite DB 핸들. 인메모리이므로 with_sqlite를 인스턴스로 유지. */
-  private readonly db: import("better-sqlite3").Database;
+  /** SQLite DB 핸들. 인메모리이므로 open_sqlite로 열고 인스턴스로 유지. */
+  private readonly db: DatabaseSync;
 
   /** K4: optional 시멘틱 scorer. null이면 FTS5/BM25 동작 그대로 유지. */
   private semantic_scorer: SemanticScorerPort | null = null;
 
   constructor() {
-    this.db = new Database(this.db_path);
+    this.db = open_sqlite(this.db_path);
     this._init_schema();
   }
 

@@ -14,6 +14,22 @@ export type SqliteRunOptions = {
   readonly?: boolean;
 };
 
+/**
+ * DB 연결을 열고 반환. 호출자가 close() 책임.
+ * ":memory:" 등 연결을 유지해야 하는 특수 케이스 전용.
+ * 일반 파일 DB는 with_sqlite / with_sqlite_strict 사용.
+ */
+export function open_sqlite(
+  db_path: string,
+  options?: SqliteRunOptions,
+): DatabaseSync {
+  const db = new Database(db_path, options?.readonly ? { readonly: true } : undefined);
+  if (options?.pragmas) {
+    for (const p of options.pragmas) db.pragma(p);
+  }
+  return db;
+}
+
 /** DB를 열고 콜백 실행 후 닫는다. 에러 시 stderr 로깅 후 null. */
 export function with_sqlite<T>(
   db_path: string,
