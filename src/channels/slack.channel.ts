@@ -3,7 +3,7 @@ import { basename } from "node:path";
 import { tmpdir } from "node:os";
 import { validate_file_path } from "../utils/path-validation.js";
 import { WebClient } from "@slack/web-api";
-import type { InboundMessage, MediaItem, OutboundMessage, RichEmbed } from "../bus/types.js";
+import type { InboundMessage, MediaItem, OutboundMessage, RichAction, RichEmbed } from "../bus/types.js";
 import { now_iso, error_message, short_id} from "../utils/common.js";
 import { BaseChannel } from "./base.js";
 
@@ -94,6 +94,24 @@ export class SlackChannel extends BaseChannel {
     this.default_channel = options?.default_channel || "";
     this.workspace_dir = options?.workspace_dir || "";
     this.settings = options?.settings || {};
+  }
+
+  /** IC-8b: RichAction[] → Slack Block Kit actions block. */
+  private static to_slack_action_block(actions: RichAction[]): Record<string, unknown> | null {
+    if (actions.length === 0) return null;
+    // Slack button style: "primary" (green), "danger" (red), plain (default grey)
+    const elements = actions.slice(0, 5).map((a) => {
+      const btn: Record<string, unknown> = {
+        type: "button",
+        text: { type: "plain_text", text: String(a.label).slice(0, 75), emoji: true },
+        action_id: a.id,
+        value: a.payload ? JSON.stringify(a.payload).slice(0, 2000) : a.id,
+      };
+      if (a.style === "primary") btn.style = "primary";
+      else if (a.style === "danger") btn.style = "danger";
+      return btn;
+    });
+    return { type: "actions", elements };
   }
 
   /** IC-8a: RichEmbed → Slack Block Kit 블록 배열로 변환. */
@@ -197,12 +215,17 @@ export class SlackChannel extends BaseChannel {
     try {
       await this.set_typing(channel, true);
 
-      // IC-8a: Block Kit 렌더링 — rich 있으면 blocks POST, 없으면 기존 동작.
+      // IC-8a/8b: Block Kit 렌더링 — rich 있으면 blocks POST (+ action buttons), 없으면 기존 동작.
       if (message.rich && Array.isArray(message.rich.embeds) && message.rich.embeds.length > 0) {
         const thread_ts = String(message.reply_to || "").trim() || undefined;
         const all_blocks: Array<Record<string, unknown>> = [];
         for (const embed of message.rich.embeds.slice(0, 5)) {
           all_blocks.push(...SlackChannel.to_slack_blocks(embed));
+        }
+        // IC-8b: append actions block when actions are present
+        if (Array.isArray(message.rich.actions) && message.rich.actions.length > 0) {
+          const action_block = SlackChannel.to_slack_action_block(message.rich.actions);
+          if (action_block) all_blocks.push(action_block);
         }
         const fallback_text = String(message.content || message.rich.embeds[0]?.title || "Rich message");
         const post_args: Record<string, unknown> = {

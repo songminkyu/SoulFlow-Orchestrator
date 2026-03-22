@@ -1,6 +1,6 @@
 export type MessageProvider = "slack" | "discord" | "telegram" | "web" | "system" | string;
 
-/* ── Rich Payload (IC-8a) ── */
+/* ── Rich Payload (IC-8a / IC-8b) ── */
 
 export type RichEmbed = {
   title?: string;
@@ -13,9 +13,23 @@ export type RichEmbed = {
   footer?: string;
 };
 
+/** IC-8b: Interactive button action attached to a RichPayload. */
+export type RichAction = {
+  /** Unique action identifier, e.g. "approve" | "deny" | custom string. */
+  id: string;
+  /** Display label shown on the button, e.g. "✅ 승인" | "❌ 거절". */
+  label: string;
+  /** Visual emphasis. Maps to channel-native styles. */
+  style: "primary" | "danger" | "secondary";
+  /** Optional key-value metadata forwarded with the callback. */
+  payload?: Record<string, string>;
+};
+
 export type RichPayload = {
   embeds: RichEmbed[];
   attachments?: Array<{ url: string; name?: string; mime?: string }>;
+  /** IC-8b: Optional interactive buttons rendered after embeds. */
+  actions?: RichAction[];
 };
 
 export type MediaItemType = "image" | "video" | "audio" | "file" | "link";

@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import { tmpdir } from "node:os";
 import { validate_file_path } from "../utils/path-validation.js";
-import type { InboundMessage, MediaItem, OutboundMessage, RichEmbed } from "../bus/types.js";
+import type { InboundMessage, MediaItem, OutboundMessage, RichAction, RichEmbed } from "../bus/types.js";
 import { now_iso, error_message, short_id} from "../utils/common.js";
 import { BaseChannel } from "./base.js";
 import { channel_fetch, parse_json_response } from "./http-utils.js";
@@ -177,6 +177,25 @@ export class TelegramChannel extends BaseChannel {
     this.settings = options?.settings || {};
   }
 
+  /** IC-8b: RichAction[] → Telegram InlineKeyboardMarkup. */
+  private static to_telegram_inline_keyboard(actions: RichAction[]): Record<string, unknown> | null {
+    if (actions.length === 0) return null;
+    // Telegram inline keyboard: array of rows, each row is array of buttons.
+    // Use callback_data for bot-side handling. Max 64 bytes for callback_data.
+    const buttons = actions.slice(0, 6).map((a) => {
+      const data = a.payload
+        ? `${a.id}:${JSON.stringify(a.payload)}`.slice(0, 64)
+        : a.id.slice(0, 64);
+      return { text: String(a.label).slice(0, 40), callback_data: data };
+    });
+    // Layout: max 3 buttons per row
+    const rows: Array<Array<Record<string, unknown>>> = [];
+    for (let i = 0; i < buttons.length; i += 3) {
+      rows.push(buttons.slice(i, i + 3));
+    }
+    return { inline_keyboard: rows };
+  }
+
   /** IC-8a: RichEmbed → Telegram HTML 문자열 변환. */
   private static to_telegram_html(embed: RichEmbed): string {
     const parts: string[] = [];
@@ -242,6 +261,11 @@ export class TelegramChannel extends BaseChannel {
 
         let first_message_id = "";
 
+        // IC-8b: build inline keyboard if actions present
+        const inline_keyboard = Array.isArray(message.rich.actions) && message.rich.actions.length > 0
+          ? TelegramChannel.to_telegram_inline_keyboard(message.rich.actions)
+          : null;
+
         if (first_image_url) {
           // sendPhoto with HTML caption
           const url = `${this.api_base}/bot${this.bot_token}/sendPhoto`;
@@ -252,6 +276,7 @@ export class TelegramChannel extends BaseChannel {
             parse_mode: "HTML",
           };
           if (message.reply_to) payload.reply_to_message_id = message.reply_to;
+          if (inline_keyboard) payload.reply_markup = inline_keyboard;
           const response = await channel_fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -272,6 +297,7 @@ export class TelegramChannel extends BaseChannel {
             parse_mode: "HTML",
           };
           if (message.reply_to) payload.reply_to_message_id = message.reply_to;
+          if (inline_keyboard) payload.reply_markup = inline_keyboard;
           const response = await channel_fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

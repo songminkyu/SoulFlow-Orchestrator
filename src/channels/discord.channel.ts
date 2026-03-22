@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { tmpdir } from "node:os";
 import { validate_file_path } from "../utils/path-validation.js";
-import type { InboundMessage, MediaItem, OutboundMessage, RichEmbed } from "../bus/types.js";
+import type { InboundMessage, MediaItem, OutboundMessage, RichAction, RichEmbed } from "../bus/types.js";
 import { now_iso, error_message, short_id} from "../utils/common.js";
 import { BaseChannel } from "./base.js";
 import { channel_fetch, parse_json_response } from "./http-utils.js";
@@ -94,6 +94,26 @@ export class DiscordChannel extends BaseChannel {
     return Number.isFinite(parsed) ? parsed : undefined;
   }
 
+  /** IC-8b: RichAction[] → Discord component button row. */
+  private static to_discord_components(actions: RichAction[]): Array<Record<string, unknown>> {
+    if (actions.length === 0) return [];
+    // Discord button style: 1=Primary(blurple), 4=Danger(red), 2=Secondary(grey)
+    const style_map: Record<RichAction["style"], number> = {
+      primary:   1,
+      danger:    4,
+      secondary: 2,
+    };
+    const buttons = actions.slice(0, 5).map((a) => ({
+      type: 2, // BUTTON
+      custom_id: a.payload
+        ? `${a.id}:${JSON.stringify(a.payload).slice(0, 80)}`
+        : a.id,
+      label: String(a.label).slice(0, 80),
+      style: style_map[a.style] ?? 2,
+    }));
+    return [{ type: 1, components: buttons }]; // ACTION_ROW
+  }
+
   /** IC-8a: RichEmbed → Discord embed 객체 변환. */
   private static to_discord_embed(embed: RichEmbed): Record<string, unknown> {
     const out: Record<string, unknown> = {};
@@ -131,7 +151,7 @@ export class DiscordChannel extends BaseChannel {
     try {
       await this.set_typing(chat_id, true);
 
-      // IC-8a: rich embed 렌더링 — rich 있으면 embed POST, 없으면 기존 동작.
+      // IC-8a/8b: rich embed 렌더링 — rich 있으면 embed POST (+ button components), 없으면 기존 동작.
       if (message.rich && Array.isArray(message.rich.embeds) && message.rich.embeds.length > 0) {
         const discord_embeds = message.rich.embeds
           .slice(0, 10)
@@ -142,6 +162,10 @@ export class DiscordChannel extends BaseChannel {
         if (message.reply_to) {
           base_payload.message_reference = { message_id: message.reply_to };
           base_payload.allowed_mentions = { replied_user: false };
+        }
+        // IC-8b: attach button row when actions are present
+        if (Array.isArray(message.rich.actions) && message.rich.actions.length > 0) {
+          base_payload.components = DiscordChannel.to_discord_components(message.rich.actions);
         }
         const response = await channel_fetch(`${this.api_base}/channels/${chat_id}/messages`, {
           method: "POST",
