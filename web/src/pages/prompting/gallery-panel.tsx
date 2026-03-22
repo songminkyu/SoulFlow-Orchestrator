@@ -88,53 +88,55 @@ export function GalleryPanel({ onGoToAgent }: GalleryPanelProps) {
         </button>
       </div>
 
-      {isLoading ? (
-        <SkeletonGrid count={6} />
-      ) : definitions.length === 0 ? (
-        <EmptyState title={t("agents.no_definitions")} />
-      ) : (
-        <>
-          {builtins.length > 0 && (
-            <section className="provider-section">
-              <h2 className="provider-section__title">{t("agents.builtin_section")} ({builtins.length})</h2>
-              <div className="stat-grid stat-grid--wide fade-in">
-                {builtins.map((def) => (
-                  <AgentCard
-                    key={def.id}
-                    definition={def}
-                    onFork={handle_fork}
-                    onEdit={(d) => onGoToAgent(d.id)}
-                    onDelete={() => setDeleteTarget(def)}
-                    onUse={handle_use}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+      <div className="ps-gallery__body">
+        {isLoading ? (
+          <SkeletonGrid count={6} />
+        ) : definitions.length === 0 ? (
+          <EmptyState title={t("agents.no_definitions")} />
+        ) : (
+          <>
+            {builtins.length > 0 && (
+              <section className="provider-section">
+                <h2 className="provider-section__title">{t("agents.builtin_section")} ({builtins.length})</h2>
+                <div className="stat-grid stat-grid--wide fade-in">
+                  {builtins.map((def) => (
+                    <AgentCard
+                      key={def.id}
+                      definition={def}
+                      onFork={handle_fork}
+                      onEdit={(d) => onGoToAgent(d.id)}
+                      onDelete={() => setDeleteTarget(def)}
+                      onUse={handle_use}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
 
-          {customs.length > 0 && (
-            <section className="provider-section">
-              <h2 className="provider-section__title">{t("agents.custom_section")} ({customs.length})</h2>
-              <div className="stat-grid stat-grid--wide fade-in">
-                {customs.map((def) => (
-                  <AgentCard
-                    key={def.id}
-                    definition={def}
-                    onFork={handle_fork}
-                    onEdit={(d) => onGoToAgent(d.id)}
-                    onDelete={() => setDeleteTarget(def)}
-                    onUse={handle_use}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+            {customs.length > 0 && (
+              <section className="provider-section">
+                <h2 className="provider-section__title">{t("agents.custom_section")} ({customs.length})</h2>
+                <div className="stat-grid stat-grid--wide fade-in">
+                  {customs.map((def) => (
+                    <AgentCard
+                      key={def.id}
+                      definition={def}
+                      onFork={handle_fork}
+                      onEdit={(d) => onGoToAgent(d.id)}
+                      onDelete={() => setDeleteTarget(def)}
+                      onUse={handle_use}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
 
-          {filtered.length === 0 && search && (
-            <EmptyState title={t("agents.no_search_results", { query: search })} />
-          )}
-        </>
-      )}
+            {filtered.length === 0 && search && (
+              <EmptyState title={t("agents.no_search_results", { query: search })} />
+            )}
+          </>
+        )}
+      </div>
 
       <DeleteConfirmModal
         open={!!deleteTarget}

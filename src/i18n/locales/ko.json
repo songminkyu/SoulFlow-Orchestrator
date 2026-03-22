@@ -4418,5 +4418,15 @@
   "prompting.tab_templates": "템플릿",
   "prompting.tab_tools": "도구",
   "prompting.tab_rag": "RAG",
-  "prompting.nav_label": "프롬프팅 스튜디오"
+  "prompting.nav_label": "프롬프팅 스튜디오",
+
+  "prompting.gallery_role_badge": "역할",
+  "prompting.gallery_protocol_badge": "규칙",
+  "prompting.manage_skills_title": "스킬 관리",
+  "prompting.manage_templates_title": "템플릿 관리",
+  "prompting.manage_tools_title": "도구 관리",
+  "prompting.manage_rag_title": "RAG 문서 관리",
+
+  "tools.usage_count": "{count}회 호출",
+  "references.binary_file": "바이너리 파일: {name}, {size} KB"
 }

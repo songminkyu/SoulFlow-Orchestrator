@@ -158,9 +158,10 @@ export function ReferencesTab() {
       const buf = await file.arrayBuffer();
       const b64 = to_base64(buf);
       setUploadBase64(b64);
+      const binary_label = t("references.binary_file", { name: file.name, size: (file.size / 1024).toFixed(1) });
       setUploadContent(IMAGE_EXTS.has(ext)
         ? `data:${file.type};base64,${b64}`
-        : `[바이너리 파일: ${file.name}, ${(file.size / 1024).toFixed(1)} KB]`
+        : `[${binary_label}]`
       );
     } else {
       const text = await file.text();
@@ -358,12 +359,12 @@ export function ReferencesTab() {
               <>
                 <textarea
                   className="form-input ws-references__preview-textarea"
-                  value={uploadContent.startsWith("[바이너리") ? uploadContent : uploadContent.slice(0, 2000)}
+                  value={uploadBase64 && !IMAGE_EXTS.has((uploadName.split(".").pop()?.toLowerCase() ?? "")) ? uploadContent : uploadContent.slice(0, 2000)}
                   readOnly
                   rows={6}
                   placeholder={t("references.content_preview_hint")}
                 />
-                {!uploadContent.startsWith("[바이너리") && uploadContent.length > 2000 && (
+                {!(uploadBase64 && !IMAGE_EXTS.has((uploadName.split(".").pop()?.toLowerCase() ?? ""))) && uploadContent.length > 2000 && (
                   <span className="text-xs text-muted">{t("references.content_truncated", { total: uploadContent.length })}</span>
                 )}
               </>

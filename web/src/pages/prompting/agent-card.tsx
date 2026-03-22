@@ -11,7 +11,7 @@ interface AgentCardProps {
 
 export function AgentCard({ definition, onFork, onEdit, onDelete, onUse }: AgentCardProps) {
   const t = useT();
-  const { id, name, description, icon, role_skill, soul, is_builtin, use_count } = definition;
+  const { id, name, description, icon, role_skill, soul, is_builtin, use_count, shared_protocols } = definition;
 
   return (
     <div className={`stat-card${is_builtin ? " agent-card--builtin" : ""}`} data-testid={`agent-card-${id}`}>
@@ -26,7 +26,13 @@ export function AgentCard({ definition, onFork, onEdit, onDelete, onUse }: Agent
               </span>
             )}
             {role_skill && (
-              <span className="badge badge--off">{role_skill.replace("role:", "")}</span>
+              <span className="badge badge--off" title={t("agents.role_skill")}>{role_skill.replace("role:", "")}</span>
+            )}
+            {shared_protocols.slice(0, 2).map((p) => (
+              <span key={p} className="badge badge--accent" title={t("agents.section_protocols")}>{p}</span>
+            ))}
+            {shared_protocols.length > 2 && (
+              <span className="badge badge--accent" title={shared_protocols.slice(2).join(", ")}>+{shared_protocols.length - 2}</span>
             )}
           </div>
         </div>

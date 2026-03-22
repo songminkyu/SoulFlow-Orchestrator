@@ -13,8 +13,10 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 vi.mock("@/i18n", () => ({
-  useT: () => (key: string, p?: Record<string, string>) =>
-    p ? `${key}:${JSON.stringify(p)}` : key,
+  useT: () => (key: string, p?: Record<string, string>) => {
+    if (key === "tools.usage_count" && p?.count) return `${p.count} calls`;
+    return p ? `${key}:${JSON.stringify(p)}` : key;
+  },
 }));
 
 vi.mock("@/utils/format", () => ({

@@ -63,7 +63,7 @@ function ToolCard({ name, description, parameters, is_mcp, is_open, onToggle, us
           <div className="tool-card__name">{name}</div>
           {is_mcp && <div className="mt-1"><Badge status="mcp" variant="ok" /></div>}
           {usage_count != null && usage_count > 0 && (
-            <span className="text-xs text-muted ml-1" data-testid="tool-usage">{usage_count} calls</span>
+            <span className="text-xs text-muted ml-1" data-testid="tool-usage">{t("tools.usage_count", { count: String(usage_count) })}</span>
           )}
           {last_used_at && (
             <span className="text-xs text-muted ml-1" data-testid="tool-last-used">{time_ago(last_used_at)}</span>

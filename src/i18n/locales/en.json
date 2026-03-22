@@ -4418,5 +4418,15 @@
   "prompting.tab_templates": "Templates",
   "prompting.tab_tools": "Tools",
   "prompting.tab_rag": "RAG",
-  "prompting.nav_label": "Prompting Studio"
+  "prompting.nav_label": "Prompting Studio",
+
+  "prompting.gallery_role_badge": "Role",
+  "prompting.gallery_protocol_badge": "Protocol",
+  "prompting.manage_skills_title": "Skills",
+  "prompting.manage_templates_title": "Templates",
+  "prompting.manage_tools_title": "Tools",
+  "prompting.manage_rag_title": "RAG Documents",
+
+  "tools.usage_count": "{count} calls",
+  "references.binary_file": "Binary file: {name}, {size} KB"
 }
