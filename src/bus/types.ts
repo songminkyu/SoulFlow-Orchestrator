@@ -1,5 +1,23 @@
 export type MessageProvider = "slack" | "discord" | "telegram" | "web" | "system" | string;
 
+/* ── Rich Payload (IC-8a) ── */
+
+export type RichEmbed = {
+  title?: string;
+  description?: string;
+  /** Named color or hex string (e.g. "#4a9eff"). */
+  color?: "green" | "yellow" | "red" | "blue" | string;
+  fields: Array<{ name: string; value: string; inline?: boolean }>;
+  image_url?: string;
+  thumbnail_url?: string;
+  footer?: string;
+};
+
+export type RichPayload = {
+  embeds: RichEmbed[];
+  attachments?: Array<{ url: string; name?: string; mime?: string }>;
+};
+
 export type MediaItemType = "image" | "video" | "audio" | "file" | "link";
 
 export type MediaItem = {
@@ -30,7 +48,10 @@ export type Message = {
 };
 
 export type InboundMessage = Message;
-export type OutboundMessage = Message;
+export type OutboundMessage = Message & {
+  /** IC-8a: 구조화된 리치 메시지 (임베드 + 첨부). 없으면 기존 plain text 동작 유지. */
+  rich?: RichPayload;
+};
 
 export type ConsumeMessageOptions = {
   timeout_ms?: number;

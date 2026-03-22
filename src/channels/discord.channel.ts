@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { tmpdir } from "node:os";
 import { validate_file_path } from "../utils/path-validation.js";
-import type { InboundMessage, MediaItem, OutboundMessage } from "../bus/types.js";
+import type { InboundMessage, MediaItem, OutboundMessage, RichEmbed } from "../bus/types.js";
 import { now_iso, error_message, short_id} from "../utils/common.js";
 import { BaseChannel } from "./base.js";
 import { channel_fetch, parse_json_response } from "./http-utils.js";
@@ -77,6 +77,43 @@ export class DiscordChannel extends BaseChannel {
     this.settings = options?.settings || {};
   }
 
+  /** IC-8a: 색상 이름 → Discord integer color 변환. */
+  private static color_to_int(color: string | undefined): number | undefined {
+    if (!color) return undefined;
+    const map: Record<string, number> = {
+      green:  0x2fb171,
+      yellow: 0xd9a441,
+      red:    0xc56a6a,
+      blue:   0x4a9eff,
+    };
+    const named = map[String(color).toLowerCase()];
+    if (named !== undefined) return named;
+    // hex 문자열 처리 (#rrggbb 또는 rrggbb)
+    const hex = String(color).replace(/^#/, "");
+    const parsed = Number.parseInt(hex, 16);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  /** IC-8a: RichEmbed → Discord embed 객체 변환. */
+  private static to_discord_embed(embed: RichEmbed): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    if (embed.title) out.title = String(embed.title).slice(0, 256);
+    if (embed.description) out.description = String(embed.description).slice(0, 4096);
+    const color_int = DiscordChannel.color_to_int(embed.color);
+    if (color_int !== undefined) out.color = color_int;
+    if (Array.isArray(embed.fields) && embed.fields.length > 0) {
+      out.fields = embed.fields.slice(0, 25).map((f) => ({
+        name: String(f.name || "").slice(0, 256),
+        value: String(f.value || "").slice(0, 1024),
+        inline: f.inline === true,
+      }));
+    }
+    if (embed.image_url) out.image = { url: String(embed.image_url) };
+    if (embed.thumbnail_url) out.thumbnail = { url: String(embed.thumbnail_url) };
+    if (embed.footer) out.footer = { text: String(embed.footer).slice(0, 2048) };
+    return out;
+  }
+
   async start(): Promise<void> {
     if (!this.bot_token) throw new Error("discord_bot_token_missing");
     this.running = true;
@@ -93,6 +130,29 @@ export class DiscordChannel extends BaseChannel {
     if (!this.bot_token) return { ok: false, error: "discord_bot_token_missing" };
     try {
       await this.set_typing(chat_id, true);
+
+      // IC-8a: rich embed 렌더링 — rich 있으면 embed POST, 없으면 기존 동작.
+      if (message.rich && Array.isArray(message.rich.embeds) && message.rich.embeds.length > 0) {
+        const discord_embeds = message.rich.embeds
+          .slice(0, 10)
+          .map((e) => DiscordChannel.to_discord_embed(e));
+        const base_payload: Record<string, unknown> = { embeds: discord_embeds };
+        const text = String(message.content || "");
+        if (text) base_payload.content = text.slice(0, 2000);
+        if (message.reply_to) {
+          base_payload.message_reference = { message_id: message.reply_to };
+          base_payload.allowed_mentions = { replied_user: false };
+        }
+        const response = await channel_fetch(`${this.api_base}/channels/${chat_id}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${this.bot_token}`, "Content-Type": "application/json" },
+          body: JSON.stringify(base_payload),
+        });
+        const data = await parse_json_response(response);
+        if (!response.ok) return { ok: false, error: String(data.message || `http_${response.status}`) };
+        return { ok: true, message_id: String(data.id || "") };
+      }
+
       const text = String(message.content || "");
       const chunk_size = Math.max(500, Number(this.settings.text_chunk_size || 1900));
       const file_fallback_threshold = Math.max(4_000, Number(this.settings.text_file_fallback_threshold || 8_000));

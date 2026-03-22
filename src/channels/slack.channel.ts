@@ -3,7 +3,7 @@ import { basename } from "node:path";
 import { tmpdir } from "node:os";
 import { validate_file_path } from "../utils/path-validation.js";
 import { WebClient } from "@slack/web-api";
-import type { InboundMessage, MediaItem, OutboundMessage } from "../bus/types.js";
+import type { InboundMessage, MediaItem, OutboundMessage, RichEmbed } from "../bus/types.js";
 import { now_iso, error_message, short_id} from "../utils/common.js";
 import { BaseChannel } from "./base.js";
 
@@ -96,6 +96,83 @@ export class SlackChannel extends BaseChannel {
     this.settings = options?.settings || {};
   }
 
+  /** IC-8a: RichEmbed → Slack Block Kit 블록 배열로 변환. */
+  private static to_slack_blocks(embed: RichEmbed): Array<Record<string, unknown>> {
+    const blocks: Array<Record<string, unknown>> = [];
+
+    // Header section (title)
+    if (embed.title) {
+      blocks.push({
+        type: "header",
+        text: { type: "plain_text", text: String(embed.title).slice(0, 150), emoji: true },
+      });
+    }
+
+    // Description
+    if (embed.description) {
+      blocks.push({
+        type: "section",
+        text: { type: "mrkdwn", text: String(embed.description).slice(0, 3000) },
+      });
+    }
+
+    // Thumbnail as accessory on description block (merge if description exists)
+    if (embed.thumbnail_url && !embed.description) {
+      blocks.push({
+        type: "section",
+        text: { type: "mrkdwn", text: " " },
+        accessory: {
+          type: "image",
+          image_url: String(embed.thumbnail_url),
+          alt_text: embed.title || "thumbnail",
+        },
+      });
+    }
+
+    // Fields as 2-column section blocks (Slack supports up to 10 fields per section)
+    if (Array.isArray(embed.fields) && embed.fields.length > 0) {
+      const inline_fields = embed.fields.filter((f) => f.inline !== false);
+      const block_fields = embed.fields.filter((f) => f.inline === false);
+
+      if (inline_fields.length > 0) {
+        const slack_fields = inline_fields.slice(0, 10).map((f) => ({
+          type: "mrkdwn",
+          text: `*${String(f.name).slice(0, 150)}*\n${String(f.value).slice(0, 500)}`,
+        }));
+        blocks.push({ type: "section", fields: slack_fields });
+      }
+
+      for (const f of block_fields.slice(0, 5)) {
+        blocks.push({
+          type: "section",
+          text: { type: "mrkdwn", text: `*${String(f.name).slice(0, 150)}*\n${String(f.value).slice(0, 3000)}` },
+        });
+      }
+    }
+
+    // Image block
+    if (embed.image_url) {
+      blocks.push({
+        type: "image",
+        image_url: String(embed.image_url),
+        alt_text: embed.title || "image",
+      });
+    }
+
+    // Footer as context block
+    if (embed.footer) {
+      blocks.push({
+        type: "context",
+        elements: [{ type: "mrkdwn", text: String(embed.footer).slice(0, 3000) }],
+      });
+    }
+
+    // Divider at end
+    blocks.push({ type: "divider" });
+
+    return blocks;
+  }
+
   async start(): Promise<void> {
     await this.client.auth.test();
     this.running = true;
@@ -119,6 +196,30 @@ export class SlackChannel extends BaseChannel {
     if (!channel) return { ok: false, error: "chat_id_required" };
     try {
       await this.set_typing(channel, true);
+
+      // IC-8a: Block Kit 렌더링 — rich 있으면 blocks POST, 없으면 기존 동작.
+      if (message.rich && Array.isArray(message.rich.embeds) && message.rich.embeds.length > 0) {
+        const thread_ts = String(message.reply_to || "").trim() || undefined;
+        const all_blocks: Array<Record<string, unknown>> = [];
+        for (const embed of message.rich.embeds.slice(0, 5)) {
+          all_blocks.push(...SlackChannel.to_slack_blocks(embed));
+        }
+        const fallback_text = String(message.content || message.rich.embeds[0]?.title || "Rich message");
+        const post_args: Record<string, unknown> = {
+          channel,
+          text: fallback_text,
+          blocks: all_blocks,
+          mrkdwn: true,
+        };
+        if (thread_ts) post_args.thread_ts = thread_ts;
+        const result = await (this.client.apiCall as unknown as (method: string, args: Record<string, unknown>) => Promise<Record<string, unknown>>)(
+          "chat.postMessage",
+          post_args,
+        );
+        if (!result.ok) return { ok: false, error: String(result.error || "post_message_failed") };
+        return { ok: true, message_id: String(result.ts || "") };
+      }
+
       const text = String(message.content || "");
       const thread_ts = String(message.reply_to || "").trim() || undefined;
       const chunk_size = Math.max(500, Number(this.settings.text_chunk_size || 4000));

@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import { tmpdir } from "node:os";
 import { validate_file_path } from "../utils/path-validation.js";
-import type { InboundMessage, MediaItem, OutboundMessage } from "../bus/types.js";
+import type { InboundMessage, MediaItem, OutboundMessage, RichEmbed } from "../bus/types.js";
 import { now_iso, error_message, short_id} from "../utils/common.js";
 import { BaseChannel } from "./base.js";
 import { channel_fetch, parse_json_response } from "./http-utils.js";
@@ -177,6 +177,35 @@ export class TelegramChannel extends BaseChannel {
     this.settings = options?.settings || {};
   }
 
+  /** IC-8a: RichEmbed → Telegram HTML 문자열 변환. */
+  private static to_telegram_html(embed: RichEmbed): string {
+    const parts: string[] = [];
+
+    if (embed.title) {
+      parts.push(`<b>${embed.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").slice(0, 256)}</b>`);
+    }
+
+    if (embed.description) {
+      parts.push(embed.description.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").slice(0, 2048));
+    }
+
+    if (Array.isArray(embed.fields) && embed.fields.length > 0) {
+      const field_lines = embed.fields.slice(0, 20).map((f) => {
+        const name_esc = String(f.name || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").slice(0, 150);
+        const value_esc = String(f.value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").slice(0, 500);
+        return `<b>${name_esc}:</b> ${value_esc}`;
+      });
+      parts.push(field_lines.join("\n"));
+    }
+
+    if (embed.footer) {
+      const footer_esc = String(embed.footer).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").slice(0, 200);
+      parts.push(`<i>${footer_esc}</i>`);
+    }
+
+    return parts.join("\n\n");
+  }
+
   async start(): Promise<void> {
     if (!this.bot_token) throw new Error("telegram_bot_token_missing");
     this.running = true;
@@ -193,6 +222,72 @@ export class TelegramChannel extends BaseChannel {
     if (!this.bot_token) return { ok: false, error: "telegram_bot_token_missing" };
     try {
       await this.set_typing(chat_id, true);
+
+      // IC-8a: HTML + photo 렌더링 — rich 있으면 sendMessage(HTML), 이미지 있으면 sendPhoto.
+      if (message.rich && Array.isArray(message.rich.embeds) && message.rich.embeds.length > 0) {
+        const html_parts = message.rich.embeds
+          .slice(0, 5)
+          .map((e) => TelegramChannel.to_telegram_html(e))
+          .filter(Boolean);
+        const plain_prefix = as_string(message.content || "");
+        const full_html = [
+          ...(plain_prefix ? [this.escape_telegram_html(plain_prefix)] : []),
+          ...html_parts,
+        ].join("\n\n");
+
+        // Find first image URL across embeds
+        const first_image_url = message.rich.embeds
+          .map((e) => e.image_url || e.thumbnail_url)
+          .find(Boolean);
+
+        let first_message_id = "";
+
+        if (first_image_url) {
+          // sendPhoto with HTML caption
+          const url = `${this.api_base}/bot${this.bot_token}/sendPhoto`;
+          const payload: Record<string, unknown> = {
+            chat_id,
+            photo: String(first_image_url),
+            caption: full_html.slice(0, 1024),
+            parse_mode: "HTML",
+          };
+          if (message.reply_to) payload.reply_to_message_id = message.reply_to;
+          const response = await channel_fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await parse_json_response(response);
+          if (!response.ok || data.ok !== true) {
+            return { ok: false, error: as_string(data.description || `http_${response.status}`) };
+          }
+          const result = (data.result && typeof data.result === "object") ? (data.result as Record<string, unknown>) : {};
+          first_message_id = as_string(result.message_id || "");
+        } else {
+          // sendMessage with HTML
+          const url = `${this.api_base}/bot${this.bot_token}/sendMessage`;
+          const payload: Record<string, unknown> = {
+            chat_id,
+            text: full_html.slice(0, 4096) || " ",
+            parse_mode: "HTML",
+          };
+          if (message.reply_to) payload.reply_to_message_id = message.reply_to;
+          const response = await channel_fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await parse_json_response(response);
+          if (!response.ok || data.ok !== true) {
+            return { ok: false, error: as_string(data.description || `http_${response.status}`) };
+          }
+          const result = (data.result && typeof data.result === "object") ? (data.result as Record<string, unknown>) : {};
+          first_message_id = as_string(result.message_id || "");
+        }
+
+        return { ok: true, message_id: first_message_id || as_string(message.reply_to || "") };
+      }
+
       const text = as_string(message.content || "");
       const meta = (message.metadata && typeof message.metadata === "object")
         ? (message.metadata as Record<string, unknown>)
