@@ -82,6 +82,11 @@ describe("IC-8b: Discord interaction 엔드포인트", () => {
     expect(code).toContain("interaction_type === 3");
     expect(code).toContain("DEFERRED_UPDATE_MESSAGE");
   });
+
+  it("discord_public_key 미설정 시 503 거부 (S-2)", () => {
+    expect(code).toContain("discord_public_key_not_configured");
+    expect(code).not.toContain("if (deps.discord_public_key)"); // 조건부 건너뛰기 제거됨
+  });
 });
 
 describe("IC-8b: Slack action 엔드포인트", () => {
@@ -102,8 +107,22 @@ describe("IC-8b: Slack action 엔드포인트", () => {
   });
 
   it("즉시 200 응답 (3초 제한 준수)", () => {
-    // 응답을 actions 처리 전에 보냄
     expect(code).toContain("deps.json(res, 200, { ok: true })");
+  });
+
+  it("Slack HMAC-SHA256 서명 검증 (S-2)", () => {
+    expect(code).toContain("x-slack-signature");
+    expect(code).toContain("x-slack-request-timestamp");
+    expect(code).toContain("createHmac");
+    expect(code).toContain("timingSafeEqual");
+  });
+
+  it("slack_signing_secret 미설정 시 503 거부 (S-2)", () => {
+    expect(code).toContain("slack_signing_secret_not_configured");
+  });
+
+  it("리플레이 방지: 5분 타임스탬프 검증", () => {
+    expect(code).toContain("slack_timestamp_expired");
   });
 });
 
@@ -116,6 +135,11 @@ describe("IC-8b: Dashboard 서비스 연결", () => {
 
   it("register_channel_callbacks 메서드", () => {
     expect(svc).toContain("register_channel_callbacks");
+  });
+
+  it("bootstrap에서 register_channel_callbacks 호출 (CL-2)", () => {
+    const bootstrap = src("src/bootstrap/dashboard.ts");
+    expect(bootstrap).toContain("register_channel_callbacks()");
   });
 
   const types = src("src/dashboard/service.types.ts");

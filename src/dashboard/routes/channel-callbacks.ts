@@ -7,7 +7,7 @@
  * 내부망 배포 전제: 봇과 서버가 같은 네트워크. 외부 터널 불필요.
  */
 
-import { createVerify } from "node:crypto";
+import { createVerify, createHmac, timingSafeEqual } from "node:crypto";
 import { now_iso, short_id } from "../../utils/common.js";
 import type { InboundMessage } from "../../bus/types.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -46,10 +46,9 @@ async function handle_discord_interaction(
   if (!deps.read_raw_body) { deps.json(res, 500, { error: "raw_body_reader_not_configured" }); return; }
   const raw_body = await deps.read_raw_body(req);
 
-  if (deps.discord_public_key) {
-    const is_valid = verify_discord_ed25519(deps.discord_public_key, signature, timestamp, raw_body);
-    if (!is_valid) { deps.json(res, 401, { error: "invalid_signature" }); return; }
-  }
+  if (!deps.discord_public_key) { deps.json(res, 503, { error: "discord_public_key_not_configured" }); return; }
+  const is_valid = verify_discord_ed25519(deps.discord_public_key, signature, timestamp, raw_body);
+  if (!is_valid) { deps.json(res, 401, { error: "invalid_signature" }); return; }
 
   let body: Record<string, unknown>;
   try { body = JSON.parse(raw_body.toString("utf-8")) as Record<string, unknown>; }
@@ -140,18 +139,47 @@ async function handle_slack_action(
   deps: ChannelCallbackDeps, req: IncomingMessage, res: ServerResponse,
 ): Promise<void> {
   if (req.method !== "POST") { deps.json(res, 405, { error: "method_not_allowed" }); return; }
+  if (!deps.slack_signing_secret) { deps.json(res, 503, { error: "slack_signing_secret_not_configured" }); return; }
 
-  const body = await deps.read_body(req);
-  // Slack action payload는 body.payload (URL-encoded form에서 파싱됨) 또는 body 자체
-  const payload_str = typeof body?.payload === "string" ? body.payload : null;
-  const slack_payload = payload_str
-    ? (JSON.parse(payload_str) as Record<string, unknown>)
-    : body;
-  if (!slack_payload) { deps.json(res, 400, { error: "invalid_payload" }); return; }
+  // Slack 서명 검증: X-Slack-Signature + X-Slack-Request-Timestamp
+  if (deps.read_raw_body) {
+    const slack_sig = String(req.headers["x-slack-signature"] || "").trim();
+    const slack_ts = String(req.headers["x-slack-request-timestamp"] || "").trim();
+    if (!slack_sig || !slack_ts) { deps.json(res, 401, { error: "missing_slack_signature" }); return; }
+    // 리플레이 방지: 5분 이내
+    const ts_sec = Number(slack_ts);
+    if (!Number.isFinite(ts_sec) || Math.abs(Math.floor(Date.now() / 1000) - ts_sec) > 300) {
+      deps.json(res, 401, { error: "slack_timestamp_expired" }); return;
+    }
+    const raw = await deps.read_raw_body(req);
+    const sig_basestring = `v0:${slack_ts}:${raw.toString("utf-8")}`;
+    const expected = "v0=" + createHmac("sha256", deps.slack_signing_secret).update(sig_basestring).digest("hex");
+    if (slack_sig.length !== expected.length || !timingSafeEqual(Buffer.from(slack_sig), Buffer.from(expected))) {
+      deps.json(res, 401, { error: "invalid_slack_signature" }); return;
+    }
+    // raw에서 body 파싱
+    let parsed: Record<string, unknown> | null;
+    try { parsed = JSON.parse(raw.toString("utf-8")) as Record<string, unknown>; }
+    catch { parsed = null; }
+    const payload_str = typeof parsed?.payload === "string" ? parsed.payload : null;
+    const slack_payload = payload_str
+      ? (JSON.parse(payload_str) as Record<string, unknown>)
+      : parsed;
+    if (!slack_payload) { deps.json(res, 400, { error: "invalid_payload" }); return; }
+    // 즉시 200 응답 (3초 제한)
+    deps.json(res, 200, { ok: true });
+    await dispatch_slack_actions(deps, slack_payload);
+    return;
+  }
 
-  // 즉시 200 응답 (3초 제한)
-  deps.json(res, 200, { ok: true });
+  // read_raw_body 미제공 시 fallback (HMAC 불가 — 거부)
+  deps.json(res, 500, { error: "raw_body_reader_required_for_slack_verification" });
+}
 
+/** Slack action payload에서 버튼 클릭 → InboundMessage 발행. */
+async function dispatch_slack_actions(
+  deps: ChannelCallbackDeps, slack_payload: Record<string, unknown>,
+): Promise<void> {
   const actions = Array.isArray(slack_payload.actions) ? slack_payload.actions as Array<Record<string, unknown>> : [];
   if (actions.length === 0) return;
 

@@ -298,6 +298,7 @@ Description: ${prompt}`,
   if (deps.observability) dash.sse.set_observability(deps.observability);
   dash.set_oauth_callback_handler((code: string, state: string) => oauth_flow.handle_callback(code, state));
   dash.set_webhook_store(webhook_store);
+  dash.register_channel_callbacks();
   bus.on_publish((dir, msg) => {
     const meta = (msg.metadata ?? {}) as Record<string, unknown>;
     const msg_team_id = typeof meta.team_id === "string" ? meta.team_id : undefined;

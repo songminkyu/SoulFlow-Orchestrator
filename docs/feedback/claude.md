@@ -7,357 +7,198 @@
 - `[APPROVED]` E1~5, F1~5, RPF-1~6, RPF-4F, QG-1~4, FE-0~6a
 - `[APPROVED]` Phase 0+1+2 인프라 전수조사 + Phase 3 (H-5, H-7, H-9)
 
-## [REVIEW_NEEDED] FE-PE-1 — 프롬프팅 스튜디오 탭 재구조화 (round 3)
+## [REVIEW_NEEDED] Unified Closeout — FE-PE-1 + AP-2 + IC-1~8b (round 4)
+
+통합 증거: 마지막 `[APPROVED]` (523eeb53) 이후 누적 15커밋, 89파일.
 
 ### Forward RTM Rows
 
 | Req ID | File | Exists | Impl | Test Case | Test Result | Status |
 |--------|------|--------|------|-----------|-------------|--------|
-| FE-PE-1 | web/src/pages/prompting/index.tsx | ✅ | ✅ | web/tests/prompting/prompting-page-manage-tabs.test.tsx::11개 탭 버튼 렌더링 | ✓ pass | fixed |
-| FE-PE-1 | web/src/pages/prompting/index.tsx | ✅ | ✅ | web/tests/prompting/prompting-page-manage-tabs.test.tsx::creative/manage 영역 분리 | ✓ pass | fixed |
-| FE-PE-1 | web/src/pages/prompting/index.tsx | ✅ | ✅ | web/tests/prompting/prompting-page-manage-tabs.test.tsx::Skills 탭 진입 | ✓ pass | fixed |
-| FE-PE-1 | web/src/pages/prompting/index.tsx | ✅ | ✅ | web/tests/prompting/prompting-page-manage-tabs.test.tsx::Templates 탭 진입 | ✓ pass | fixed |
-| FE-PE-1 | web/src/pages/prompting/index.tsx | ✅ | ✅ | web/tests/prompting/prompting-page-manage-tabs.test.tsx::Tools 탭 진입 | ✓ pass | fixed |
-| FE-PE-1 | web/src/pages/prompting/index.tsx | ✅ | ✅ | web/tests/prompting/prompting-page-manage-tabs.test.tsx::RAG 탭 진입 | ✓ pass | fixed |
-| FE-PE-1 | web/src/pages/prompting/index.tsx | ✅ | ✅ | web/tests/prompting/prompting-page-manage-tabs.test.tsx::manage→creative 복귀 | ✓ pass | fixed |
-| FE-PE-1 | web/src/pages/prompting/index.tsx | ✅ | ✅ | web/tests/prompting/prompting-page-manage-tabs.test.tsx::nav_label i18n | ✓ pass | fixed |
-| FE-PE-1 | web/src/styles/prompt.css | ✅ | ✅ | web/tests/prompting/prompting-page-manage-tabs.test.tsx::creative/manage 영역 분리 | ✓ pass | fixed |
-| FE-PE-1 | src/i18n/locales/en.json | ✅ | ✅ | web/tests/prompting/prompting-locale-keys.test.ts::en.json 12키 존재 | ✓ pass (12/12) | fixed |
-| FE-PE-1 | src/i18n/locales/ko.json | ✅ | ✅ | web/tests/prompting/prompting-locale-keys.test.ts::ko.json 12키 존재 | ✓ pass (12/12) | fixed |
-| FE-PE-1 | web/src/components/shared/unified-selector.tsx | ✅ | ✅ | web/tests/components/shared/unified-selector.test.tsx (regression) | ✓ pass (52) | regression-fix |
-| FE-PE-1 | web/src/components/tool-choice-toggle.tsx | ✅ | ✅ | web/tests/components/tool-choice-toggle.test.tsx (regression) | ✓ pass | regression-fix |
-| FE-PE-1 | web/tests/components/mention-picker.test.tsx | ✅ | — | regression test mock 수정 | ✓ pass | regression-fix |
-| FE-PE-1 | web/tests/components/shared/prompt-bar-chatview.test.tsx | ✅ | — | regression test mock 수정 | ✓ pass | regression-fix |
-| FE-PE-1 | web/tests/layouts/root-sse-stale.test.tsx | ✅ | — | regression test mock 수정 | ✓ pass | regression-fix |
-| FE-PE-1 | web/tests/pages/access-policy.test.ts | ✅ | — | regression test mock 수정 | ✓ pass | regression-fix |
-| FE-PE-1 | web/tests/pages/chat-rewire.test.tsx | ✅ | — | regression test mock 수정 | ✓ pass | regression-fix |
-| FE-PE-1 | web/tests/pages/chat-state-management.test.tsx | ✅ | — | regression test mock 수정 | ✓ pass | regression-fix |
-| FE-PE-1 | web/tests/pages/workflows/nodes/fanout.test.tsx | ✅ | — | regression test mock 수정 | ✓ pass | regression-fix |
-| FE-PE-1 | web/tests/pages/workflows/nodes/reconcile.test.tsx | ✅ | — | regression test mock 수정 | ✓ pass | regression-fix |
-| FE-PE-1 | web/tests/regression/access-policy-regression.test.ts | ✅ | — | regression test mock 수정 | ✓ pass | regression-fix |
-| FE-PE-1 | web/tests/regression/backend-contract.test.tsx | ✅ | — | regression test mock 수정 | ✓ pass | regression-fix |
-| FE-PE-1 | web/tests/regression/badge-visibility.test.tsx | ✅ | — | regression test mock 수정 | ✓ pass | regression-fix |
-| FE-PE-1 | web/tests/regression/security-rendering.test.tsx | ✅ | — | regression test mock 수정 | ✓ pass | regression-fix |
+| FE-PE-1 | web/src/pages/prompting/index.tsx | ✅ | ✅ | web/tests/prompting/prompting-page-manage-tabs.test.tsx::11탭 + manage 진입 8건 | ✓ pass | done |
+| FE-PE-1 | web/src/styles/prompt.css | ✅ | ✅ | web/tests/prompting/prompting-css-rules.test.ts::ps-tabs CSS 셀렉터 4건 | ✓ pass | done |
+| FE-PE-1 | src/i18n/locales/en.json | ✅ | ✅ | web/tests/prompting/prompting-locale-keys.test.ts::en 12키 | ✓ pass (12) | done |
+| FE-PE-1 | src/i18n/locales/ko.json | ✅ | ✅ | web/tests/prompting/prompting-locale-keys.test.ts::ko 12키 | ✓ pass (12) | done |
+| AP-2 | src/utils/sqlite-helper.ts | ✅ | ✅ | (factory 유일 진입점 — new Database 0건 외부) | tsc pass | done |
+| AP-2 | src/orchestration/skill-index.ts | ✅ | ✅ | (open_sqlite 사용) | tsc pass | done |
+| IC-1 | src/security/outbound-guard.ts | ✅ | ✅ | tests/security/outbound-guard.test.ts::16건 | ✓ pass (16) | done |
+| IC-2 | web/src/pages/prompting/profile-editor.tsx | ✅ | ✅ | web/tests/pages/prompting/agent-modal.test.tsx::4탭 검증 | ✓ pass | done |
+| IC-3 | web/src/pages/channels/index.tsx | ✅ | ✅ | web/tests/regression/ic3-badge-chips.test.ts::dispatch-mode-chip | ✓ pass | done |
+| IC-3 | web/src/pages/chat/chat-status-bar.tsx | ✅ | ✅ | web/tests/regression/ic3-badge-chips.test.ts::delivery-health | ✓ pass | done |
+| IC-3 | web/src/pages/settings.tsx | ✅ | ✅ | web/tests/regression/ic3-badge-chips.test.ts::local-first-summary | ✓ pass | done |
+| IC-3 | web/src/pages/providers/index.tsx | ✅ | ✅ | web/tests/regression/ic3-badge-chips.test.ts::deploy-meta | ✓ pass | done |
+| IC-3 | web/src/pages/admin/monitoring-panel.tsx | ✅ | ✅ | web/tests/regression/ic3-badge-chips.test.ts::relay-status | ✓ pass | done |
+| IC-4 | web/src/api/contracts.ts | ✅ | ✅ | tests/architecture/fe-be-contract-drift.test.ts::BE ⊆ FE 4건 | ✓ pass | done |
+| IC-4 | src/contracts/api-responses.ts | ✅ | ✅ | tests/architecture/fe-be-contract-drift.test.ts::BE types 존재 | ✓ pass | done |
+| IC-5 | src/dashboard/routes/chat.ts | ✅ | ✅ | tests/dashboard/canvas-action.test.ts::canvas-action 6건 | ✓ pass | done |
+| IC-7 | web/src/pages/workflows/detail.tsx | ✅ | ✅ | web/tests/regression/ic7-gw-workflow-detail.test.ts::6건 | ✓ pass | done |
+| IC-7 | web/src/pages/workspace/references.tsx | ✅ | ✅ | web/tests/regression/ic7-tr5-references.test.ts::4건 | ✓ pass | done |
+| IC-8a | src/bus/types.ts | ✅ | ✅ | (RichPayload + RichEmbed + RichAction 타입) | tsc pass | done |
+| IC-8a | src/channels/rich-payload-builder.ts | ✅ | ✅ | (build_rich_payload 빌더) | tsc pass | done |
+| IC-8a | src/channels/discord.channel.ts | ✅ | ✅ | (to_discord_embed + to_discord_components) | tsc pass | done |
+| IC-8a | src/channels/slack.channel.ts | ✅ | ✅ | (to_slack_blocks + to_slack_action_block) | tsc pass | done |
+| IC-8a | src/channels/telegram.channel.ts | ✅ | ✅ | (to_telegram_html + to_telegram_inline_keyboard) | tsc pass | done |
+| IC-8a | web/src/pages/chat/rich-message-card.tsx | ✅ | ✅ | (RichMessageCard 컴포넌트) | tsc pass | done |
+| IC-8a | web/src/styles/chat.css | ✅ | ✅ | (rich-action-btn 스타일) | tsc pass | done |
+| IC-8b | src/channels/approval.service.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::ApprovalService 4건 | ✓ pass | done |
+| IC-8b | src/channels/telegram.channel.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::Telegram 5건 | ✓ pass | done |
+| IC-8b | src/dashboard/routes/channel-callbacks.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::Discord 5건 + Slack 7건 | ✓ pass | done |
+| IC-8b | src/dashboard/service.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::Dashboard 5건 | ✓ pass | done |
+| IC-8b | src/dashboard/service.types.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::옵션 타입 | ✓ pass | done |
+| IC-8b | src/bootstrap/dashboard.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::bootstrap 호출 (CL-2) | ✓ pass | done |
 
 ### Claim
 
-프롬프팅 스튜디오 index.tsx를 11탭(Creative 7 + Manage 4)으로 재설계. 워크스페이스의 Skills/Templates/Tools/RAG를 lazy import로 흡수. 탭 바 2영역 분리(`.ps-tabs__creative` + `.ps-tabs__sep` + `.ps-tabs__manage`). i18n 키 12개 추가(tab 11 + nav_label 1). `aria-label` 하드코딩 제거 → `t("prompting.nav_label")`.
+**FE-PE-1**: 프롬프팅 스튜디오 11탭(Creative 7 + Manage 4) 재구조화. i18n 12키, CSS 3셀렉터, aria-label i18n.
 
-Round 3 수정:
-- CC-2: Changed Files를 커밋 298b54af의 전체 28파일 scope로 확장. regression-fix 행 13건 추가.
-- T-2 CSS: RTM CSS row를 실행 가능한 테스트(`creative/manage 영역 분리` — `.ps-tabs__creative`, `.ps-tabs__sep`, `.ps-tabs__manage` querySelector 검증)로 대체.
-- T-2 Locale: `prompting-locale-keys.test.ts` 신규 추가 — `readFileSync`로 실제 en.json/ko.json을 읽어 12키×2언어 = 24 assertions 검증. i18n mock 미사용.
-- T-3: root `npm test` 884파일 17,660건 통과, web `npm test` 77파일 922건 통과 확인.
+**AP-2**: SQLite Connection Factory Port — 6개 파일 `with_sqlite`/`open_sqlite` 전환 완료. raw `new Database` 0건.
 
-### Changed Files
+**IC-1**: OutboundRequestGuard port + trust-zone badge.
 
-**Core (FE-PE-1 구현):**
-- `web/src/pages/prompting/index.tsx` — 11탭 재구조화 + lazy import
-- `web/src/styles/prompt.css` — ps-tabs__creative, ps-tabs__sep, ps-tabs__manage 스타일
-- `src/i18n/locales/en.json` — prompting.tab_* 11키 + nav_label 추가
-- `src/i18n/locales/ko.json` — prompting.tab_* 11키 + nav_label 추가
-- `web/src/components/shared/unified-selector.tsx` — import 경로 변경 (탭 재구조화 영향)
-- `web/src/components/tool-choice-toggle.tsx` — import 경로 변경 (탭 재구조화 영향)
+**IC-2**: Profile Editor — role selector + protocol checklist + compile preview + agent-modal 4탭.
 
-**Tests (신규 + 수정):**
-- `web/tests/prompting/prompting-page-manage-tabs.test.tsx` — 신규: manage 탭 8건
-- `web/tests/prompting/prompting-locale-keys.test.ts` — 신규: locale 키 24건 (round 3)
-- `web/tests/prompting/prompting-page-eval-tab.test.tsx` — i18n mock 추가
-- `web/tests/components/mention-picker.test.tsx` — mock 수정
-- `web/tests/components/shared/prompt-bar-chatview.test.tsx` — mock 수정
-- `web/tests/components/shared/unified-selector.test.tsx` — mock 수정
-- `web/tests/components/tool-choice-toggle.test.tsx` — mock 수정
-- `web/tests/layouts/root-sse-stale.test.tsx` — mock 수정
-- `web/tests/pages/access-policy.test.ts` — mock 수정
-- `web/tests/pages/chat-rewire.test.tsx` — mock 수정
-- `web/tests/pages/chat-state-management.test.tsx` — mock 수정
-- `web/tests/pages/workflows/nodes/fanout.test.tsx` — mock 수정
-- `web/tests/pages/workflows/nodes/reconcile.test.tsx` — mock 수정
-- `web/tests/regression/access-policy-regression.test.ts` — mock 수정
-- `web/tests/regression/backend-contract.test.tsx` — mock 수정
-- `web/tests/regression/badge-visibility.test.tsx` — mock 수정
-- `web/tests/regression/security-rendering.test.tsx` — mock 수정
+**IC-3**: 8개 트랙 FE badge/chip 일괄 구현 (dispatch-mode, delivery-health, relay-status, deploy-meta, local-first-summary).
 
-**Config/Infra (ancillary):**
-- `.claude/settings.json` — 세션 설정
-- `docs/feedback/claude.md` — 감사 증거 (이 파일)
-- `docs/feedback/gpt.md` — GPT 판정
-- `package.json` — 스크립트 업데이트
-- `run.ps1` — 실행 스크립트
-- `scripts/container.cjs` — 컨테이너 스크립트
-- `scripts/detect-container.cjs` — 컨테이너 감지
+**IC-4**: contracts.ts 10타입 추가 + 12개 인라인 useQuery → import 전환. FE-BE drift guard.
 
-### Test Command
+**IC-5**: canvas-action BE 핸들러 + validate:skills npm script.
 
-```bash
-# FE-PE-1 직접 테스트 (35건)
-cd web && npx vitest run tests/prompting/prompting-page-manage-tabs.test.tsx tests/prompting/prompting-page-eval-tab.test.tsx tests/prompting/prompting-locale-keys.test.ts
+**IC-7**: Closeout regression 4종 (GW-5/6, TR-5, OutboundRequestGuard, contract drift).
 
-# 타입 체크
-npx tsc --noEmit
+**IC-8a**: RichPayload + 4채널 embed 렌더링 (Discord/Slack/Telegram/Web).
 
-# 전체 web 스위트
-npm test
+**IC-8b**: RichAction + 4채널 버튼 전송 + 콜백 수신 완성.
+- Discord: Ed25519 필수 검증 + PING/COMPONENT 핸들러.
+- Slack: HMAC-SHA256 서명 검증 + 리플레이 방지 + 3초 응답.
+- Telegram: callback_query 폴링 + answerCallbackQuery.
+- bootstrap 연결: `register_channel_callbacks()` 호출 확인.
 
-# 전체 root 스위트
-cd .. && npm test
-```
+### Changed Files (89파일 — 전체 누적 diff 523eeb53..HEAD)
 
-### Test Result
-
-```
-FE-PE-1 직접 테스트 (3 test files):
- ✓ tests/prompting/prompting-page-manage-tabs.test.tsx (8 tests)
- ✓ tests/prompting/prompting-page-eval-tab.test.tsx (3 tests)
- ✓ tests/prompting/prompting-locale-keys.test.ts (24 tests)
- Test Files  3 passed (3)
-      Tests  35 passed (35)
-
-web tsc --noEmit: exit 0
-
-web npm test (전체):
- Test Files  77 passed (77)
-      Tests  922 passed (922)
-
-root npm test (전체):
- Test Files  884 passed | 2 skipped (886)
-      Tests  17660 passed | 13 skipped (17673)
-```
-
-audit-scan type-safety: (none found)
-audit-scan hardcoded: (none found)
-
-### Residual Risk
-
-- 워크스페이스 라우트(`/workspace`)는 아직 제거 안 됨 — FE-PE-5에서 cleanup
-- manage 탭의 세부 FE-DS 토큰 적용은 FE-PE-5에서 진행
-- FE-0 bidirectional gap (26 pages; most lack smoke tests)은 FE-REG에서 해소
-
-## [REVIEW_NEEDED] IC-3/4/5 — FE 표면 마감 + 계약 타입 확장 + canvas-action
-
-### Forward RTM Rows
-
-| Req ID | File | Exists | Impl | Test Case | Test Result | Status |
-|--------|------|--------|------|-----------|-------------|--------|
-| IC-3 | web/src/pages/channels/index.tsx | ✅ | ✅ | web/tests/regression/ic3-badge-chips.test.ts::LF-2 dispatch-mode-chip | ✓ pass | new |
-| IC-3 | web/src/pages/chat/chat-status-bar.tsx | ✅ | ✅ | web/tests/regression/ic3-badge-chips.test.ts::LF-4 delivery-health | ✓ pass | new |
-| IC-3 | web/src/pages/settings.tsx | ✅ | ✅ | web/tests/regression/ic3-badge-chips.test.ts::LF-5 local-first-summary | ✓ pass | new |
-| IC-3 | web/src/pages/providers/index.tsx | ✅ | ✅ | web/tests/regression/ic3-badge-chips.test.ts::FC-5 deploy-meta | ✓ pass | new |
-| IC-3 | web/src/pages/admin/monitoring-panel.tsx | ✅ | ✅ | web/tests/regression/ic3-badge-chips.test.ts::TN/LF-3 relay-status | ✓ pass | new |
-| IC-3 | src/i18n/locales/en.json | ✅ | ✅ | web/tests/regression/ic3-badge-chips.test.ts::dispatch_mode i18n | ✓ pass | new |
-| IC-4 | web/src/api/contracts.ts | ✅ | ✅ | tests/architecture/fe-be-contract-drift.test.ts::BE ⊆ FE | ✓ pass | new |
-| IC-4 | web/src/api/contracts.ts | ✅ | ✅ | tests/architecture/fe-be-contract-drift.test.ts::IC-4 추가 타입 | ✓ pass | new |
-| IC-4 | web/src/components/mention-picker.tsx | ✅ | ✅ | (import ApiMcpServerList from contracts) | — | verified |
-| IC-4 | web/src/components/shared/unified-selector.tsx | ✅ | ✅ | (import ApiMcpServerList from contracts) | — | verified |
-| IC-4 | web/src/components/tool-feature-menu.tsx | ✅ | ✅ | (import ApiMcpServerList from contracts) | — | verified |
-| IC-4 | web/src/pages/prompting/agent-modal.tsx | ✅ | ✅ | (import 전환) | — | verified |
-| IC-4 | web/src/pages/prompting/agent-panel.tsx | ✅ | ✅ | (import 전환) | — | verified |
-| IC-4 | web/src/pages/secrets.tsx | ✅ | ✅ | (import ApiSecretList) | — | verified |
-| IC-4 | web/src/pages/workspace/agents.tsx | ✅ | ✅ | (import 전환) | — | verified |
-| IC-4 | web/src/pages/workspace/references.tsx | ✅ | ✅ | (import ApiRefDocumentList) | — | verified |
-| IC-4 | web/src/pages/workspace/skills.tsx | ✅ | ✅ | (import 전환) | — | verified |
-| IC-4 | web/src/pages/workflows/builder.tsx | ✅ | ✅ | (import 전환) | — | verified |
-| IC-5 | src/dashboard/routes/chat.ts | ✅ | ✅ | tests/dashboard/canvas-action.test.ts::canvas-action route 6건 | ✓ pass (6) | new |
-| IC-5 | package.json | ✅ | ✅ | tests/dashboard/canvas-action.test.ts::validate:skills script | ✓ pass | new |
-| IC-5 | src/i18n/locales/en.json | ✅ | ✅ | (26 i18n 키 추가) | — | verified |
-| IC-5 | src/i18n/locales/ko.json | ✅ | ✅ | (26 i18n 키 추가) | — | verified |
-
-### Claim
-
-**IC-3** (FE 표면 마감): 8개 트랙의 badge/chip을 FE 페이지에 반영. TN-5 scope badge, LF-2 dispatch chip, LF-3 relay badge, LF-4 delivery health, LF-5 local-first summary, FC-5 deploy metadata. data-testid 부여 + i18n 키 추가.
-
-**IC-4** (계약 타입 확장): contracts.ts에 ApiMcpServer, ApiSecretList, ApiProtocolList 등 10타입 추가. 12개 파일에서 인라인 useQuery 제네릭을 contracts.ts import로 전환.
-
-**IC-5** (canvas-action): POST /api/chat/sessions/:id/canvas-action 핸들러. action_id 필수 검증, bus.publish_inbound로 에이전트에 canvas 액션 전달. validate:skills npm script 추가.
-
-### Changed Files
-
-**IC-3 (badges/chips):**
-- `web/src/pages/channels/index.tsx` — dispatch-mode-chip
-- `web/src/pages/chat/chat-status-bar.tsx` — delivery-health badge
-- `web/src/pages/admin/monitoring-panel.tsx` — relay-status badge
-- `web/src/pages/providers/index.tsx` — provider-deploy-meta
-- `web/src/pages/settings.tsx` — local-first-summary
-
-**IC-4 (contracts):**
-- `web/src/api/contracts.ts` — 10타입 추가
-- `web/src/components/mention-picker.tsx` — import 전환
-- `web/src/components/shared/unified-selector.tsx` — import 전환
-- `web/src/components/tool-feature-menu.tsx` — import 전환
-- `web/src/pages/prompting/agent-modal.tsx` — import 전환
-- `web/src/pages/prompting/agent-panel.tsx` — import 전환
-- `web/src/pages/secrets.tsx` — import 전환
-- `web/src/pages/workspace/agents.tsx` — import 전환
-- `web/src/pages/workspace/references.tsx` — import 전환
-- `web/src/pages/workspace/skills.tsx` — import 전환
-- `web/src/pages/workflows/builder.tsx` — import 전환
-
-**IC-5 (canvas-action):**
+**BE Core:**
+- `src/agent/tools/http-utils.ts` — OutboundRequestGuard port 경유
+- `src/bootstrap/orchestration.ts` — OrchSecurityDeps 추가
+- `src/bootstrap/dashboard.ts` — register_channel_callbacks() 호출
+- `src/bus/types.ts` — RichPayload, RichEmbed, RichAction 타입
+- `src/channels/approval.service.ts` — try_handle_button_callback + source "button"
+- `src/channels/discord.channel.ts` — embed + component button 전송
+- `src/channels/rich-payload-builder.ts` — build_rich_payload 빌더
+- `src/channels/slack.channel.ts` — Block Kit + action button 전송
+- `src/channels/telegram.channel.ts` — HTML embed + inline keyboard + callback_query
+- `src/contracts/api-responses.ts` — BE 공유 타입
+- `src/dashboard/routes/auth.ts` — auth 라우트
+- `src/dashboard/routes/channel-callbacks.ts` — Discord interaction + Slack action 엔드포인트
 - `src/dashboard/routes/chat.ts` — canvas-action 핸들러
-- `package.json` — validate:skills script
-- `src/i18n/locales/en.json` — 26키 추가
-- `src/i18n/locales/ko.json` — 26키 추가
+- `src/dashboard/routes/health.ts` — health 라우트
+- `src/dashboard/service.ts` — register_channel_callbacks + import
+- `src/dashboard/service.types.ts` — discord_public_key, slack_signing_secret
+- `src/i18n/locales/en.json` — prompting tab 12키 + channels/IC-3 키
+- `src/i18n/locales/ko.json` — 동일
+- `src/orchestration/skill-index.ts` — open_sqlite 전환
+- `src/security/outbound-guard.ts` — OutboundRequestGuardLike port
+- `src/utils/sqlite-helper.ts` — open_sqlite factory
 
-**Tests (신규):**
-- `web/tests/regression/ic3-badge-chips.test.ts` — IC-3 badge 6건
+**FE Pages:**
+- `web/src/api/contracts.ts` — FE 공유 타입 42개
+- `web/src/components/mention-picker.tsx` — ApiMcpServerList import
+- `web/src/components/shared/unified-selector.tsx` — import 전환
+- `web/src/components/tool-choice-toggle.tsx` — import 전환
+- `web/src/components/tool-feature-menu.tsx` — import 전환
+- `web/src/hooks/use-auth.ts`, `web/src/hooks/use-team-providers.ts`, `web/src/layouts/root.tsx` — auth
+- `web/src/pages/admin/monitoring-panel.tsx` — relay-status badge
+- `web/src/pages/channels/index.tsx` — dispatch-mode chip
+- `web/src/pages/chat.tsx` — canvas-action consumer
+- `web/src/pages/chat/chat-status-bar.tsx` — delivery-health badge
+- `web/src/pages/chat/rich-message-card.tsx` — RichMessageCard + ActionBar
+- `web/src/pages/login.tsx` — login 페이지
+- `web/src/pages/prompting/agent-card.tsx`, `agent-modal.tsx`, `agent-panel.tsx` — profile editor 통합
+- `web/src/pages/prompting/compare-panel.tsx`, `eval-panel.tsx`, `gallery-panel.tsx`, `image-panel.tsx`, `video-panel.tsx` — 패널 리팩토링
+- `web/src/pages/prompting/index.tsx` — 11탭 재구조화
+- `web/src/pages/prompting/profile-editor.tsx` — ProfileEditor 신규
+- `web/src/pages/providers/index.tsx` — deploy-meta badge
+- `web/src/pages/secrets.tsx` — ApiSecretList import
+- `web/src/pages/settings.tsx` — local-first-summary
+- `web/src/pages/workflows/builder.tsx` — import 전환
+- `web/src/pages/workspace/agents.tsx`, `references.tsx`, `skills.tsx`, `tools.tsx` — import 전환
+
+**Styles:**
+- `web/src/styles/chat.css` — rich-action-btn
+- `web/src/styles/prompt.css` — ps-tabs__creative/sep/manage
+
+**Tests (root):**
 - `tests/architecture/fe-be-contract-drift.test.ts` — IC-4 drift guard 4건
+- `tests/channels/ic8b-button-callbacks.test.ts` — IC-8b 콜백 26건
 - `tests/dashboard/canvas-action.test.ts` — IC-5 route 6건
+- `tests/security/outbound-guard.test.ts` — IC-1 guard 16건
+
+**Tests (web):**
+- `web/tests/prompting/prompting-css-rules.test.ts` — FE-PE-1 CSS 4건
+- `web/tests/prompting/prompting-locale-keys.test.ts` — FE-PE-1 locale 24건
+- `web/tests/prompting/prompting-page-manage-tabs.test.tsx` — FE-PE-1 manage 8건
+- `web/tests/prompting/prompting-page-eval-tab.test.tsx` — FE-PE-1 eval 3건
+- `web/tests/prompting/eval-panel.test.tsx` — eval 패널
+- `web/tests/regression/ic3-badge-chips.test.ts` — IC-3 badge 6건
+- `web/tests/regression/ic7-gw-workflow-detail.test.ts` — IC-7 GW 6건
+- `web/tests/regression/ic7-tr5-references.test.ts` — IC-7 TR-5 4건
+- `web/tests/pages/prompting/agent-modal.test.tsx` — IC-2 4탭
+- `web/tests/pages/prompting/agent-panel.test.tsx` — IC-2 패널
+- `web/tests/components/mention-picker.test.tsx` — regression mock
+- `web/tests/components/shared/prompt-bar-chatview.test.tsx` — regression mock
+- `web/tests/components/shared/unified-selector.test.tsx` — regression mock
+- `web/tests/components/tool-choice-toggle.test.tsx` — regression mock
+- `web/tests/layouts/root-sse-stale.test.tsx` — regression mock
+- `web/tests/pages/access-policy.test.ts` — regression mock
+- `web/tests/pages/chat-rewire.test.tsx` — regression mock
+- `web/tests/pages/chat-state-management.test.tsx` — regression mock
+- `web/tests/pages/workflows/nodes/fanout.test.tsx` — regression mock
+- `web/tests/pages/workflows/nodes/reconcile.test.tsx` — regression mock
+- `web/tests/regression/access-policy-regression.test.ts` — regression mock
+- `web/tests/regression/backend-contract.test.tsx` — regression mock
+- `web/tests/regression/badge-visibility.test.tsx` — regression mock
+- `web/tests/regression/security-rendering.test.tsx` — regression mock
+- `web/tests/workspace/tools-usage.test.tsx` — workspace tools
+
+**Config/Infra:**
+- `.claude/settings.json`, `docs/feedback/claude.md`, `docs/feedback/gpt.md`
+- `package.json`, `run.ps1`, `scripts/container.cjs`, `scripts/detect-container.cjs`
 
 ### Test Command
 
-```bash
-# IC-3 직접 테스트 (6건)
-cd web && npx vitest run tests/regression/ic3-badge-chips.test.ts
+```powershell
+# 직접 테스트 — FE-PE-1 (39건)
+Set-Location web; npx vitest run tests/prompting/prompting-page-manage-tabs.test.tsx tests/prompting/prompting-page-eval-tab.test.tsx tests/prompting/prompting-locale-keys.test.ts tests/prompting/prompting-css-rules.test.ts
 
-# IC-4 + IC-5 직접 테스트 (10건)
-cd .. && npx vitest run tests/architecture/fe-be-contract-drift.test.ts tests/dashboard/canvas-action.test.ts
+# 직접 테스트 — IC-3 (6건)
+npx vitest run tests/regression/ic3-badge-chips.test.ts
 
-# 전체 스위트
-npm test        # root: 884파일 17660건
-cd web && npm test  # web: 77파일 922건
-```
+# 직접 테스트 — IC-7 web (10건)
+npx vitest run tests/regression/ic7-gw-workflow-detail.test.ts tests/regression/ic7-tr5-references.test.ts
 
-### Test Result
-
-```
-IC-3 (web, 1 test file):
- ✓ tests/regression/ic3-badge-chips.test.ts (6 tests)
- Test Files  1 passed (1)
-      Tests  6 passed (6)
-
-IC-4 + IC-5 (root, 2 test files):
- ✓ tests/architecture/fe-be-contract-drift.test.ts (4 tests)
- ✓ tests/dashboard/canvas-action.test.ts (6 tests)
- Test Files  2 passed (2)
-      Tests  10 passed (10)
-
-root npm test: 884 passed | 2 skipped (886), 17660 tests passed
-web npm test: 77 passed (77), 922 tests passed
-```
-
-audit-scan type-safety: (none found)
-audit-scan hardcoded: (none found)
-
-### Residual Risk
-
-- IC-4 import 전환 12개 중 일부는 tsc satisfies 없이 useQuery 제네릭만 사용 — 런타임 shape 검증은 FVM에 위임
-
-## [REVIEW_NEEDED] IC-7 — Closeout Regression Bundle
-
-### Forward RTM Rows
-
-| Req ID | File | Exists | Impl | Test Case | Test Result | Status |
-|--------|------|--------|------|-----------|-------------|--------|
-| IC-7.1 | web/src/pages/workflows/detail.tsx | ✅ | ✅ | web/tests/regression/ic7-gw-workflow-detail.test.ts::StatusView + Badge + ApprovalBanner (6건) | ✓ pass | new |
-| IC-7.2 | web/src/pages/workspace/references.tsx | ✅ | ✅ | web/tests/regression/ic7-tr5-references.test.ts::lexical_profile + retrieval_status (4건) | ✓ pass | new |
-| IC-7.3 | src/security/outbound-guard.ts | ✅ | ✅ | tests/security/outbound-guard.test.ts::create_outbound_guard + check_allowed_hosts (14건) | ✓ pass | existing |
-| IC-7.4 | web/src/api/contracts.ts + src/contracts/api-responses.ts | ✅ | ✅ | tests/architecture/fe-be-contract-drift.test.ts::BE ⊆ FE (4건) | ✓ pass | new |
-
-### Claim
-
-Closeout regression bundle 4종:
-1. **GW-5/6**: workflow detail 페이지가 StatusView, Badge, ApprovalBanner, MessageBubble을 import/사용하며 i18n을 적용하는지 소스-레벨 검증 (6건).
-2. **TR-5**: references 페이지가 lexical_profile, tokenizer_hint, retrieval_status 필드를 렌더링하며 contracts.ts 타입을 소비하는지 검증 (4건).
-3. **OutboundRequestGuard**: allowlist/deny 통합 검증 — create_outbound_guard, create_guard_from_integration_settings, check_allowed_hosts (14건, 기존).
-4. **FE-BE contract drift guard**: BE api-responses.ts의 모든 export type이 FE contracts.ts에 존재하는지 검증 (4건).
-
-### Changed Files
-
-**Tests (신규):**
-- `web/tests/regression/ic7-gw-workflow-detail.test.ts` — GW-5/6 regression 6건
-- `web/tests/regression/ic7-tr5-references.test.ts` — TR-5 regression 4건
-
-**Tests (기존, IC-7.3/4):**
-- `tests/security/outbound-guard.test.ts` — IC-1에서 작성, 14건
-- `tests/architecture/fe-be-contract-drift.test.ts` — IC-4에서 작성, 4건
-
-### Test Command
-
-```bash
-# IC-7 직접 테스트 (10건 신규)
-cd web && npx vitest run tests/regression/ic7-gw-workflow-detail.test.ts tests/regression/ic7-tr5-references.test.ts
-
-# IC-7.3 + IC-7.4 (18건 기존)
-cd .. && npx vitest run tests/security/outbound-guard.test.ts tests/architecture/fe-be-contract-drift.test.ts
-```
-
-### Test Result
-
-```
-IC-7.1 + IC-7.2 (web, 2 test files):
- ✓ tests/regression/ic7-gw-workflow-detail.test.ts (6 tests)
- ✓ tests/regression/ic7-tr5-references.test.ts (4 tests)
- Test Files  2 passed (2)
-      Tests  10 passed (10)
-
-IC-7.3 + IC-7.4 (root, 2 test files):
- ✓ tests/security/outbound-guard.test.ts (14 tests)
- ✓ tests/architecture/fe-be-contract-drift.test.ts (4 tests)
- Test Files  2 passed (2)
-      Tests  18 passed (18)
-```
-
-### Residual Risk
-
-- IC-6 (cross-track 문서 최종 갱신)은 docs/ 수정 금지 규칙에 의해 보류 — CLAUDE.md 정책 확인 필요
-
-## [REVIEW_NEEDED] IC-8b — 외부 채널 버튼 콜백 수신 완성
-
-### Forward RTM Rows
-
-| Req ID | File | Exists | Impl | Test Case | Test Result | Status |
-|--------|------|--------|------|-----------|-------------|--------|
-| IC-8b.2 | src/dashboard/routes/channel-callbacks.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::Discord interaction 4건 | ✓ pass | new |
-| IC-8b.4 | src/dashboard/routes/channel-callbacks.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::Discord Ed25519 + PING + type 3 | ✓ pass | new |
-| IC-8b.6 | src/dashboard/routes/channel-callbacks.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::Slack action 4건 | ✓ pass | new |
-| IC-8b.8 | src/channels/telegram.channel.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::Telegram callback_query 5건 | ✓ pass | new |
-| IC-8b.10 | src/channels/approval.service.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::ApprovalService 버튼 콜백 4건 | ✓ pass | new |
-| IC-8b.wiring | src/dashboard/service.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::Dashboard 서비스 연결 4건 | ✓ pass | new |
-| IC-8b.types | src/dashboard/service.types.ts | ✅ | ✅ | tests/channels/ic8b-button-callbacks.test.ts::discord_public_key + slack_signing_secret | ✓ pass | new |
-
-### Claim
-
-IC-8b 설계 문서 누락 항목 #2/#4/#6/#8 해소 — 4채널 모두 버튼 전송 + 콜백 수신 완성.
-
-- **ApprovalService**: `try_handle_button_callback()` — 버튼 클릭 InboundMessage에서 action_id(approve/deny/defer/cancel) 추출 → 기존 `apply_decision()` 경로 합류.
-- **Telegram**: `getUpdates` allowed_updates에 `callback_query` 추가. `to_callback_query_message()`로 InboundMessage 변환. `answerCallbackQuery`로 로딩 스피너 해제.
-- **Discord**: `POST /api/channels/discord/interaction` — Ed25519 서명 검증 + PING(type 1) 응답 + MESSAGE_COMPONENT(type 3) → InboundMessage 발행 + DEFERRED_UPDATE_MESSAGE(type 6) 응답.
-- **Slack**: `POST /api/channels/slack/action` — Block Action payload 파싱 → 즉시 200 응답(3초 규칙) → InboundMessage 비동기 발행.
-- **Dashboard**: `register_channel_callbacks()` + `discord_public_key`/`slack_signing_secret` 옵션 추가.
-
-### Changed Files
-
-**Code:**
-- `src/channels/approval.service.ts` — try_handle_button_callback() + source "button" 추가
-- `src/channels/telegram.channel.ts` — callback_query 폴링 + to_callback_query_message + answerCallbackQuery
-- `src/dashboard/routes/channel-callbacks.ts` — 신규: Discord interaction + Slack action 라우트
-- `src/dashboard/service.ts` — register_channel_callbacks() + import
-- `src/dashboard/service.types.ts` — discord_public_key, slack_signing_secret 옵션
-
-**Tests (신규):**
-- `tests/channels/ic8b-button-callbacks.test.ts` — 21건
-
-### Test Command
-
-```bash
-# IC-8b 직접 테스트 (21건)
-cd /d/Projects/next && npx vitest run tests/channels/ic8b-button-callbacks.test.ts
+# 직접 테스트 — IC-1/4/5/8b root (52건)
+Set-Location ..; npx vitest run tests/security/outbound-guard.test.ts tests/architecture/fe-be-contract-drift.test.ts tests/dashboard/canvas-action.test.ts tests/channels/ic8b-button-callbacks.test.ts
 
 # typecheck
 npx tsc --noEmit
-cd web && npx tsc --noEmit
+Set-Location web; npx tsc --noEmit
+
+# 전체 스위트
+Set-Location ..; npm test
+Set-Location web; npm test
 ```
 
 ### Test Result
 
 ```
-IC-8b (root, 1 test file):
- ✓ tests/channels/ic8b-button-callbacks.test.ts (21 tests)
- Test Files  1 passed (1)
-      Tests  21 passed (21)
+FE-PE-1 직접 (4 files): 39 passed
+IC-3 직접 (1 file): 6 passed
+IC-7 web 직접 (2 files): 10 passed
+IC-1/4/5/8b root 직접 (4 files): 52 passed
 
 root tsc --noEmit: exit 0
 web tsc --noEmit: exit 0
+
+web npm test: 82 files, 966 tests passed
+root npm test: 887 files, 17697 tests passed | 2 skipped (889)
 ```
 
 audit-scan type-safety: (none found)
@@ -365,6 +206,5 @@ audit-scan hardcoded: (none found)
 
 ### Residual Risk
 
-- Discord Ed25519 검증은 `discord_public_key` 미설정 시 서명 검증을 건너뜀 (내부망 배포 편의)
-- Slack signing secret HMAC 검증 미구현 — 내부망 환경에서는 네트워크 레벨 보안으로 대체
-- `register_channel_callbacks()` 호출은 bootstrap에서 수동으로 해야 함 — 자동 등록 미구현
+- IC-6 (cross-track 문서 최종 갱신)은 docs/ 수정 금지 규칙에 의해 보류
+- WIP 커밋 4건(AP-2, IC-2, IC-8b, FE-WF) reword는 main force-push 필요하여 보류
