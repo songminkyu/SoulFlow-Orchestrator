@@ -23,6 +23,7 @@ import { join } from "node:path";
 import type { RouteContext } from "../route-context.js";
 import type { TeamRole } from "../../auth/team-store.js";
 import { sanitize_filename, is_inside } from "../ops/shared.js";
+import type { ApiSecuritySummary, ApiAdminUserList } from "../../contracts/api-responses.js";
 
 const RE_USER       = /^\/api\/admin\/users\/([^/]+)$/;
 const RE_USER_PW    = /^\/api\/admin\/users\/([^/]+)\/password$/;
@@ -61,6 +62,26 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
 
   const workspace = options.workspace ?? "";
 
+  // ── GET /api/admin/security/summary ──
+  if (url.pathname === "/api/admin/security/summary" && req.method === "GET") {
+    const obs = options.observability ?? null;
+    const webhook_secret_set = !!(options as Record<string, unknown>).webhookSecret;
+    const trust_zone = options.trust_zone ?? "internal";
+    const failure_summary = obs ? (await import("../../observability/projector.js")).project_summary(obs) : null;
+    const latency_p95 = failure_summary?.latency_summary?.[0]?.p95 ?? null;
+    const failure_rate = failure_summary?.error_rate?.rate ?? null;
+    const security_regressions = failure_summary?.failure_summary?.reduce((sum: number, f: { count: number }) => sum + f.count, 0) ?? 0;
+    json(res, 200, {
+      webhook_secret_set,
+      trust_zone,
+      security_regressions,
+      latency_p95_ms: latency_p95,
+      failure_rate,
+    } satisfies ApiSecuritySummary);
+    return true;
+  }
+
+
   // ── GET /api/admin/users ──
 
   if (url.pathname === "/api/admin/users" && req.method === "GET") {
@@ -69,7 +90,7 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
       default_team_id: u.default_team_id,
       created_at: u.created_at, last_login_at: u.last_login_at, disabled_at: u.disabled_at,
     }));
-    json(res, 200, { users });
+    json(res, 200, { users } satisfies ApiAdminUserList);
     return true;
   }
 

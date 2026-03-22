@@ -379,6 +379,8 @@ export type DashboardOptions = {
   create_team_store?: (team_id: string) => import("../auth/team-store.js").TeamStoreLike;
   /** OB-5: observability 주입. 미설정 시 no-op. */
   observability?: import("../observability/context.js").ObservabilityLike | null;
+  /** SH-1: trust zone 표시. 기본값 "internal". */
+  trust_zone?: string;
   /** H-10: CORS 허용 origin 목록. 빈 배열이면 same-origin만 허용. */
   cors_origins?: string[];
   /** RPF-4F: 최신 ValidatorSummary 공급 포트. 미설정 시 /api/state에서 validator_summary 생략. */

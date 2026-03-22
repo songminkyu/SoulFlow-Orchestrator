@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
+import type { ApiSecuritySummary } from "../../api/contracts";
 import { Badge } from "../../components/badge";
 import { SectionHeader } from "../../components/section-header";
 import { SurfaceGuard } from "../../components/surface-guard";
@@ -593,13 +594,7 @@ function ChannelsPanel() {
 
 function SecurityPanel() {
   const t = useT();
-  const { data: status, isLoading, isError, refetch } = useQuery<{
-    webhook_secret_set: boolean;
-    trust_zone: string;
-    security_regressions: number;
-    latency_p95_ms: number | null;
-    failure_rate: number | null;
-  }>({
+  const { data: status, isLoading, isError, refetch } = useQuery<ApiSecuritySummary>({
     queryKey: ["admin-security-summary"],
     queryFn: () => api.get("/api/admin/security/summary"),
     staleTime: 15_000,

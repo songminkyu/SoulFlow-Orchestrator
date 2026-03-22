@@ -184,6 +184,25 @@ export async function handle_auth(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
+  // ── PATCH /api/auth/me/password — 사용자 자체 비밀번호 변경 ──
+  if (url.pathname === "/api/auth/me/password" && (req.method === "PATCH" || req.method === "PUT")) {
+    if (!auth_svc) { json(res, 503, { error: "auth_not_configured" }); return true; }
+    const p = ctx.auth_user;
+    if (!p) { json(res, 401, { error: "not_authenticated" }); return true; }
+    const body = await read_body(req);
+    const current = typeof body?.current_password === "string" ? body.current_password : "";
+    const next_pw = typeof body?.new_password === "string" ? body.new_password : "";
+    if (!current || !next_pw) { json(res, 400, { error: "passwords_required" }); return true; }
+    if (next_pw.length < 6) { json(res, 400, { error: "password_too_short" }); return true; }
+    const user = auth_svc.get_user_by_id(p.sub);
+    if (!user?.password_hash) { json(res, 404, { error: "user_not_found" }); return true; }
+    const ok = await auth_svc.verify_password(current, user.password_hash);
+    if (!ok) { json(res, 403, { error: "wrong_password" }); return true; }
+    await auth_svc.update_password(p.sub, next_pw);
+    json(res, 200, { ok: true });
+    return true;
+  }
+
   // ── POST /api/auth/switch-team ──
 
   if (url.pathname === "/api/auth/switch-team" && req.method === "POST") {

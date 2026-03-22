@@ -142,6 +142,11 @@ export async function build_dashboard_state(
     observability: team_id === undefined && options.observability ? project_summary(options.observability) : null,
     validator_summary: options.validator_summary_ops?.get_latest() ?? undefined,
     reconcile_summary: build_reconcile_failure_summary(options, team_id),
+    platform: {
+      trust_zone: options.trust_zone ?? "internal",
+      deployment_kind: "self_hosted",
+      execution_target: "local",
+    },
   };
 }
 

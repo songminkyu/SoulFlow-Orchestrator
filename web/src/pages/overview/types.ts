@@ -163,6 +163,8 @@ export interface DashboardState {
   guardrail_stats?: { blocked: number; total: number };
   /** OB-7: Observability 요약 (failure/error_rate/latency/delivery_mismatch/provider_usage). */
   observability?: ObservabilitySummary | null;
+  /** LP-1: 플랫폼 배포 정보. */
+  platform?: { trust_zone: string; deployment_kind: string; execution_target: string };
 }
 
 export const ACTIVE_TASK_STATUSES = new Set(["running", "waiting_approval", "waiting_user_input"]);

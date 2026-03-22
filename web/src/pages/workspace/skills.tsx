@@ -170,6 +170,7 @@ export function SkillsTab() {
   const [zipFile, setZipFile] = useState<File | null>(null);
   const [editContent, setEditContent] = useState<string | null>(null);
   const [metaExpanded, setMetaExpanded] = useState(false);
+  const [validationResult, setValidationResult] = useState<{ ok: boolean; issues: string[] } | null>(null);
 
   const { data: skills = [] } = useQuery<SkillInfo[]>({
     queryKey: ["ws-skills"],
@@ -242,7 +243,6 @@ export function SkillsTab() {
   };
 
   const handle_select = (name: string) => {
-    // 이미 선택된 item 다시 클릭 → 선택 해제 (토글)
     if (selected === name) {
       setSelected(null);
       setEditContent(null);
@@ -252,6 +252,15 @@ export function SkillsTab() {
     setActiveFile("SKILL.md");
     setEditContent(null);
     setMetaExpanded(false);
+    setValidationResult(null);
+  };
+
+  const validate_skill = () => {
+    if (!selected) return;
+    void run_action(async () => {
+      const result = await api.post<{ ok: boolean; issues: string[] }>(`/api/skills/${encodeURIComponent(selected)}/validate`);
+      setValidationResult(result);
+    }, validationResult?.ok ? t("skill.valid") : "");
   };
 
   const save = () => {
@@ -350,18 +359,23 @@ export function SkillsTab() {
                       </button>
                     ))}
                   </div>
-                  {is_editable && (
-                    <div className="li-flex ws-tab-bar__actions">
-                      {editContent !== null && (
-                        <>
-                          <button className="btn btn--xs btn--ok" onClick={() => void save()} disabled={saving}>
-                            {t(saving ? "common.saving" : "common.save")}
-                          </button>
-                          <button className="btn btn--xs" onClick={() => setEditContent(null)}>{t("common.cancel")}</button>
-                        </>
-                      )}
-                    </div>
-                  )}
+                  <div className="li-flex ws-tab-bar__actions">
+                    <button className="btn btn--xs" onClick={validate_skill}>{t("skill.validate")}</button>
+                    {validationResult && (
+                      <Badge
+                        status={validationResult.ok ? t("skill.valid") : t("skill.invalid")}
+                        variant={validationResult.ok ? "ok" : "warn"}
+                      />
+                    )}
+                    {is_editable && editContent !== null && (
+                      <>
+                        <button className="btn btn--xs btn--ok" onClick={() => void save()} disabled={saving}>
+                          {t(saving ? "common.saving" : "common.save")}
+                        </button>
+                        <button className="btn btn--xs" onClick={() => setEditContent(null)}>{t("common.cancel")}</button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 {is_editable && activeFile === "SKILL.md" && (
                   <ToolPicker

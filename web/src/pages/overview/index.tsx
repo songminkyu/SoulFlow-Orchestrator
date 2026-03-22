@@ -105,7 +105,7 @@ function OverviewContent({ state: s }: { state: DashboardState }) {
 
       {/* OB-7: Observability 요약 배지 — error rate + active runs */}
       {s.observability && s.observability.error_rate.total > 0 && (
-        <div className="stat-grid" data-testid="observability-badges">
+        <div className="stat-grid" data-testid="observability-badges" style={{ cursor: "pointer" }} onClick={() => window.location.hash = "#/admin"} title={t("common.view_all")}>
           <div className="stat-card">
             <div className="stat-card__header">
               <div className={`stat-card__icon stat-card__icon--${s.observability.error_rate.rate === 0 ? "ok" : s.observability.error_rate.rate < 0.1 ? "warn" : "accent"}`}>
@@ -136,6 +136,21 @@ function OverviewContent({ state: s }: { state: DashboardState }) {
             </div>
           )}
         </div>
+      )}
+
+      {/* Platform Info — LP-1: deployment / execution / trust */}
+      {s.platform && (
+        <section className="panel panel--flush" data-testid="platform-info">
+          <h2>{t("overview.platform")}</h2>
+          <div className="kv mt-0">
+            <Badge status={s.platform.deployment_kind} variant="info" />
+            <Badge status={s.platform.execution_target} variant="ok" />
+            <Badge
+              status={s.platform.trust_zone}
+              variant={s.platform.trust_zone === "private" ? "ok" : "warn"}
+            />
+          </div>
+        </section>
       )}
 
       {/* Validator Summary — 항상 배지 표시, 실패 시 상세 표시 */}

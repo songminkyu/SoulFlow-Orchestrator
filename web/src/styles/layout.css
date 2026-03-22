@@ -406,6 +406,22 @@
   color: var(--warn);
   animation: pulse-fade 1.5s ease-in-out infinite;
 }
+.topbar__conn--stale {
+  background: color-mix(in srgb, var(--warn) 15%, transparent);
+  color: var(--warn);
+}
+.topbar__health-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.topbar__health-dot--ok  { background: var(--ok); }
+.topbar__health-dot--warn { background: var(--warn); }
+.topbar__health-dot--err  { background: var(--err); }
+.topbar__platform-badge {
+  font-size: var(--fs-xs); color: var(--muted);
+  padding: 2px 8px; border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  white-space: nowrap;
+}
 
 @keyframes pulse-fade {
   0%, 100% { opacity: 1; }
@@ -761,11 +777,30 @@
 .user-card__logout-btn:hover {
   background: color-mix(in srgb, var(--err) 10%, transparent);
 }
+.user-card__actions {
+  display: flex; gap: 6px; margin-top: 4px;
+}
+.user-card__profile-panel {
+  position: absolute; bottom: 100%; left: 0; right: 0;
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: var(--sp-3);
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.2); z-index: 100;
+}
+.user-card__profile-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: var(--sp-2);
+}
+.user-card__profile-form {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.user-card__profile-form .form-input {
+  font-size: var(--fs-xs); padding: 4px 8px;
+}
 /* collapsed sidebar — hide user card details */
 .sidebar--collapsed .user-card__username,
 .sidebar--collapsed .user-card__role-badge,
 .sidebar--collapsed .user-card__team-switcher,
-.sidebar--collapsed .user-card__logout-btn { display: none; }
+.sidebar--collapsed .user-card__actions { display: none; }
 .sidebar__footer-btn--theme {
   flex: 0 0 auto;
   font-size: var(--fs-base);

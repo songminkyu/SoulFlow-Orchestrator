@@ -9,6 +9,8 @@ import { api } from "../api/client";
 import { useRef, useState } from "react";
 import { useAuthStatus, useAuthUser } from "../hooks/use-auth";
 import { useToast } from "../components/toast";
+import { useStatus } from "../api/hooks";
+import type { DashboardState } from "../pages/overview/types";
 
 export function RootLayout() {
   const set_connection = useDashboardStore((s) => s.set_connection);
@@ -32,6 +34,8 @@ export function RootLayout() {
   const { data: auth_status } = useAuthStatus();
   const { data: auth_user, isLoading: auth_loading, isFetching: auth_fetching } = useAuthUser();
   const { toast } = useToast();
+  const { data: state_data } = useStatus();
+  const ds = state_data as DashboardState | undefined;
 
   // auth 활성화 시 미인증 → /login 리다이렉트
   // isFetching도 체크: 로그인 직후 refetch 중 null 상태로 오인해 다시 /login으로 보내는 race condition 방지
@@ -164,6 +168,21 @@ export function RootLayout() {
             <h1 className="topbar__title">{t("app.title")}</h1>
           </div>
           <div className="topbar__meta">
+            {ds?.platform && (
+              <span className="topbar__platform-badge" title={`${ds.platform.deployment_kind} / ${ds.platform.trust_zone}`}>
+                {ds.platform.trust_zone === "private" ? "🔒" : "🌐"} {ds.platform.execution_target}
+              </span>
+            )}
+            {ds?.observability && (
+              <span
+                className={`topbar__health-dot topbar__health-dot--${
+                  ds.observability.error_rate.rate === 0 ? "ok"
+                    : ds.observability.error_rate.rate < 0.1 ? "warn"
+                    : "err"
+                }`}
+                title={`${t("overview.error_rate")}: ${(ds.observability.error_rate.rate * 100).toFixed(1)}%`}
+              />
+            )}
             <button
               className="btn btn--xs topbar__theme-btn"
               onClick={toggle_theme}

@@ -88,5 +88,23 @@ export async function handle_skill(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
+  // POST /api/skills/:name/validate — SKILL.md 구조 검증
+  const validate_match = path.match(/^\/api\/skills\/([^/]+)\/validate$/);
+  if (validate_match && req.method === "POST") {
+    const ops = skill_ops_or_503(ctx);
+    if (!ops) return true;
+    const name = decodeURIComponent(validate_match[1]);
+    const detail = ops.get_skill_detail(name);
+    if (!detail.metadata) { json(res, 404, { error: "skill_not_found" }); return true; }
+    const issues: string[] = [];
+    if (!detail.content) issues.push("missing_skill_md");
+    else {
+      if (!detail.content.includes("# ")) issues.push("no_heading");
+      if (!detail.content.includes("---")) issues.push("no_frontmatter");
+    }
+    json(res, 200, { ok: issues.length === 0, issues, name });
+    return true;
+  }
+
   return false;
 }
