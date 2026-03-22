@@ -53,11 +53,16 @@ interface Props {
 export function Modal({ open, title, children, onClose, onConfirm, confirmLabel, danger, submitDisabled }: Props) {
   const t = useT();
   const modalRef = useRef<HTMLDivElement>(null);
+  const mouseDownOnOverlay = useRef(false);
   useModalEffects(open, onClose);
   useModalFocus(open, modalRef);
   if (!open) return null;
   return (
-    <div className="modal-overlay" onClick={danger ? undefined : onClose}>
+    <div
+      className="modal-overlay"
+      onMouseDown={(e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; }}
+      onClick={(e) => { if (!danger && e.target === e.currentTarget && mouseDownOnOverlay.current) onClose(); }}
+    >
       <div className="modal" ref={modalRef} tabIndex={-1} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal__header">
           <h3 className="modal__title">{title}</h3>
@@ -131,11 +136,16 @@ interface FormModalProps {
 export function FormModal({ open, title, children, onClose, onSubmit, submitLabel, saving, submitDisabled, wide }: FormModalProps) {
   const t = useT();
   const modalRef = useRef<HTMLDivElement>(null);
+  const mouseDownOnOverlay = useRef(false);
   useModalEffects(open, onClose);
   useModalFocus(open, modalRef);
   if (!open) return null;
   return (
-    <div className="modal-overlay" onClick={saving ? undefined : onClose}>
+    <div
+      className="modal-overlay"
+      onMouseDown={(e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; }}
+      onClick={(e) => { if (!saving && e.target === e.currentTarget && mouseDownOnOverlay.current) onClose(); }}
+    >
       <div className={`modal${wide ? " modal--wide" : ""}`} ref={modalRef} tabIndex={-1} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal__header">
           <h3 className="modal__title">{title}</h3>
