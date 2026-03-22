@@ -58,6 +58,7 @@ import { handle_prompt } from "./routes/prompt.js";
 import { handle_usage } from "./routes/usage.js";
 import { handle_eval } from "./routes/eval.js";
 import { dispatch_webhook } from "./routes/webhook.js";
+import { dispatch_channel_callback } from "./routes/channel-callbacks.js";
 import { read_json_body } from "./body-reader.js";
 import { handle_auth } from "./routes/auth.js";
 import { handle_admin } from "./routes/admin.js";
@@ -515,6 +516,25 @@ export class DashboardService implements ServiceLike {
           read_raw_body: (req) => this._read_raw_body(req),
         },
         ctx.req, ctx.res, ctx.url,
+      );
+    });
+  }
+
+  /** IC-8b: 외부 채널 버튼 콜백 라우트 등록. bootstrap에서 호출. */
+  register_channel_callbacks(): void {
+    const bus = this.options.bus;
+    this.fallback_routes.unshift(async (ctx) => {
+      if (!ctx.url.pathname.startsWith("/api/channels/")) return false;
+      return dispatch_channel_callback(
+        {
+          publish_inbound: (msg) => bus ? bus.publish_inbound(msg) : Promise.resolve(),
+          json: ctx.json,
+          read_body: ctx.read_body,
+          read_raw_body: (req) => this._read_raw_body(req),
+          discord_public_key: this.options.discord_public_key,
+          slack_signing_secret: this.options.slack_signing_secret,
+        },
+        ctx.req, ctx.res, ctx.url.pathname,
       );
     });
   }

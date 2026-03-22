@@ -450,7 +450,7 @@ export class TelegramChannel extends BaseChannel {
       }
       try {
         const offset_qs = this.last_update_id > 0 ? `&offset=${this.last_update_id + 1}` : "";
-        const allowed = encodeURIComponent(JSON.stringify(["message", "message_reaction"]));
+        const allowed = encodeURIComponent(JSON.stringify(["message", "message_reaction", "callback_query"]));
         const url = `${this.api_base}/bot${this.bot_token}/getUpdates?limit=${n}&timeout=0&allowed_updates=${allowed}${offset_qs}`;
         const response = await channel_fetch(url);
         const data = await parse_json_response(response);
@@ -489,6 +489,19 @@ export class TelegramChannel extends BaseChannel {
           if (rxn) {
             const inbound = to_reaction_message(rxn, chat_id, update_id);
             if (inbound) rows.push(inbound);
+            continue;
+          }
+          // IC-8b: callback_query — 인라인 키보드 버튼 클릭 처리
+          const cbq = (update.callback_query && typeof update.callback_query === "object")
+            ? (update.callback_query as Record<string, unknown>)
+            : null;
+          if (cbq) {
+            const inbound = this.to_callback_query_message(cbq, chat_id, update_id);
+            if (inbound) {
+              rows.push(inbound);
+              // answerCallbackQuery — 로딩 스피너 해제 (best-effort)
+              void this.answer_callback_query(as_string(cbq.id)).catch(() => {});
+            }
           }
         }
         return this.filter_seen(coalesce_media_groups(rows));
@@ -716,5 +729,56 @@ export class TelegramChannel extends BaseChannel {
     }
     const result = (data.result && typeof data.result === "object") ? (data.result as Record<string, unknown>) : {};
     return { ok: true, message_id: as_string(result.message_id || "") };
+  }
+
+  /** IC-8b: callback_query → InboundMessage 변환. */
+  private to_callback_query_message(
+    cbq: Record<string, unknown>, target_chat_id: string, update_id: number,
+  ): InboundMessage | null {
+    const from = (cbq.from && typeof cbq.from === "object") ? (cbq.from as Record<string, unknown>) : {};
+    const msg = (cbq.message && typeof cbq.message === "object") ? (cbq.message as Record<string, unknown>) : {};
+    const chat = (msg.chat && typeof msg.chat === "object") ? (msg.chat as Record<string, unknown>) : {};
+    if (as_string(chat.id) !== as_string(target_chat_id)) return null;
+
+    const callback_data = as_string(cbq.data || "");
+    if (!callback_data) return null;
+
+    // callback_data 형식: "action_id" 또는 "action_id:{json_payload}"
+    const colon_idx = callback_data.indexOf(":");
+    const action_id = colon_idx >= 0 ? callback_data.slice(0, colon_idx) : callback_data;
+    let payload: Record<string, string> = {};
+    if (colon_idx >= 0) {
+      try { payload = JSON.parse(callback_data.slice(colon_idx + 1)) as Record<string, string>; }
+      catch { /* 비-JSON payload 무시 */ }
+    }
+
+    return {
+      id: String(update_id),
+      provider: "telegram",
+      channel: "telegram",
+      sender_id: as_string(from.id || "unknown"),
+      chat_id: target_chat_id,
+      content: `[button:${action_id}]`,
+      at: now_iso(),
+      metadata: {
+        is_button_callback: true,
+        button_action_id: action_id,
+        button_payload: payload,
+        telegram_callback_query_id: as_string(cbq.id),
+        telegram_message_id: as_string(msg.message_id || ""),
+      },
+      team_id: "telegram",
+    };
+  }
+
+  /** IC-8b: 콜백 쿼리 응답 — 로딩 스피너 해제. */
+  private async answer_callback_query(callback_query_id: string): Promise<void> {
+    if (!this.bot_token || !callback_query_id) return;
+    const url = `${this.api_base}/bot${this.bot_token}/answerCallbackQuery`;
+    await channel_fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id }),
+    });
   }
 }

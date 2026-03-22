@@ -368,6 +368,10 @@ export type DashboardOptions = {
   workspace?: string;
   /** /hooks/* 엔드포인트 Bearer 토큰. 미설정 시 인증 없이 허용. */
   webhookSecret?: string;
+  /** IC-8b: Discord application public key (Ed25519 hex). Interaction 서명 검증용. */
+  discord_public_key?: string;
+  /** IC-8b: Slack signing secret. Block Action HMAC 검증용. */
+  slack_signing_secret?: string;
   /** 인증 서비스. 설정 시 /api/* 전체에 JWT 인증 강제 (opt-in). */
   auth_svc?: import("../auth/auth-service.js").AuthService | null;
   /** 3-tier workspace 레이어 해석기. 인증 사용 시 필수. */

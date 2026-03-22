@@ -86,6 +86,46 @@ export class ApprovalService {
     return { handled: false };
   }
 
+  /** IC-8b: 버튼 콜백(인라인 키보드/컴포넌트 클릭) → 승인 처리. */
+  async try_handle_button_callback(provider: ChannelProvider, message: InboundMessage): Promise<ApprovalHandleResult> {
+    if (!this.runtime) return { handled: false };
+    const meta = (message.metadata || {}) as Record<string, unknown>;
+    if (!meta.is_button_callback) return { handled: false };
+
+    const action_id = String(meta.button_action_id || "").toLowerCase();
+    const payload = (meta.button_payload && typeof meta.button_payload === "object")
+      ? meta.button_payload as Record<string, string>
+      : {};
+
+    // action_id에서 decision 추출: "approve" | "deny" | "defer" | "cancel"
+    const decision = action_id.startsWith("approve") ? "approve"
+      : action_id.startsWith("deny") ? "deny"
+      : action_id.startsWith("defer") ? "defer"
+      : action_id.startsWith("cancel") ? "cancel"
+      : null;
+    if (!decision) return { handled: false };
+
+    const pending = this.runtime.list_approval_requests("pending");
+    if (pending.length === 0) return { handled: false };
+
+    // payload.request_id로 직접 매칭 또는 같은 chat_id에서 가장 최근 pending
+    const explicit_id = payload.request_id || null;
+    const request = explicit_id
+      ? pending.find((p) => p.request_id === explicit_id)
+      : pending.find((p) =>
+          String(p.context?.channel || "").toLowerCase() === provider &&
+          String(p.context?.chat_id || "") === String(message.chat_id || ""),
+        );
+    if (!request) return { handled: false };
+
+    const sig = `btn:${provider}:${message.chat_id}:${request.request_id}:${decision}`;
+    if (this.reaction_seen.has(sig)) return { handled: false };
+    this.reaction_seen.set(sig, Date.now());
+
+    const emoji = decision === "approve" ? "\u2705" : decision === "deny" ? "\u274c" : "\u26d4";
+    return this.apply_decision(provider, message, request.request_id, emoji, "button");
+  }
+
   prune_seen(ttl_ms: number, max_size: number): void {
     const now = Date.now();
     for (const [key, ts] of this.reaction_seen) {
@@ -104,7 +144,7 @@ export class ApprovalService {
     message: InboundMessage,
     request_id: string,
     decision_input: string,
-    source: "text" | "reaction",
+    source: "text" | "reaction" | "button",
   ): Promise<ApprovalHandleResult> {
     if (!this.runtime) return { handled: false };
     const selected = this.runtime.get_approval_request(request_id);
