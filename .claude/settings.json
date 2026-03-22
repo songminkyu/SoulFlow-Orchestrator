@@ -11,7 +11,7 @@
       "WebSearch",
       "mcp__soulflow__*",
       "mcp__plugin_playwright_playwright__*",
-      "mcp__consensus-loop__*"
+      "mcp__plugin_quorum_quorum__*"
     ],
     "defaultMode": "acceptEdits"
   },

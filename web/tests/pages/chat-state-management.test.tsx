@@ -135,13 +135,13 @@ describe("ChatPage state management (FE-2b)", () => {
     prompt_bar_spy.mockClear();
   });
 
-  it("초기 렌더 시 EmptyState 표시 (세션 미선택)", () => {
-    render(
+  it("초기 렌더 시 chat-empty-hub 표시 (세션 미선택)", () => {
+    const { container } = render(
       <MemoryRouter>
         <ChatPage />
       </MemoryRouter>,
     );
-    expect(screen.getByTestId("empty-state")).toBeInTheDocument();
+    expect(container.querySelector(".chat-empty-hub")).toBeInTheDocument();
   });
 
   it("세션 탭바가 렌더된다", () => {

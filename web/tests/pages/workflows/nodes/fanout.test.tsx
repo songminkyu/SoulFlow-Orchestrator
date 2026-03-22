@@ -39,7 +39,13 @@ describe("FanoutEditPanel", () => {
   });
 
   it("renders branches as text input when no workflow_nodes provided", () => {
-    const node = { ...fanout_descriptor.create_default(), branches: ["b1", "b2"] };
+    const node = {
+      ...fanout_descriptor.create_default(),
+      branches: [
+        { branch_id: "b1", node_ids: [] },
+        { branch_id: "b2", node_ids: [] },
+      ],
+    };
     render(<EditPanel node={node} update={update} t={t} />);
 
     const input = screen.getByPlaceholderText("branch-node");
@@ -71,11 +77,16 @@ describe("FanoutEditPanel", () => {
     render(<EditPanel node={node} update={update} t={t} options={options} />);
 
     fireEvent.click(screen.getByText("Branch A"));
-    expect(update).toHaveBeenCalledWith({ branches: ["n1"] });
+    expect(update).toHaveBeenCalledWith({
+      branches: [{ branch_id: "n1", node_ids: [] }],
+    });
   });
 
   it("deselects a branch node on second click", () => {
-    const node = { ...fanout_descriptor.create_default(), branches: ["n1"] };
+    const node = {
+      ...fanout_descriptor.create_default(),
+      branches: [{ branch_id: "n1", node_ids: [] }],
+    };
     const options = {
       workflow_nodes: [
         { id: "n1", label: "Branch A", type: "llm" },
@@ -98,10 +109,13 @@ describe("FanoutEditPanel", () => {
     };
     render(<EditPanel node={node} update={update} t={t} options={options} />);
 
-    // Branch picker shows all 3 nodes, reconcile picker shows only 1 (reconcile type)
-    // Total buttons: 3 + 1 = 4
+    // Branch picker shows all 3 nodes as buttons
+    // Reconcile picker shows 1 reconcile node as a select option (not a button)
     const buttons = screen.getAllByRole("button");
-    expect(buttons).toHaveLength(4);
+    expect(buttons).toHaveLength(3);
+    // Reconcile dropdown has 1 option + empty option = 2 options total
+    const reconcileSelect = screen.getByDisplayValue("common.select");
+    expect(reconcileSelect.querySelectorAll("option")).toHaveLength(2);
   });
 
   it("updates max_concurrency on change", () => {
@@ -121,7 +135,7 @@ describe("FanoutEditPanel", () => {
     const timeoutInput = screen.getByDisplayValue("30000");
     fireEvent.change(timeoutInput, { target: { value: "60000" } });
 
-    expect(update).toHaveBeenCalledWith({ timeout_ms: 60000 });
+    expect(update).toHaveBeenCalledWith({ branch_timeout_ms: 60000 });
   });
 
   it("falls back to default on non-numeric concurrency input", () => {
@@ -141,7 +155,7 @@ describe("FanoutEditPanel", () => {
     const timeoutInput = screen.getByDisplayValue("30000");
     fireEvent.change(timeoutInput, { target: { value: "" } });
 
-    expect(update).toHaveBeenCalledWith({ timeout_ms: 30000 });
+    expect(update).toHaveBeenCalledWith({ branch_timeout_ms: 30000 });
   });
 
   it("descriptor has correct metadata", () => {

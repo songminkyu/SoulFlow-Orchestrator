@@ -31,6 +31,7 @@ vi.mock("react-router-dom", async () => {
 
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQuery: vi.fn().mockReturnValue({ data: undefined, isLoading: false }),
 }));
 
 vi.mock("@/store", () => ({

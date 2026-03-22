@@ -3,6 +3,7 @@
 /**
  * 플랫폼 독립적인 컨테이너 관리 헬퍼
  * Docker/Podman을 자동으로 감지하여 사용
+ * Windows에서 podman machine SSH 터널 끊김 시 WSL 직접 실행으로 fallback
  *
  * 사용법:
  *   node scripts/container.cjs build           # 단일 이미지 빌드
@@ -13,69 +14,67 @@
  *   node scripts/container.cjs compose:up      # compose 시작
  *   node scripts/container.cjs compose:down    # compose 종료 + 볼륨 제거
  *   node scripts/container.cjs compose:logs    # orchestrator 로그
+ *   node scripts/container.cjs compose:restart # orchestrator 재시작
+ *   node scripts/container.cjs ps              # 컨테이너 상태 확인
  */
 
 const { execSync } = require('child_process');
-const { getContainerRuntime, getComposeCommand, getImageName } = require('./detect-container.cjs');
+const { detect, toWslPath, wrapCommand, getImageName } = require('./detect-container.cjs');
 
 const command = process.argv[2];
 const args = process.argv.slice(3);
 const COMPOSE_FILE = 'docker/docker-compose.yml';
 
 try {
-  const runtime = getContainerRuntime();
-  const compose = getComposeCommand();
+  const info = detect();
+  const rt = info.runtime;
   const imageName = getImageName();
+
+  // compose 파일 경로: WSL 모드에서는 절대경로로 변환
+  const composeFile = info.mode === 'wsl'
+    ? toWslPath(`${process.cwd()}/${COMPOSE_FILE}`)
+    : COMPOSE_FILE;
 
   let cmd;
 
   switch (command) {
+    // ── 단일 컨테이너 명령 ──
     case 'build':
-      cmd = `${runtime} build -t ${imageName} .`;
-      break;
-
+      cmd = `${rt} build -t ${imageName} .`; break;
     case 'bash':
-      cmd = `${runtime} exec -it ${imageName} bash`;
-      break;
-
+      cmd = `${rt} exec -it ${imageName} bash`; break;
     case 'test':
-      cmd = `${runtime} exec -it ${imageName} npx vitest run`;
-      break;
-
+      cmd = `${rt} exec -it ${imageName} npx vitest run`; break;
     case 'test:pty':
-      cmd = `${runtime} exec -it ${imageName} npx vitest run tests/agent/pty/`;
-      break;
+      cmd = `${rt} exec -it ${imageName} npx vitest run tests/agent/pty/`; break;
 
+    // ── compose 명령 ──
     case 'compose:build':
-      cmd = `${compose} -f ${COMPOSE_FILE} build ${args.join(' ')}`.trim();
-      break;
-
+      cmd = `${rt} compose -f ${composeFile} build ${args.join(' ')}`.trim(); break;
     case 'compose:up':
-      cmd = `${compose} -f ${COMPOSE_FILE} up -d ${args.join(' ')}`.trim();
-      break;
-
+      cmd = `${rt} compose -f ${composeFile} up -d ${args.join(' ')}`.trim(); break;
     case 'compose:down':
-      cmd = `${compose} -f ${COMPOSE_FILE} down -v`;
-      break;
-
+      cmd = `${rt} compose -f ${composeFile} down -v`; break;
     case 'compose:logs':
-      cmd = `${compose} -f ${COMPOSE_FILE} logs -f orchestrator`;
-      break;
-
+      cmd = `${rt} compose -f ${composeFile} logs -f orchestrator`; break;
     case 'compose:restart':
-      cmd = `${compose} -f ${COMPOSE_FILE} restart orchestrator`;
-      break;
+      cmd = `${rt} compose -f ${composeFile} restart orchestrator`; break;
+    case 'ps':
+      cmd = `${rt} ps --format 'table {{.Names}}\\t{{.Status}}\\t{{.Ports}}'`; break;
 
     default:
       console.error(`Unknown command: ${command}`);
-      console.error('Commands: build, bash, test, test:pty, compose:build, compose:up, compose:down, compose:logs, compose:restart');
+      console.error('Commands: build, bash, test, test:pty, compose:build, compose:up, compose:down, compose:logs, compose:restart, ps');
       process.exit(1);
   }
 
-  console.log(`runtime: ${runtime}`);
-  console.log(`exec: ${cmd}\n`);
+  // WSL 모드: bash -c 래핑 + DOCKER_HOST 설정
+  const execCmd = wrapCommand(info, cmd);
 
-  execSync(cmd, { stdio: 'inherit' });
+  console.log(`mode: ${info.mode} | runtime: ${rt}`);
+  console.log(`exec: ${execCmd}\n`);
+
+  execSync(execCmd, { stdio: 'inherit' });
 } catch (error) {
   console.error(`\n${error.message}`);
   process.exit(1);

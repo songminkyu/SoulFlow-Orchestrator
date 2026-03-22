@@ -38,8 +38,8 @@ function mockQueries(opts?: { tools?: MentionItem[]; workflows?: MentionItem[] }
     if (queryKey[0] === "mention-mcp-servers") {
       return {
         data: tools.length > 0
-          ? [{ name: "mcp-srv", tools: tools.map((t) => ({ name: t.name, description: t.description })) }]
-          : [],
+          ? { servers: [{ name: "mcp-srv", tools: tools.map((t) => ({ name: t.name, description: t.description })) }] }
+          : { servers: [] },
         isLoading: false,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any;

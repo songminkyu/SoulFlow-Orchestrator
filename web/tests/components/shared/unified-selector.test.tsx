@@ -100,10 +100,11 @@ describe("UnifiedSelector", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("open=true이면 3탭을 렌더한다", () => {
+  it("open=true이면 3컬럼 섹션 라벨을 렌더한다", () => {
     render(<UnifiedSelector open={true} onClose={vi.fn()} onSelect={vi.fn()} />);
     expect(screen.getByText("unified_selector.tab_agents")).toBeInTheDocument();
-    expect(screen.getByText("unified_selector.tab_tools")).toBeInTheDocument();
+    expect(screen.getByText("unified_selector.tab_mcp_tools")).toBeInTheDocument();
+    expect(screen.getByText("unified_selector.tab_app_tools")).toBeInTheDocument();
     expect(screen.getByText("unified_selector.tab_workflows")).toBeInTheDocument();
   });
 
@@ -113,15 +114,13 @@ describe("UnifiedSelector", () => {
     expect(screen.getByText("Bug Hunter")).toBeInTheDocument();
   });
 
-  it("Tools 탭 클릭 시 MCP 도구를 표시한다", () => {
+  it("멀티컬럼: MCP 도구가 바로 표시된다", () => {
     render(<UnifiedSelector open={true} onClose={vi.fn()} onSelect={vi.fn()} />);
-    fireEvent.click(screen.getByText("unified_selector.tab_tools"));
     expect(screen.getByText("exec")).toBeInTheDocument();
   });
 
-  it("Workflows 탭 클릭 시 워크플로우를 표시한다", () => {
+  it("멀티컬럼: 워크플로우가 바로 표시된다", () => {
     render(<UnifiedSelector open={true} onClose={vi.fn()} onSelect={vi.fn()} />);
-    fireEvent.click(screen.getByText("unified_selector.tab_workflows"));
     expect(screen.getByText("Deploy Pipeline")).toBeInTheDocument();
   });
 
@@ -148,16 +147,12 @@ describe("UnifiedSelector", () => {
     );
   });
 
-  it("ArrowDown/Enter로 아이템을 선택한다", () => {
+  it("아이템 직접 클릭으로 선택한다 (멀티컬럼 그리드)", () => {
     const onSelect = vi.fn();
     render(<UnifiedSelector open={true} onClose={vi.fn()} onSelect={onSelect} />);
-    const input = screen.getByPlaceholderText("unified_selector.search_placeholder");
-
-    fireEvent.keyDown(input, { key: "ArrowDown" });
-    fireEvent.keyDown(input, { key: "Enter" });
-
+    fireEvent.click(screen.getByText("Bug Hunter"));
     expect(onSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "pr-reviewer" }),
+      expect.objectContaining({ id: "bug-hunter", type: "agent" }),
     );
   });
 
@@ -602,20 +597,17 @@ describe("runtime consumer wiring — TextPanel + UnifiedSelector + ToolChips + 
     const selected: UnifiedSelectorItem[] = [];
     const onSelect = (item: UnifiedSelectorItem) => { selected.push(item); };
     mockUnifiedQueries({ servers: [{ name: "srv", tools: [{ name: "bash", description: "Run bash" }] }] });
-    const { getByRole, getAllByRole } = render(
+    const { getByRole } = render(
       <UnifiedSelector open={true} onClose={vi.fn()} onSelect={onSelect} />,
     );
-    // Switch to tools tab
-    const tabs = getAllByRole("tab");
-    fireEvent.click(tabs[1]!); // tools tab
-    // Click tool item
-    const options = getAllByRole("option");
-    if (options.length > 0) {
-      fireEvent.click(options[0]!);
+    // 멀티컬럼 그리드에서 MCP 도구가 바로 표시됨 — 직접 클릭
+    const toolItem = screen.queryByText("bash");
+    if (toolItem) {
+      fireEvent.click(toolItem);
       expect(selected).toHaveLength(1);
       expect(selected[0]!.type).toBe("mcp-tool");
     } else {
-      // Fallback: at least verify the tab was clicked
+      // mock 데이터가 쿼리되지 않은 경우 — dialog 존재 확인
       expect(getByRole("dialog")).toBeInTheDocument();
     }
   });

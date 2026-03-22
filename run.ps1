@@ -1,4 +1,4 @@
-# SoulFlow Orchestrator 환경 관리 스크립트 (Windows PowerShell)
+﻿# SoulFlow Orchestrator 환경 관리 스크립트 (Windows PowerShell)
 # 사용법: .\run.ps1 dev|test|staging|prod|down|status|logs|login|help
 # 예시: .\run.ps1 dev --workspace=D:\soulflow
 
@@ -13,20 +13,103 @@ param(
 
 $ErrorActionPreference = "Continue"
 
-# 컨테이너 런타임 감지 (Windows: Podman 우선)
+# 컨테이너 런타임 감지 (Windows: Podman 우선, SSH 터널 끊김 시 WSL fallback)
+$script:UseWsl = $false
+$script:WslDistro = "podman-machine-default"
+$script:WslDockerHost = "unix:///run/user/1000/podman/podman.sock"
+
 function Get-ContainerRuntime {
   if ($env:CONTAINER_RUNTIME) { return $env:CONTAINER_RUNTIME }
   if (Get-Command podman -ErrorAction SilentlyContinue) {
     & podman ps 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) { return "podman" }
+    # SSH 터널 끊김 → WSL 직접 실행
+    & wsl -d $script:WslDistro -- podman ps 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+      $script:UseWsl = $true
+      Write-Host "⚠️  Podman SSH 터널 끊김 — WSL 직접 실행 모드" -ForegroundColor Yellow
+      return "podman"
+    }
   }
   if (Get-Command docker -ErrorAction SilentlyContinue) {
     & docker ps 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) { return "docker" }
   }
-  return "docker"
+  Write-Host "⚠️  Docker/Podman 실행 불가 — WSL fallback 시도" -ForegroundColor Yellow
+  $script:UseWsl = $true
+  return "podman"
 }
 $Runtime = Get-ContainerRuntime
+
+# Windows 경로 → WSL 마운트 경로
+function ConvertTo-WslPath {
+  param([string]$WinPath)
+  $p = $WinPath -replace '\\','/'
+  if ($p -match '^([A-Za-z]):(.*)$') {
+    return "/mnt/$($Matches[1].ToLower())$($Matches[2])"
+  }
+  return $p
+}
+
+# Docker Compose에 필요한 환경변수를 WSL bash export 문으로 변환
+function Get-ComposeEnvExports {
+  $vars = @(
+    "BUILD_TARGET", "NODE_ENV", "DEBUG", "MEMORY", "CPUS",
+    "HOST_WORKSPACE", "PROJECT_NAME", "WEB_PORT",
+    "SKIP_INSTANCE_LOCK", "NODE_HEAP_MB", "BASE_PROFILE"
+  )
+  $exports = @("export DOCKER_HOST=$($script:WslDockerHost)")
+  foreach ($v in $vars) {
+    $val = [Environment]::GetEnvironmentVariable($v)
+    if ($val) {
+      # HOST_WORKSPACE: Windows 경로 → WSL 경로
+      if ($v -eq "HOST_WORKSPACE") { $val = ConvertTo-WslPath $val }
+      $exports += "export $v='$val'"
+    }
+  }
+  return $exports -join ' && '
+}
+
+# WSL 모드: podman compose 명령을 bash -c 래핑
+# 주의: -p 등 단일 문자 인자를 PowerShell이 가로채지 않도록 반드시 배열로 전달
+#   Run-Compose @("-f", "docker/docker-compose.yml", "-p", "name", "up", "-d")
+function Run-Compose {
+  param([string[]]$ComposeArgs)
+  if ($script:UseWsl) {
+    $wslCwd = ConvertTo-WslPath (Get-Location).Path
+    $wslArgs = $ComposeArgs | ForEach-Object {
+      if ($_ -match '^docker[/\\]') { "$wslCwd/$($_ -replace '\\','/')" } else { $_ }
+    }
+    $innerCmd = "podman compose " + ($wslArgs -join ' ')
+    $envExports = Get-ComposeEnvExports
+    # Rancher Desktop credential helper 충돌 방지:
+    # 1. DOCKER_CONFIG을 빈 config로 지정
+    # 2. docker-credential-secretservice를 no-op으로 대체 (libsecret 없음 방지)
+    # credential no-op shim + docker-compose symlink (1회 배치)
+    # shim + podman API service 재시작 (빌드 타임아웃 방지: --timeout 0)
+    & wsl -d $script:WslDistro -- bash -c "mkdir -p /tmp/.podman-shim && printf '#!/bin/sh\necho {}\n' > /tmp/.podman-shim/docker-credential-secretservice && chmod +x /tmp/.podman-shim/docker-credential-secretservice && ln -sf '/mnt/c/Program Files/Rancher Desktop/resources/resources/linux/docker-cli-plugins/docker-compose' /tmp/.podman-shim/docker-compose 2>/dev/null; pkill -f 'podman system service' 2>/dev/null; nohup podman system service --timeout 0 unix:///run/user/1000/podman/podman.sock > /dev/null 2>&1 &" 2>$null
+    $bashCmd = "export DOCKER_HOST=$($script:WslDockerHost) && export PATH=/tmp/.podman-shim:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin && $envExports && cd $wslCwd && $innerCmd"
+    & wsl -d $script:WslDistro -- bash -c $bashCmd
+  } else {
+    & $Runtime compose @ComposeArgs
+  }
+}
+
+function Run-Runtime {
+  param([string[]]$RuntimeArgs)
+  if ($script:UseWsl) {
+    $wslCwd = ConvertTo-WslPath (Get-Location).Path
+    $innerCmd = "podman " + ($RuntimeArgs -join ' ')
+    $envExports = Get-ComposeEnvExports
+    # credential no-op shim + docker-compose symlink (1회 배치)
+    # shim + podman API service 재시작 (빌드 타임아웃 방지: --timeout 0)
+    & wsl -d $script:WslDistro -- bash -c "mkdir -p /tmp/.podman-shim && printf '#!/bin/sh\necho {}\n' > /tmp/.podman-shim/docker-credential-secretservice && chmod +x /tmp/.podman-shim/docker-credential-secretservice && ln -sf '/mnt/c/Program Files/Rancher Desktop/resources/resources/linux/docker-cli-plugins/docker-compose' /tmp/.podman-shim/docker-compose 2>/dev/null; pkill -f 'podman system service' 2>/dev/null; nohup podman system service --timeout 0 unix:///run/user/1000/podman/podman.sock > /dev/null 2>&1 &" 2>$null
+    $bashCmd = "export DOCKER_HOST=$($script:WslDockerHost) && export PATH=/tmp/.podman-shim:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin && $envExports && cd $wslCwd && $innerCmd"
+    & wsl -d $script:WslDistro -- bash -c $bashCmd
+  } else {
+    & $Runtime @RuntimeArgs
+  }
+}
 
 # Named 파라미터 파싱 — 소비된 값은 PositionalArgs에서 제외
 $Workspace = $null
@@ -173,7 +256,7 @@ function Start-Environment {
   if ($Instance) {
     $baseProject = "soulflow-$ProfileName"
     $env:PROJECT_NAME = $baseProject
-    & $Runtime compose -f docker/docker-compose.yml -p $baseProject up -d redis docker-proxy 2>$null
+    Run-Compose @("-f", "docker/docker-compose.yml", "-p", $baseProject, "up", "-d", "redis", "docker-proxy") 2>$null
     $env:PROJECT_NAME = $projectName
   }
 
@@ -191,12 +274,12 @@ function Start-Environment {
   }
   # 기존 컨테이너 정지 (포트 해제 보장)
   $downArgs = $composeArgs + @("-p", $projectName, "down", "--remove-orphans")
-  & $Runtime compose @downArgs 2>$null
+  Run-Compose $downArgs 2>$null
 
   # watch=web: 이미지 빌드 없이 기존 이미지 사용
   $composeArgs += @("-p", $projectName, "up", "-d")
   if ($effectiveWatch -ne "web") { $composeArgs += "--build" }
-  & $Runtime compose @composeArgs
+  Run-Compose $composeArgs
 
   if ($LASTEXITCODE -eq 0) {
     Write-Host ""
@@ -228,7 +311,7 @@ function Stop-AllEnvironments {
   Write-Host "모든 환경 중지 중..." -ForegroundColor Yellow
   Write-Host ""
 
-  & $Runtime compose -f docker/docker-compose.yml down -v 2>$null
+  Run-Compose @("-f", "docker/docker-compose.yml", "down", "-v") 2>$null
 
   Write-Host ""
   Write-Host "✅ 모든 환경이 중지되었습니다" -ForegroundColor Green
@@ -239,7 +322,7 @@ function Show-Status {
   Write-Host ""
   Write-Host "환경 상태:" -ForegroundColor Blue
   Write-Host ""
-  & $Runtime compose ps
+  Run-Compose @("-f", "docker/docker-compose.yml", "ps")
   Write-Host ""
 }
 
@@ -261,9 +344,9 @@ function Show-Logs {
   Write-Host ""
 
   if ($projectName) {
-    & $Runtime compose -f docker/docker-compose.yml -p $projectName logs -f
+    Run-Compose @("-f", "docker/docker-compose.yml", "-p", $projectName, "logs", "-f")
   } else {
-    & $Runtime compose logs -f
+    Run-Compose @("-f", "docker/docker-compose.yml", "logs", "-f")
   }
 }
 
@@ -283,19 +366,19 @@ function Start-AgentLogin {
       Write-Host "🔑 Claude 에이전트 로그인 중..." -ForegroundColor Yellow
       $dir = Join-Path $AgentsDir ".claude"
       if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-      & $Runtime run --rm -it -v "${dir}:/root/.claude" soulflow-orchestrator claude login
+      Run-Runtime @("run", "--rm", "-it", "-v", "${dir}:/root/.claude", "soulflow-orchestrator", "claude", "login")
     }
     "codex" {
       Write-Host "🔑 Codex 에이전트 로그인 중..." -ForegroundColor Yellow
       $dir = Join-Path $AgentsDir ".codex"
       if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-      & $Runtime run --rm -it -p 1455:1456 -v "${dir}:/root/.codex" -v "$(Get-Location)\scripts\oauth-relay.mjs:/tmp/relay.mjs:ro" soulflow-orchestrator bash -c "node /tmp/relay.mjs 1456 1455 & codex auth login"
+      Run-Runtime @("run", "--rm", "-it", "-p", "1455:1456", "-v", "${dir}:/root/.codex", "-v", "$(Get-Location)/scripts/oauth-relay.mjs:/tmp/relay.mjs:ro", "soulflow-orchestrator", "bash", "-c", "node /tmp/relay.mjs 1456 1455 & codex auth login")
     }
     "gemini" {
       Write-Host "🔑 Gemini 에이전트 로그인 중..." -ForegroundColor Yellow
       $dir = Join-Path $AgentsDir ".gemini"
       if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-      & $Runtime run --rm -it -v "${dir}:/root/.gemini" soulflow-orchestrator gemini auth login
+      Run-Runtime @("run", "--rm", "-it", "-v", "${dir}:/root/.gemini", "soulflow-orchestrator", "gemini", "auth", "login")
     }
     default {
       Write-Host "알 수 없는 에이전트: $Agent" -ForegroundColor Red
@@ -315,7 +398,7 @@ switch ($Command.ToLower()) {
   "build" {
     Write-Host ""
     Write-Host "이미지 빌드 중..." -ForegroundColor Yellow
-    & $Runtime compose -f docker/docker-compose.yml build
+    Run-Compose @("-f", "docker/docker-compose.yml", "build")
     if ($LASTEXITCODE -eq 0) {
       Write-Host ""
       Write-Host "✅ 이미지 빌드 완료" -ForegroundColor Green
@@ -346,3 +429,18 @@ switch ($Command.ToLower()) {
     Show-Help
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

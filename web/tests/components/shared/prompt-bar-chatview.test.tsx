@@ -58,6 +58,8 @@ function makePromptBarProps(overrides?: Partial<SharedPromptBarProps>): SharedPr
     onToolRemove: vi.fn(),
     toolChoice: "auto",
     onToolChoiceChange: vi.fn(),
+    capabilities: new Set<string>(),
+    onCapabilityChange: vi.fn(),
     ...overrides,
   };
 }
@@ -257,8 +259,14 @@ describe("SharedPromptBar", () => {
     expect(onSuggestionSelect).toHaveBeenCalledWith("Summarize this");
   });
 
-  it("ToolChoiceToggle이 렌더링된다", () => {
+  it("ToolChoiceToggle이 렌더링된다 (드롭다운 열기 후)", () => {
     const { container } = render(<SharedPromptBar {...makePromptBarProps()} />);
+    // ToolChoiceToggle은 드롭다운을 열어야 렌더됨 — 도구 정책 버튼 클릭
+    const capWrapBtns = container.querySelectorAll(".shared-prompt-bar__cap-wrap button");
+    // 두 번째 cap-wrap 버튼이 toolChoice 드롭다운
+    if (capWrapBtns[1]) {
+      fireEvent.click(capWrapBtns[1]);
+    }
     expect(container.querySelector(".tool-choice-toggle")).toBeInTheDocument();
   });
 

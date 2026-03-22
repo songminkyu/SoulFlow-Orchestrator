@@ -25,21 +25,24 @@ describe("ToolChoiceToggle", () => {
 
   it("현재 값에 active 스타일을 적용한다 (auto)", () => {
     render(<ToolChoiceToggle value="auto" onChange={vi.fn()} />);
-    const autoBtn = screen.getByText("tool_choice.auto");
-    expect(autoBtn).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByText("tool_choice.manual")).toHaveAttribute("aria-checked", "false");
-    expect(screen.getByText("tool_choice.none")).toHaveAttribute("aria-checked", "false");
+    const radios = screen.getAllByRole("radio");
+    // auto=0, manual=1, none=2
+    expect(radios[0]).toHaveAttribute("aria-checked", "true");
+    expect(radios[1]).toHaveAttribute("aria-checked", "false");
+    expect(radios[2]).toHaveAttribute("aria-checked", "false");
   });
 
   it("현재 값에 active 스타일을 적용한다 (manual)", () => {
     render(<ToolChoiceToggle value="manual" onChange={vi.fn()} />);
-    expect(screen.getByText("tool_choice.manual")).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByText("tool_choice.auto")).toHaveAttribute("aria-checked", "false");
+    const radios = screen.getAllByRole("radio");
+    expect(radios[1]).toHaveAttribute("aria-checked", "true");
+    expect(radios[0]).toHaveAttribute("aria-checked", "false");
   });
 
   it("현재 값에 active 스타일을 적용한다 (none)", () => {
     render(<ToolChoiceToggle value="none" onChange={vi.fn()} />);
-    expect(screen.getByText("tool_choice.none")).toHaveAttribute("aria-checked", "true");
+    const radios = screen.getAllByRole("radio");
+    expect(radios[2]).toHaveAttribute("aria-checked", "true");
   });
 
   it("버튼 클릭 시 onChange 콜백을 해당 모드로 호출한다", () => {

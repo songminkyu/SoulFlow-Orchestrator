@@ -35,7 +35,7 @@ export function ToolChoiceToggle({ value, onChange, disabled, className }: ToolC
           key={mode}
           type="button"
           role="radio"
-          aria-checked={value === mode}
+          aria-checked={value === mode ? "true" : "false"}
           className={`tool-choice-toggle__btn${value === mode ? " tool-choice-toggle__btn--active" : ""}`}
           onClick={() => onChange(mode)}
           disabled={disabled}

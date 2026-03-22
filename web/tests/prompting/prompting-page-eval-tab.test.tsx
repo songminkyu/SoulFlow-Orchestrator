@@ -2,6 +2,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
+// i18n mock — useT()가 키를 그대로 반환
+vi.mock("@/i18n", () => ({ useT: () => (k: string) => k }));
+
 // 모든 하위 패널 mock — eval 탭 진입만 검증
 vi.mock("@/pages/prompting/text-panel", () => ({ TextPanel: () => <div data-testid="text-panel" /> }));
 vi.mock("@/pages/prompting/image-panel", () => ({ ImagePanel: () => <div data-testid="image-panel" /> }));
@@ -22,14 +25,14 @@ describe("PromptingPage — eval 탭 진입", () => {
 
   it("Eval 탭 클릭 → EvalPanel 렌더", async () => {
     render(<PromptingPage />);
-    fireEvent.click(screen.getByText("Eval"));
+    fireEvent.click(screen.getByText("prompting.tab_eval"));
     await waitFor(() => expect(screen.getByTestId("eval-panel")).toBeInTheDocument());
     expect(screen.queryByTestId("text-panel")).toBeNull();
   });
 
   it("Eval 탭이 탭 목록에 존재", () => {
     render(<PromptingPage />);
-    const eval_tab = screen.getByText("Eval");
+    const eval_tab = screen.getByText("prompting.tab_eval");
     expect(eval_tab).toBeInTheDocument();
     expect(eval_tab.closest("button")).toBeTruthy();
   });

@@ -54,6 +54,34 @@
   opacity: 0.7;
 }
 
+/* ── 탭 바 2영역 분리 ── */
+.ps-tabs__creative {
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+}
+
+.ps-tabs__sep {
+  width: 1px;
+  height: 20px;
+  background: var(--line);
+  margin: 0 8px;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.ps-tabs__manage {
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+  margin-left: auto;
+}
+
+/* 관리 탭 — accent 색 대신 subtle teal 언더라인으로 구분 */
+.ps-tab--manage.ps-tab--active {
+  border-bottom-color: var(--accent-secondary, color-mix(in srgb, var(--accent) 60%, var(--muted) 40%));
+}
+
 /* ── 탭 콘텐츠 ── */
 .ps-body {
   flex: 1;

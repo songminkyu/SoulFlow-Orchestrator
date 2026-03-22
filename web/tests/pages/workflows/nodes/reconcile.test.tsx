@@ -41,7 +41,7 @@ describe("ReconcileEditPanel", () => {
     const node = reconcile_descriptor.create_default();
     render(<EditPanel node={node} update={update} t={t} />);
 
-    const select = screen.getByDisplayValue("workflows.reconcile_policy_merge_all");
+    const select = screen.getByDisplayValue("workflows.reconcile_policy_majority_vote");
     expect(select).toBeInTheDocument();
     expect(select.querySelectorAll("option")).toHaveLength(4);
   });
@@ -50,14 +50,14 @@ describe("ReconcileEditPanel", () => {
     const node = reconcile_descriptor.create_default();
     render(<EditPanel node={node} update={update} t={t} />);
 
-    const select = screen.getByDisplayValue("workflows.reconcile_policy_merge_all");
-    fireEvent.change(select, { target: { value: "first_success" } });
+    const select = screen.getByDisplayValue("workflows.reconcile_policy_majority_vote");
+    fireEvent.change(select, { target: { value: "first_wins" } });
 
-    expect(update).toHaveBeenCalledWith({ policy: "first_success" });
+    expect(update).toHaveBeenCalledWith({ policy: "first_wins" });
   });
 
   it("renders source nodes as text input when no workflow_nodes provided", () => {
-    const node = { ...reconcile_descriptor.create_default(), source_nodes: ["a", "b"] };
+    const node = { ...reconcile_descriptor.create_default(), source_node_ids: ["a", "b"] };
     render(<EditPanel node={node} update={update} t={t} />);
 
     const input = screen.getByPlaceholderText("source-node");
@@ -89,11 +89,11 @@ describe("ReconcileEditPanel", () => {
     render(<EditPanel node={node} update={update} t={t} options={options} />);
 
     fireEvent.click(screen.getByText("Node 1"));
-    expect(update).toHaveBeenCalledWith({ source_nodes: ["n1"] });
+    expect(update).toHaveBeenCalledWith({ source_node_ids: ["n1"] });
   });
 
   it("deselects a source node on second click", () => {
-    const node = { ...reconcile_descriptor.create_default(), source_nodes: ["n1"] };
+    const node = { ...reconcile_descriptor.create_default(), source_node_ids: ["n1"] };
     const options = {
       workflow_nodes: [
         { id: "n1", label: "Node 1", type: "llm" },
@@ -102,7 +102,7 @@ describe("ReconcileEditPanel", () => {
     render(<EditPanel node={node} update={update} t={t} options={options} />);
 
     fireEvent.click(screen.getByText("Node 1"));
-    expect(update).toHaveBeenCalledWith({ source_nodes: [] });
+    expect(update).toHaveBeenCalledWith({ source_node_ids: [] });
   });
 
   it("toggles use_parsed checkbox", () => {

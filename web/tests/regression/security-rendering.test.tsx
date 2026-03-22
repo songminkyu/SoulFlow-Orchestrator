@@ -21,6 +21,12 @@ vi.mock("@tanstack/react-query", () => ({
 vi.mock("@/i18n", () => ({
   useT: () => (key: string, p?: Record<string, string>) =>
     p ? `${key}:${JSON.stringify(p)}` : key,
+  useI18n: () => ({
+    t: (key: string, p?: Record<string, string>) =>
+      p ? `${key}:${JSON.stringify(p)}` : key,
+    locale: "en",
+    set_locale: vi.fn(),
+  }),
 }));
 
 vi.mock("@/api/client", () => ({ api: { get: vi.fn(), post: vi.fn(), del: vi.fn() } }));

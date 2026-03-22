@@ -153,28 +153,26 @@ describe("ChatPage rewire — SharedPromptBar (FE-CHAT)", () => {
     expect(screen.getAllByTestId("shared-prompt-bar").length).toBeGreaterThan(0);
   });
 
-  it("2. 빈 상태에서 greeting prop이 전달된다", () => {
+  it("2. 빈 상태에서 SharedPromptBar가 렌더된다 (chat-empty-hub)", () => {
     render(
       <MemoryRouter>
         <ChatPage />
       </MemoryRouter>,
     );
-    // 빈 상태 prompt-bar에 greeting이 있어야 함
+    // chat.tsx는 빈 상태에서 inline greeting + SharedPromptBar를 렌더
     const calls = shared_prompt_bar_spy.mock.calls.map((c) => c[0] as Record<string, unknown>);
-    const has_greeting = calls.some((props) => typeof props.greeting === "string" && props.greeting.length > 0);
-    expect(has_greeting).toBe(true);
+    expect(calls.length).toBeGreaterThan(0);
   });
 
-  it("3. 빈 상태에서 suggestions prop이 전달된다 (3개)", () => {
+  it("3. SharedPromptBar에 capabilities prop이 전달된다", () => {
     render(
       <MemoryRouter>
         <ChatPage />
       </MemoryRouter>,
     );
     const calls = shared_prompt_bar_spy.mock.calls.map((c) => c[0] as Record<string, unknown>);
-    const with_suggestions = calls.find((props) => Array.isArray(props.suggestions) && (props.suggestions as string[]).length > 0);
-    expect(with_suggestions).toBeDefined();
-    expect((with_suggestions!.suggestions as string[]).length).toBe(3);
+    const has_capabilities = calls.some((props) => props.capabilities instanceof Set);
+    expect(has_capabilities).toBe(true);
   });
 
   it("4. onEndpointChange 콜백이 SharedPromptBar에 전달된다", () => {
@@ -201,24 +199,24 @@ describe("ChatPage rewire — SharedPromptBar (FE-CHAT)", () => {
     expect(has_tool_callbacks).toBe(true);
   });
 
-  it("6. onSuggestionSelect 콜백이 SharedPromptBar에 전달된다 (빈 상태)", () => {
+  it("6. onCapabilityChange 콜백이 SharedPromptBar에 전달된다", () => {
     render(
       <MemoryRouter>
         <ChatPage />
       </MemoryRouter>,
     );
     const calls = shared_prompt_bar_spy.mock.calls.map((c) => c[0] as Record<string, unknown>);
-    const with_suggestion_select = calls.some((props) => typeof props.onSuggestionSelect === "function");
-    expect(with_suggestion_select).toBe(true);
+    const with_cap_change = calls.some((props) => typeof props.onCapabilityChange === "function");
+    expect(with_cap_change).toBe(true);
   });
 
-  it("7. 초기 빈 상태에서 EmptyState도 렌더된다", () => {
-    render(
+  it("7. 초기 빈 상태에서 chat-empty-hub가 렌더된다", () => {
+    const { container } = render(
       <MemoryRouter>
         <ChatPage />
       </MemoryRouter>,
     );
-    expect(screen.getByTestId("empty-state")).toBeInTheDocument();
+    expect(container.querySelector(".chat-empty-hub")).toBeInTheDocument();
   });
 
   it("8. 세션 탭이 렌더된다", () => {

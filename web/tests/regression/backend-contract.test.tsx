@@ -34,6 +34,7 @@ vi.mock("@tanstack/react-query", () => ({
     }
     return { data: undefined, isLoading: false };
   }),
+  useQueries: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock("@/i18n", () => ({
@@ -64,20 +65,20 @@ describe("ChatPromptBar — props 타입 계약 (FE-6)", () => {
     return String(key);
   }
 
-  it("selectedProvider 필드가 존재한다", () => {
-    expect(has_field<ChatPromptBarProps>("selectedProvider")).toBe("selectedProvider");
+  it("input 필드가 존재한다", () => {
+    expect(has_field<ChatPromptBarProps>("input")).toBe("input");
   });
 
   it("selectedModel 필드가 존재한다", () => {
     expect(has_field<ChatPromptBarProps>("selectedModel")).toBe("selectedModel");
   });
 
-  it("onProviderChange 필드가 존재한다", () => {
-    expect(has_field<ChatPromptBarProps>("onProviderChange")).toBe("onProviderChange");
-  });
-
   it("onModelChange 필드가 존재한다", () => {
     expect(has_field<ChatPromptBarProps>("onModelChange")).toBe("onModelChange");
+  });
+
+  it("tool_choice 필드가 존재한다", () => {
+    expect(has_field<ChatPromptBarProps>("tool_choice")).toBe("tool_choice");
   });
 });
 
@@ -100,38 +101,28 @@ describe("ChatPromptBar — provider/model 칩 렌더 (FE-6)", () => {
     expect(container.querySelector(".chat-prompt-bar__model-wrap")).toBeNull();
   });
 
-  it("provider/model 선택기 설정 시 프로바이더 칩이 렌더된다", () => {
-    render(
+  it("모델 선택기 설정 시 model-selector가 렌더된다", () => {
+    const { container } = render(
       <ChatPromptBar
         {...make_props({
-          selectedProvider: "",
           selectedModel: "",
-          onProviderChange: vi.fn(),
           onModelChange: vi.fn(),
         })}
       />,
     );
-    expect(screen.getByLabelText("chat.provider_select")).toBeInTheDocument();
+    expect(container.querySelector(".chat-prompt-bar__model-selector")).toBeInTheDocument();
   });
 
-  it("프로바이더 선택 시 모델 칩도 렌더된다", () => {
-    render(
-      <ChatPromptBar
-        {...make_props({
-          selectedProvider: "openai-1",
-          selectedModel: "gpt-4",
-          onProviderChange: vi.fn(),
-          onModelChange: vi.fn(),
-        })}
-      />,
+  it("onModelChange 없으면 model-selector가 렌더되지 않는다", () => {
+    const { container } = render(
+      <ChatPromptBar {...make_props()} />,
     );
-    expect(screen.getByLabelText("chat.provider_select")).toBeInTheDocument();
-    expect(screen.getByLabelText("chat.model_select")).toBeInTheDocument();
+    expect(container.querySelector(".chat-prompt-bar__model-selector")).toBeNull();
   });
 
   it("전송 버튼이 can_send=false일 때 disabled", () => {
     render(<ChatPromptBar {...make_props({ can_send: false })} />);
-    const send_btn = screen.getByLabelText("common.send");
+    const send_btn = screen.getByLabelText("chat.send");
     expect(send_btn).toBeDisabled();
   });
 

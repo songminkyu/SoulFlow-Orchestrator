@@ -29,7 +29,7 @@ describe("PAGE_POLICIES — FE-6 회귀 보강", () => {
   it("모든 manage tier가 view tier 이상 제한 (엄격 검증)", () => {
     const rank: Record<string, number> = {
       public: 0, authenticated: 1, team_member: 2,
-      team_manager: 3, team_owner: 4, superadmin: 5,
+      team_contributor: 3, team_manager: 4, team_owner: 5, superadmin: 6,
     };
     for (const p of PAGE_POLICIES) {
       const view_rank = rank[p.view] ?? -1;

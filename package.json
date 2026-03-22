@@ -24,6 +24,7 @@
     "container:down": "node scripts/container.cjs compose:down",
     "container:logs": "node scripts/container.cjs compose:logs",
     "container:restart": "node scripts/container.cjs compose:restart",
+    "container:ps": "node scripts/container.cjs ps",
     "eval:smoke": "tsx scripts/eval-run.ts --smoke --threshold 80",
     "eval:routing": "tsx scripts/eval-run.ts --bundle routing",
     "eval:compiler": "tsx scripts/eval-run.ts --bundle compiler",

@@ -4335,6 +4335,8 @@
   "unified_selector.search_placeholder": "검색...",
   "unified_selector.tab_agents": "에이전트",
   "unified_selector.tab_tools": "도구",
+  "unified_selector.tab_mcp_tools": "MCP 도구",
+  "unified_selector.tab_app_tools": "앱 도구",
   "unified_selector.tab_workflows": "워크플로우",
   "unified_selector.no_agents": "에이전트 없음",
   "unified_selector.no_tools": "도구 없음",
@@ -4371,5 +4373,18 @@
   "memory_panel.scope.user": "사용자",
   "memory_panel.scope.team": "팀",
   "memory_panel.audit.clean": "정상",
-  "memory_panel.audit.noisy": "노이즈"
+  "memory_panel.audit.noisy": "노이즈",
+
+  "prompting.tab_text": "텍스트",
+  "prompting.tab_image": "이미지",
+  "prompting.tab_video": "비디오",
+  "prompting.tab_agent": "에이전트",
+  "prompting.tab_gallery": "갤러리",
+  "prompting.tab_compare": "비교",
+  "prompting.tab_eval": "평가",
+  "prompting.tab_skills": "스킬",
+  "prompting.tab_templates": "템플릿",
+  "prompting.tab_tools": "도구",
+  "prompting.tab_rag": "RAG",
+  "prompting.nav_label": "프롬프팅 스튜디오"
 }

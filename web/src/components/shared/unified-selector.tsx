@@ -226,7 +226,7 @@ function UnifiedSelectorInner({
 
         {/* 중앙: MCP Tools */}
         <div className="unified-selector__column">
-          <div className="unified-selector__section-label">MCP Tools</div>
+          <div className="unified-selector__section-label">{t("unified_selector.tab_mcp_tools")}</div>
           {fMcpTools.length === 0 ? (
             <div className="unified-selector__empty">{t("unified_selector.no_tools")}</div>
           ) : (
@@ -238,7 +238,7 @@ function UnifiedSelectorInner({
 
         {/* 우측: App Tools */}
         <div className="unified-selector__column">
-          <div className="unified-selector__section-label">App Tools</div>
+          <div className="unified-selector__section-label">{t("unified_selector.tab_app_tools")}</div>
           {fAppTools.length === 0 ? (
             <div className="unified-selector__empty">{t("unified_selector.no_tools")}</div>
           ) : (

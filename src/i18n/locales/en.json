@@ -4335,6 +4335,8 @@
   "unified_selector.search_placeholder": "Search...",
   "unified_selector.tab_agents": "Agents",
   "unified_selector.tab_tools": "Tools",
+  "unified_selector.tab_mcp_tools": "MCP Tools",
+  "unified_selector.tab_app_tools": "App Tools",
   "unified_selector.tab_workflows": "Workflows",
   "unified_selector.no_agents": "No agents found",
   "unified_selector.no_tools": "No tools found",
@@ -4371,5 +4373,18 @@
   "memory_panel.scope.user": "User",
   "memory_panel.scope.team": "Team",
   "memory_panel.audit.clean": "Clean",
-  "memory_panel.audit.noisy": "Noisy"
+  "memory_panel.audit.noisy": "Noisy",
+
+  "prompting.tab_text": "Text",
+  "prompting.tab_image": "Image",
+  "prompting.tab_video": "Video",
+  "prompting.tab_agent": "Agent",
+  "prompting.tab_gallery": "Gallery",
+  "prompting.tab_compare": "Compare",
+  "prompting.tab_eval": "Eval",
+  "prompting.tab_skills": "Skills",
+  "prompting.tab_templates": "Templates",
+  "prompting.tab_tools": "Tools",
+  "prompting.tab_rag": "RAG",
+  "prompting.nav_label": "Prompting Studio"
 }

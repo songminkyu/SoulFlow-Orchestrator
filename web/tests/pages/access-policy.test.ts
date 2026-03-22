@@ -11,6 +11,7 @@ const VALID_TIERS: VisibilityTier[] = [
   "public",
   "authenticated",
   "team_member",
+  "team_contributor",
   "team_manager",
   "team_owner",
   "superadmin",
@@ -40,7 +41,7 @@ describe("PAGE_POLICIES — FE-0 인벤토리 회귀 잠금", () => {
   it("manage tier는 항상 view tier 이상의 제한임 (manage < view 불가)", () => {
     const tier_rank: Record<VisibilityTier, number> = {
       public: 0, authenticated: 1, team_member: 2,
-      team_manager: 3, team_owner: 4, superadmin: 5,
+      team_contributor: 3, team_manager: 4, team_owner: 5, superadmin: 6,
     };
     for (const policy of PAGE_POLICIES) {
       expect(

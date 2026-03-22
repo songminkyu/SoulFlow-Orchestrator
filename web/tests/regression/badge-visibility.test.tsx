@@ -94,7 +94,7 @@ describe("Badge Visibility — admin 정책 tier 보호 (FE-6)", () => {
 
   it("모든 tier 값이 유효한 VisibilityTier이다", () => {
     const valid_tiers: VisibilityTier[] = [
-      "public", "authenticated", "team_member", "team_manager", "team_owner", "superadmin",
+      "public", "authenticated", "team_member", "team_contributor", "team_manager", "team_owner", "superadmin",
     ];
     for (const p of PAGE_POLICIES) {
       expect(valid_tiers, `invalid view tier: ${p.view} on ${p.path}`).toContain(p.view);

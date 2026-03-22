@@ -1,11 +1,77 @@
-[합의완료]
-- 기존 `M-14 reducer + M-15a evaluate_route 통합 테스트` 항목이 이전 `docs/feedback/gpt.md`에 [합의완료]로 기록돼 있음을 확인했고, 이번 감사에서 해당 항목의 직접 회귀는 확인되지 않아 원판정을 유지했다.
-[합의완료]
-- 기존 `Phase 0+1+2 인프라 전수조사 13건 + 감사 보정 8건` 항목이 이전 `docs/feedback/gpt.md`에 [합의완료]로 기록돼 있음을 확인했고, 규칙에 따라 원판정 자체는 재판정하지 않았다.
-[합의완료]
-- 범위 파일별 `npx eslint <file>`는 `docs/feedback/claude.md`, `docs/feedback/gpt.md`의 ignored-file warning 외 모두 exit 0이었고, root/web `npx tsc --noEmit`, root `npx vitest run tests/bus/validation.test.ts tests/auth/login-rate-limiter.test.ts tests/auth/rate-limit-route.test.ts tests/dashboard/cors.test.ts tests/orchestration/m13-consumer-wiring.test.ts tests/orchestration/m14-m15a-wiring.test.ts tests/dashboard/fe-phase2-gaps.test.ts tests/agent/tools/h4-path-traversal.test.ts`, web `npx vitest run tests/prompting/g13-protocols-consumer.test.tsx tests/layouts/g11-g12-pending-toast.test.tsx tests/pages/workflows/g14-profile-preview.test.tsx`, `web` `npm test`를 재실행해 각각 `8 files / 68 tests passed`, `3 files / 19 tests passed`, `34 files / 247 tests passed`를 직접 확인했다. G-13 direct runtime test는 `web/tests/prompting/g13-protocols-consumer.test.tsx:111`, `web/tests/prompting/g13-protocols-consumer.test.tsx:118`, `web/tests/prompting/g13-protocols-consumer.test.tsx:129`, `web/tests/prompting/g13-protocols-consumer.test.tsx:142`, `web/tests/prompting/g13-protocols-consumer.test.tsx:151`, `web/tests/prompting/g13-protocols-consumer.test.tsx:163`에서 직접 확인됐고, H-4/H-8/G-13/i18n 경로는 `src/agent/tools/filesystem.ts:45`, `src/dashboard/routes/auth.ts:47`, `src/dashboard/routes/skill.ts:26`, `src/dashboard/ops/skill.ts:62`, `web/src/layouts/root.tsx:205`, `web/src/pages/workflows/inspector-params.tsx:751`, `src/i18n/locales/ko.json:4057`, `src/i18n/locales/en.json:4057`에서 직접 확인했다. `tests/orchestration/m13-consumer-wiring.test.ts`, `web/tests/prompting/g13-protocols-consumer.test.tsx`, `tests/agent/tools/h4-path-traversal.test.ts`, `web/tests/layouts/g11-g12-pending-toast.test.tsx`, `web/tests/pages/workflows/g14-profile-preview.test.tsx`, `web/src/layouts/root.tsx`, `web/src/pages/workflows/inspector-params.tsx` 대상 `rg -n "as any|@ts-ignore|console\\.log"`는 무출력이었다.
-- 실제 `git diff --name-only`는 `docs/feedback/claude.md`, `docs/feedback/gpt.md`만 반환했고, `git ls-files --others --exclude-standard`는 `.claude/audit-debounce.ts`, `.claude/audit.lock`, `.claude/hooks/consensus-loop/`, `.claude/tmp-root-evidence-vitest.json`, `docs/en/design/operating-harness/README.md`, `docs/ko/design/operating-harness/README.md`, `run.zip` 등 감사 아티팩트만 반환했다. 이는 `docs/feedback/claude.md:70-74`의 current diff/untracked 설명과 일치했다.
-## 다음 작업
-- `Ports / Adapters / DI Boundaries / Bundle P1 / PA-1 + PA-2 — boundary inventory와 composition root rules를 정리하고 bootstrap 경계 기준을 고정`
+[APPROVED]
+- M-14 reducer + M-15a evaluate_route 통합 테스트 — 원판정 유지, 직접 회귀 미확인.
+[APPROVED]
+- Phase 0+1+2 인프라 전수조사 13건 + 감사 보정 8건 — 규칙에 따라 원판정 유지.
+[APPROVED]
+- Phase 2 전수조사: eslint 0 errors, tsc 0 errors, vitest 68+19+247 tests passed. `as any`/`@ts-ignore`/`console.log` 무출력.
+
+[CHANGES_REQUESTED]
+- [T-2][test-gap] `docs/feedback/claude.md:39`-`docs/feedback/claude.md:50` provides only `npx tsc --noEmit` and `npx eslint src/pages/prompting/index.tsx` as FE-PE-1 evidence; no direct manage-tab behavior test is recorded, `web/tests/prompting/prompting-page-manage-tabs.test.tsx` is absent on disk, and the only nearby page test `web/tests/prompting/prompting-page-eval-tab.test.tsx:16` covers only the Eval-tab path.
+- [T-3][regression] Re-running the related-scope `web` suite fails (`npm test` exit 1), and the isolated prompt-page test also fails with `TypeError: Cannot read properties of null (reading 't')` from `src/i18n/index.tsx:63` when rendering `PromptingPage` from `web/tests/prompting/prompting-page-eval-tab.test.tsx:18`.
+- [I-1][CC-1] The prompt page still hardcodes the user-facing tablist label at `web/src/pages/prompting/index.tsx:57`, and no `prompting.nav_label` locale key is present in `src/i18n/locales/en.json` or `src/i18n/locales/ko.json`, so the i18n claim is incomplete for the accessible label path.
+- [CC-2][scope-mismatch] The unresolved item contains no Forward RTM Rows (`docs/feedback/claude.md:21` goes straight to `docs/feedback/claude.md:23`), and its Changed Files list at `docs/feedback/claude.md:34`-`docs/feedback/claude.md:37` does not match this audit's authoritative 57-file diff scope.
+## Completion Criteria Reset
+- Add Forward RTM rows for each in-scope FE-PE-1 file, align the Changed Files section with the authoritative CC-2 scope, replace the hardcoded tablist label with locale-backed keys in both locales, and provide passing direct FE tests for the creative/manage tab split plus the related web test reruns.
+
+[CHANGES_REQUESTED]
+- [FE-PE-1 / web/src/pages/prompting/index.tsx / 11개 탭 버튼 렌더링][T-3][CC-2] Direct rerun passes (`web/src/pages/prompting/index.tsx:59`, `web/tests/prompting/prompting-page-manage-tabs.test.tsx:25`), but `npm test` fails in `web` at `web/tests/components/shared/unified-selector.test.tsx:103`, root `npm test` breaks on `src/agent/memory-rechunk-worker.ts:4`, and `docs/feedback/claude.md:36` does not reflect the full CC-2 diff scope.
+## Completion Criteria Reset
+- Re-submit this RTM row with the full CC-2 scope reflected in `Changed Files`/RTM and with passing default test reruns for both evidence packages.
+
+[CHANGES_REQUESTED]
+- [FE-PE-1 / web/src/pages/prompting/index.tsx / creative-manage 영역 분리][T-3][CC-2] Direct rerun passes (`web/src/pages/prompting/index.tsx:75`, `web/tests/prompting/prompting-page-manage-tabs.test.tsx:31`), but `npm test` fails in `web` at `web/tests/components/shared/unified-selector.test.tsx:103`, root `npm test` breaks on `src/agent/memory-rechunk-worker.ts:4`, and `docs/feedback/claude.md:36` does not reflect the full CC-2 diff scope.
+## Completion Criteria Reset
+- Re-submit this RTM row with the full CC-2 scope reflected in `Changed Files`/RTM and with passing default test reruns for both evidence packages.
+
+[CHANGES_REQUESTED]
+- [FE-PE-1 / web/src/pages/prompting/index.tsx / Skills 탭 진입][T-3][CC-2] Direct rerun passes (`web/src/pages/prompting/index.tsx:103`, `web/tests/prompting/prompting-page-manage-tabs.test.tsx:38`), but `npm test` fails in `web` at `web/tests/components/shared/unified-selector.test.tsx:116`, root `npm test` breaks on `src/agent/memory-rechunk-worker.ts:4`, and `docs/feedback/claude.md:36` does not reflect the full CC-2 diff scope.
+## Completion Criteria Reset
+- Re-submit this RTM row with the full CC-2 scope reflected in `Changed Files`/RTM and with passing default test reruns for both evidence packages.
+
+[CHANGES_REQUESTED]
+- [FE-PE-1 / web/src/pages/prompting/index.tsx / Templates 탭 진입][T-3][CC-2] Direct rerun passes (`web/src/pages/prompting/index.tsx:104`, `web/tests/prompting/prompting-page-manage-tabs.test.tsx:44`), but `npm test` fails in `web` at `web/tests/components/shared/unified-selector.test.tsx:116`, root `npm test` breaks on `src/agent/memory-rechunk-worker.ts:4`, and `docs/feedback/claude.md:36` does not reflect the full CC-2 diff scope.
+## Completion Criteria Reset
+- Re-submit this RTM row with the full CC-2 scope reflected in `Changed Files`/RTM and with passing default test reruns for both evidence packages.
+
+[CHANGES_REQUESTED]
+- [FE-PE-1 / web/src/pages/prompting/index.tsx / Tools 탭 진입][T-3][CC-2] Direct rerun passes (`web/src/pages/prompting/index.tsx:105`, `web/tests/prompting/prompting-page-manage-tabs.test.tsx:50`), but `npm test` fails in `web` at `web/tests/components/shared/unified-selector.test.tsx:116`, root `npm test` breaks on `src/agent/memory-rechunk-worker.ts:4`, and `docs/feedback/claude.md:36` does not reflect the full CC-2 diff scope.
+## Completion Criteria Reset
+- Re-submit this RTM row with the full CC-2 scope reflected in `Changed Files`/RTM and with passing default test reruns for both evidence packages.
+
+[CHANGES_REQUESTED]
+- [FE-PE-1 / web/src/pages/prompting/index.tsx / RAG 탭 진입][T-3][CC-2] Direct rerun passes (`web/src/pages/prompting/index.tsx:106`, `web/tests/prompting/prompting-page-manage-tabs.test.tsx:56`), but `npm test` fails in `web` at `web/tests/components/shared/unified-selector.test.tsx:116`, root `npm test` breaks on `src/agent/memory-rechunk-worker.ts:4`, and `docs/feedback/claude.md:36` does not reflect the full CC-2 diff scope.
+## Completion Criteria Reset
+- Re-submit this RTM row with the full CC-2 scope reflected in `Changed Files`/RTM and with passing default test reruns for both evidence packages.
+
+[CHANGES_REQUESTED]
+- [FE-PE-1 / web/src/pages/prompting/index.tsx / manage→creative 복귀][T-3][CC-2] Direct rerun passes (`web/src/pages/prompting/index.tsx:96`, `web/tests/prompting/prompting-page-manage-tabs.test.tsx:62`), but `npm test` fails in `web` at `web/tests/components/shared/unified-selector.test.tsx:151`, root `npm test` breaks on `src/agent/memory-rechunk-worker.ts:4`, and `docs/feedback/claude.md:36` does not reflect the full CC-2 diff scope.
+## Completion Criteria Reset
+- Re-submit this RTM row with the full CC-2 scope reflected in `Changed Files`/RTM and with passing default test reruns for both evidence packages.
+
+[CHANGES_REQUESTED]
+- [FE-PE-1 / web/src/pages/prompting/index.tsx / nav_label i18n][T-3][CC-2] Direct rerun passes (`web/src/pages/prompting/index.tsx:57`, `web/tests/prompting/prompting-page-manage-tabs.test.tsx:71`), but `npm test` fails in `web` at `web/tests/components/shared/unified-selector.test.tsx:601`, root `npm test` breaks on `src/agent/memory-rechunk-worker.ts:4`, and `docs/feedback/claude.md:36` does not reflect the full CC-2 diff scope.
+## Completion Criteria Reset
+- Re-submit this RTM row with the full CC-2 scope reflected in `Changed Files`/RTM and with passing default test reruns for both evidence packages.
+
+[CHANGES_REQUESTED]
+- [FE-PE-1 / web/src/styles/prompt.css / ps-tabs split styles][T-2][CC-2] Runtime wiring is verified (`web/src/main.tsx:12`, `web/src/pages/prompting/index.tsx:57`), but the RTM row at `docs/feedback/claude.md:24` provides only a visual note and no executable direct test for `web/src/styles/prompt.css`, and `docs/feedback/claude.md:36` still omits most of the authoritative CC-2 scope.
+## Completion Criteria Reset
+- Add a direct automated test or restate this row as a verifiable non-visual criterion, then align the RTM and `Changed Files` to the full CC-2 scope.
+
+[CHANGES_REQUESTED]
+- [FE-PE-1 / src/i18n/locales/en.json / prompting locale regression][T-2][CC-2] The keys exist (`src/i18n/locales/en.json:4376`, `src/i18n/locales/en.json:4387`), but the cited regression test mocks `@/i18n` at `web/tests/prompting/prompting-page-eval-tab.test.tsx:6`, so it never exercises the real locale data; `docs/feedback/claude.md:36` also does not reflect the full CC-2 scope.
+## Completion Criteria Reset
+- Add a direct test that loads the real prompting locale data for this row and align the RTM and `Changed Files` to the full CC-2 scope.
+
+[CHANGES_REQUESTED]
+- [FE-PE-1 / src/i18n/locales/ko.json / prompting locale regression][T-2][CC-2] The keys exist (`src/i18n/locales/ko.json:4376`, `src/i18n/locales/ko.json:4387`), but the cited regression test mocks `@/i18n` at `web/tests/prompting/prompting-page-eval-tab.test.tsx:6`, so it never exercises the real locale data; `docs/feedback/claude.md:36` also does not reflect the full CC-2 scope.
+## Completion Criteria Reset
+- Add a direct test that loads the real prompting locale data for this row and align the RTM and `Changed Files` to the full CC-2 scope.
+
+## Next Task
+- FE-PE-2: agent-panel + agent-modal 에이전트 카탈로그 통합
+
 ---
-> 감사 완료: 2026-03-18 08:48
+> 감사 완료: 2026-03-18 08:48 (태그 포맷 정규화: 2026-03-22)
+---
+> Audit completed: 2026-03-22 04:29
