@@ -173,3 +173,70 @@ describe("CrontabTool — describe 분기 (L167-L170)", () => {
     expect(r.human).toContain("month 6");
   });
 });
+
+// ══════════════════════════════════════════
+// Merged from tests/agent/crontab-tool.test.ts
+// ══════════════════════════════════════════
+
+describe("CrontabTool — next_n: from 파라미터 (merged)", () => {
+  it("from 지정 시각 기준으로 다음 실행 시각 계산", async () => {
+    const from = "2026-01-01T00:00:00.000Z";
+    const r = JSON.parse(await tool.execute({ action: "next_n", expression: "* * * * *", count: 2, from }));
+    expect(r.next).toHaveLength(2);
+    expect(new Date(r.next[0]).getTime()).toBeGreaterThanOrEqual(new Date(from).getTime());
+  });
+
+  it("count 상한값 50 적용", async () => {
+    const r = JSON.parse(await tool.execute({ action: "next_n", expression: "* * * * *", count: 100 }));
+    expect(r.next).toHaveLength(50);
+  });
+});
+
+describe("CrontabTool — is_due: from 파라미터 (merged)", () => {
+  it("from 지정 시각 → 해당 시각 기준으로 due 계산", async () => {
+    const from = new Date().toISOString();
+    const r = JSON.parse(await tool.execute({ action: "is_due", expression: "* * * * *", from }));
+    expect(typeof r.is_due).toBe("boolean");
+  });
+});
+
+describe("CrontabTool — parse_field step+range 조합 (merged)", () => {
+  it("0-59/15 range with step → 해당 시각들 반환", async () => {
+    const r = JSON.parse(await tool.execute({ action: "next_n", expression: "0-59/15 * * * *", count: 3 }));
+    expect(r.next).toHaveLength(3);
+  });
+
+  it("쉼표 구분 (1,15,30 * * * *) → 세 시각 모두 포함", async () => {
+    const r = JSON.parse(await tool.execute({ action: "next_n", expression: "1,15,30 * * * *", count: 5 }));
+    expect(r.next.length).toBeGreaterThan(0);
+  });
+
+  it("dow=7 처리 (7=일요일로 변환)", async () => {
+    const r = JSON.parse(await tool.execute({ action: "validate", expression: "0 9 * * 7" }));
+    expect(r.valid).toBe(true);
+  });
+});
+
+describe("CrontabTool — cron_to_human: dow=7(sunday) (merged)", () => {
+  it("0 9 * * 7 → dow=7(=0=sunday) 포함", async () => {
+    const r = JSON.parse(await tool.execute({ action: "cron_to_human", expression: "0 9 * * 7" }));
+    expect(r.human).toContain("sunday");
+  });
+});
+
+describe("CrontabTool — human_to_cron: every tuesday/fri (merged)", () => {
+  it("every tuesday (at 없음) → 0 0 * * 2", async () => {
+    const r = JSON.parse(await tool.execute({ action: "human_to_cron", human: "every tuesday" }));
+    expect(r.cron).toBe("0 0 * * 2");
+  });
+
+  it("every fri (요일 약어, at 없음) → 0 0 * * 5", async () => {
+    const r = JSON.parse(await tool.execute({ action: "human_to_cron", human: "every fri" }));
+    expect(r.cron).toBe("0 0 * * 5");
+  });
+
+  it("every wednesday at 14:30 → 30 14 * * 3", async () => {
+    const r = JSON.parse(await tool.execute({ action: "human_to_cron", human: "every wednesday at 14:30" }));
+    expect(r.cron).toBe("30 14 * * 3");
+  });
+});

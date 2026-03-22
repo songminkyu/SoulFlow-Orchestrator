@@ -169,3 +169,169 @@ describe("JsonPatchTool — add op: path/-  (배열 끝 추가, L177)", () => {
     expect(r.result.list).toEqual(["first"]);
   });
 });
+
+// ══════════════════════════════════════════
+// Merged from tests/agent/json-patch-tool.test.ts
+// ══════════════════════════════════════════
+
+describe("JsonPatchTool — apply: patch must be array (merged)", () => {
+  it("patch가 배열 아닌 객체 → Error", async () => {
+    const r = await tool.execute({
+      action: "apply",
+      document: '{"a":1}',
+      patch: '{"op":"add","path":"/b","value":2}',
+    });
+    expect(r).toContain("patch must be an array");
+  });
+});
+
+describe("JsonPatchTool — apply remove: 배열 + 없는 경로 (merged)", () => {
+  it("배열 원소 remove (splice)", async () => {
+    const doc = JSON.stringify([10, 20, 30]);
+    const patch = JSON.stringify([{ op: "remove", path: "/1" }]);
+    const r = await exec({ action: "apply", document: doc, patch }) as any;
+    expect(r.result).toEqual([10, 30]);
+  });
+
+  it("없는 경로 remove → error", async () => {
+    const doc = JSON.stringify({ a: 1 });
+    const patch = JSON.stringify([{ op: "remove", path: "/z" }]);
+    const r = await exec({ action: "apply", document: doc, patch }) as any;
+    expect(r.error).toContain("path not found");
+  });
+});
+
+describe("JsonPatchTool — apply replace: 배열 + 없는 경로 (merged)", () => {
+  it("배열 원소 replace", async () => {
+    const doc = JSON.stringify(["a", "b", "c"]);
+    const patch = JSON.stringify([{ op: "replace", path: "/1", value: "X" }]);
+    const r = await exec({ action: "apply", document: doc, patch }) as any;
+    expect(r.result).toEqual(["a", "X", "c"]);
+  });
+
+  it("없는 경로 replace → error", async () => {
+    const doc = JSON.stringify({ a: 1 });
+    const patch = JSON.stringify([{ op: "replace", path: "/z", value: 0 }]);
+    const r = await exec({ action: "apply", document: doc, patch }) as any;
+    expect(r.error).toContain("path not found");
+  });
+});
+
+describe("JsonPatchTool — apply test: 경로 없음 (merged)", () => {
+  it("test 경로 없음 → error", async () => {
+    const doc = JSON.stringify({ a: 1 });
+    const patch = JSON.stringify([{ op: "test", path: "/z", value: 0 }]);
+    const r = await exec({ action: "apply", document: doc, patch }) as any;
+    expect(r.error).toContain("path not found");
+  });
+});
+
+describe("JsonPatchTool — apply move: 에러 경로 (merged)", () => {
+  it("move from 없음 → error", async () => {
+    const doc = JSON.stringify({ a: 1 });
+    const patch = JSON.stringify([{ op: "move", path: "/b" }]);
+    const r = await exec({ action: "apply", document: doc, patch }) as any;
+    expect(r.error).toContain("move requires from");
+  });
+
+  it("move from 경로 없음 → error", async () => {
+    const doc = JSON.stringify({ a: 1 });
+    const patch = JSON.stringify([{ op: "move", from: "/z", path: "/b" }]);
+    const r = await exec({ action: "apply", document: doc, patch }) as any;
+    expect(r.error).toContain("from path not found");
+  });
+
+  it("배열에서 move (splice)", async () => {
+    const doc = JSON.stringify({ arr: [10, 20], x: 0 });
+    const patch = JSON.stringify([{ op: "move", from: "/arr/0", path: "/x" }]);
+    const r = await exec({ action: "apply", document: doc, patch }) as any;
+    expect(r.result.x).toBe(10);
+    expect(r.result.arr).toEqual([20]);
+  });
+});
+
+describe("JsonPatchTool — apply copy: 에러 경로 (merged)", () => {
+  it("copy from 없음 → error", async () => {
+    const doc = JSON.stringify({ a: 1 });
+    const patch = JSON.stringify([{ op: "copy", path: "/b" }]);
+    const r = await exec({ action: "apply", document: doc, patch }) as any;
+    expect(r.error).toContain("copy requires from");
+  });
+
+  it("copy from 경로 없음 → error", async () => {
+    const doc = JSON.stringify({ a: 1 });
+    const patch = JSON.stringify([{ op: "copy", from: "/z", path: "/b" }]);
+    const r = await exec({ action: "apply", document: doc, patch }) as any;
+    expect(r.error).toContain("from path not found");
+  });
+});
+
+describe("JsonPatchTool — apply unknown op (merged)", () => {
+  it("알 수 없는 op → error", async () => {
+    const doc = JSON.stringify({ a: 1 });
+    const patch = JSON.stringify([{ op: "unknown_op", path: "/a" }]);
+    const r = await exec({ action: "apply", document: doc, patch }) as any;
+    expect(r.error).toContain("unknown operation");
+  });
+});
+
+describe("JsonPatchTool — validate 상세 (merged)", () => {
+  it("배열 아닌 patch → valid: false", async () => {
+    const r = await exec({ action: "validate", patch: '{"not":"array"}' }) as any;
+    expect(r.valid).toBe(false);
+    expect(r.error).toContain("patch must be an array");
+  });
+
+  it("op 없는 원소 → valid: false", async () => {
+    const r = await exec({ action: "validate", patch: '[{"path":"/a"}]' }) as any;
+    expect(r.valid).toBe(false);
+    expect(r.error).toContain("missing op or path");
+  });
+
+  it("알 수 없는 op → valid: false", async () => {
+    const r = await exec({ action: "validate", patch: '[{"op":"bad","path":"/a"}]' }) as any;
+    expect(r.valid).toBe(false);
+    expect(r.error).toContain("unknown op");
+  });
+});
+
+describe("JsonPatchTool — diff 경계 케이스 (merged)", () => {
+  it("null → 값 → replace", async () => {
+    const r = await exec({ action: "diff", document: "null", target: '"hello"' }) as any;
+    expect(r.patch.length).toBeGreaterThan(0);
+    expect(r.patch[0].op).toBe("replace");
+  });
+
+  it("string → number → replace (scalar)", async () => {
+    const r = await exec({ action: "diff", document: '"hello"', target: "42" }) as any;
+    expect(r.patch.length).toBeGreaterThan(0);
+  });
+
+  it("diff target JSON 파싱 실패 → Error", async () => {
+    const r = await tool.execute({ action: "diff", document: '{"a":1}', target: "{bad" });
+    expect(r).toContain("Error");
+  });
+});
+
+describe("JsonPatchTool — set_value edge cases (merged)", () => {
+  it("중간 경로 없는 경우 자동 생성", async () => {
+    const doc = JSON.stringify({});
+    const patch = JSON.stringify([{ op: "add", path: "/a/b", value: 42 }]);
+    const r = await exec({ action: "apply", document: doc, patch }) as any;
+    expect(r.result.a.b).toBe(42);
+  });
+
+  it("path='' → 문서 전체 교체", async () => {
+    const doc = JSON.stringify({ a: 1 });
+    const patch = JSON.stringify([{ op: "add", path: "", value: 99 }]);
+    const r = await exec({ action: "apply", document: doc, patch }) as any;
+    expect(r.result).toBe(99);
+  });
+});
+
+describe("JsonPatchTool — 알 수 없는 action (merged)", () => {
+  it("unknown action → Error", async () => {
+    const r = await tool.execute({ action: "unknown", document: "{}" });
+    expect(r).toContain("unsupported action");
+  });
+});

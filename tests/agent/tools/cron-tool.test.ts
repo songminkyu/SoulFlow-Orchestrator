@@ -264,3 +264,49 @@ describe("CronTool — parse_iso_date_ms (L7/L8)", () => {
     expect(r).toContain("registered");
   });
 });
+
+// ══════════════════════════════════════════
+// Merged from tests/agent/cron-tool.test.ts
+// ══════════════════════════════════════════
+
+describe("CronTool — context for target channel/chat_id (merged)", () => {
+  it("uses context for target channel/chat_id", async () => {
+    const cron = make_cron();
+    const tool = make_tool(cron);
+    await tool.execute(
+      { action: "add", every_seconds: 60, message: "test" },
+      { channel: "slack", chat_id: "C123" },
+    );
+    expect(vi.mocked(cron.add_job)).toHaveBeenCalled();
+    const call = vi.mocked(cron.add_job).mock.calls[0]!;
+    expect(call[4]).toBe("slack");
+    expect(call[5]).toBe("C123");
+  });
+});
+
+describe("CronTool — tool interface (merged)", () => {
+  it("has correct metadata", () => {
+    const tool = make_tool();
+    expect(tool.name).toBe("cron");
+    expect(tool.category).toBe("scheduling");
+  });
+});
+
+describe("CronTool — add at delete_after_run (merged)", () => {
+  it("adds at (one-shot) schedule with delete_after_run", async () => {
+    const cron = make_cron({
+      add_job: vi.fn().mockImplementation(async (name: string, schedule: unknown) =>
+        make_job({ name, schedule: schedule as CronJob["schedule"], delete_after_run: true }),
+      ),
+    });
+    const tool = make_tool(cron);
+    const r = await tool.execute({
+      action: "add",
+      at: "2025-06-01T09:00:00Z",
+      message: "reminder",
+    });
+    expect(r).toContain("delete_after_run=true");
+    const call = vi.mocked(cron.add_job).mock.calls[0]!;
+    expect(call[1]).toMatchObject({ kind: "at" });
+  });
+});

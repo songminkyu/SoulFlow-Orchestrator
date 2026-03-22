@@ -227,3 +227,118 @@ describe("DatetimeTool — 미커버 분기", () => {
     expect(String(r)).toContain("Error");
   });
 });
+
+// ══════════════════════════════════════════
+// Merged from tests/agent/datetime-tool.test.ts
+// ══════════════════════════════════════════
+
+describe("DateTimeTool — diff human-readable (merged)", () => {
+  it("includes human-readable format", async () => {
+    const r = await exec({ action: "diff", date: "2025-01-01T00:00:00Z", date2: "2025-01-03T05:30:00Z" }) as Record<string, unknown>;
+    expect(String(r.human)).toContain("2d");
+    expect(String(r.human)).toContain("5h");
+    expect(String(r.human)).toContain("30m");
+  });
+});
+
+describe("DateTimeTool — timezone conversion (merged)", () => {
+  it("converts between timezones", async () => {
+    const r = await exec({
+      action: "timezone",
+      date: "2025-01-01T00:00:00Z",
+      from_tz: "UTC",
+      to_tz: "Asia/Seoul",
+    }) as Record<string, unknown>;
+    expect((r as any).from.timezone).toBe("UTC");
+    expect((r as any).to.timezone).toBe("Asia/Seoul");
+  });
+
+  it("returns error for invalid timezone", async () => {
+    const r = await exec({
+      action: "timezone",
+      date: "2025-01-01T00:00:00Z",
+      from_tz: "UTC",
+      to_tz: "Invalid/TZ",
+    });
+    expect(String(r)).toContain("Error");
+  });
+});
+
+describe("DateTimeTool — business_days details (merged)", () => {
+  it("counts business days Mon-Fri", async () => {
+    const r = await exec({ action: "business_days", date: "2025-01-06", date2: "2025-01-10" }) as Record<string, unknown>;
+    expect(r.business_days).toBe(5);
+    expect(r.calendar_days).toBe(5);
+  });
+
+  it("excludes weekends", async () => {
+    const r = await exec({ action: "business_days", date: "2025-01-06", date2: "2025-01-12" }) as Record<string, unknown>;
+    expect(r.business_days).toBe(5);
+    expect(r.calendar_days).toBe(7);
+  });
+
+  it("handles reversed order", async () => {
+    const r = await exec({ action: "business_days", date: "2025-01-12", date2: "2025-01-06" }) as Record<string, unknown>;
+    expect(r.business_days).toBe(5);
+  });
+});
+
+describe("DateTimeTool — range details (merged)", () => {
+  it("generates date range", async () => {
+    const r = await exec({ action: "range", start_date: "2025-01-01", end_date: "2025-01-05" }) as string[];
+    expect(r).toEqual(["2025-01-01", "2025-01-02", "2025-01-03", "2025-01-04", "2025-01-05"]);
+  });
+
+  it("supports step_days", async () => {
+    const r = await exec({ action: "range", start_date: "2025-01-01", end_date: "2025-01-10", step_days: 3 }) as string[];
+    expect(r).toEqual(["2025-01-01", "2025-01-04", "2025-01-07", "2025-01-10"]);
+  });
+
+  it("step_days=0 defaults to 1 (falsy coercion)", async () => {
+    const r = await exec({ action: "range", start_date: "2025-01-01", end_date: "2025-01-03", step_days: 0 }) as string[];
+    expect(r).toEqual(["2025-01-01", "2025-01-02", "2025-01-03"]);
+  });
+
+  it("returns empty array when start > end", async () => {
+    const r = await exec({ action: "range", start_date: "2025-01-10", end_date: "2025-01-01" }) as string[];
+    expect(r).toEqual([]);
+  });
+});
+
+describe("DateTimeTool — day_info details (merged)", () => {
+  it("returns day metadata (Wednesday)", async () => {
+    const r = await exec({ action: "day_info", date: "2025-01-01T00:00:00Z" }) as Record<string, unknown>;
+    expect(r.day_of_week).toBe("Wednesday");
+    expect(r.day_of_week_num).toBe(3);
+    expect(r.is_weekend).toBe(false);
+    expect(r.quarter).toBe(1);
+    expect(r.days_in_month).toBe(31);
+  });
+
+  it("detects weekend (Saturday)", async () => {
+    const r = await exec({ action: "day_info", date: "2025-01-04T00:00:00Z" }) as Record<string, unknown>;
+    expect(r.day_of_week).toBe("Saturday");
+    expect(r.is_weekend).toBe(true);
+  });
+
+  it("detects non-leap year", async () => {
+    const r = await exec({ action: "day_info", date: "2025-02-15T00:00:00Z" }) as Record<string, unknown>;
+    expect(r.is_leap_year).toBe(false);
+    expect(r.days_in_month).toBe(28);
+  });
+});
+
+describe("DateTimeTool — tool interface (merged)", () => {
+  it("has correct metadata", () => {
+    expect(tool.name).toBe("datetime");
+    expect(tool.category).toBe("memory");
+    expect(tool.description).toBeTruthy();
+  });
+
+  it("has valid schema", () => {
+    const schema = tool.to_schema();
+    expect(schema.type).toBe("function");
+    expect(schema.function.name).toBe("datetime");
+    expect(schema.function.parameters.properties).toBeDefined();
+  });
+});

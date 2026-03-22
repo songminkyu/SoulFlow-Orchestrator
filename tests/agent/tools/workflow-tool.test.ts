@@ -464,3 +464,54 @@ describe("WorkflowTool — unknown action", () => {
     expect(String(r)).toContain("Error");
   });
 });
+
+// ══════════════════════════════════════════
+// Merged from tests/agent/workflow-tool.test.ts
+// ══════════════════════════════════════════
+
+describe("WorkflowTool — description", () => {
+  it("description에 카탈로그가 포함되지 않는다 (node_types action으로 분리)", () => {
+    const tool = new WorkflowTool(make_ops());
+    expect(tool.description).not.toContain("Available Workflow Node Types");
+    expect(tool.description).toContain("node_types");
+  });
+});
+
+describe("WorkflowTool — run inline field_mappings", () => {
+  it("run: inline definition에 field_mappings가 포함되면 전달한다", async () => {
+    const ops = make_ops();
+    const tool = new WorkflowTool(ops);
+    const mappings = [{ from_node: "a", from_field: "out", to_node: "b", to_field: "in" }];
+    const def = { ...VALID_DEF, field_mappings: mappings };
+    const r = await exec(tool, { action: "run", definition: def }) as Record<string, unknown>;
+    expect(r.ok).toBe(true);
+    expect(ops.create).toHaveBeenCalledWith(expect.objectContaining({ field_mappings: mappings }));
+  });
+});
+
+describe("WorkflowTool — run context defaults", () => {
+  it("run: context 없으면 기본 channel/chat_id를 사용한다", async () => {
+    const ops = make_ops();
+    const tool = new WorkflowTool(ops);
+    await exec(tool, { action: "create", name: "ctx-test", definition: VALID_DEF });
+    await exec(tool, { action: "run", name: "ctx-test" });
+    expect(ops.create).toHaveBeenCalledWith(expect.objectContaining({
+      channel: "dashboard",
+      chat_id: "web",
+    }));
+  });
+});
+
+describe("WorkflowTool — list with trigger_nodes", () => {
+  it("list: trigger_nodes가 있는 워크플로우도 표시한다", async () => {
+    const ops = make_ops({
+      list_templates: vi.fn(() => [
+        { ...VALID_DEF, title: "Weekly Report", trigger_nodes: [{ id: "__cron__", trigger_type: "cron", schedule: "0 0 * * 1" }] },
+      ]),
+    });
+    const tool = new WorkflowTool(ops);
+    const r = await exec(tool, { action: "list" }) as Array<Record<string, unknown>>;
+    expect(r).toHaveLength(1);
+    expect(r[0].trigger_nodes).toEqual([{ id: "__cron__", trigger_type: "cron", schedule: "0 0 * * 1" }]);
+  });
+});

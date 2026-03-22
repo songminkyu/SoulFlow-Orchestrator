@@ -280,3 +280,73 @@ describe("MsgpackTool — compare_size", () => {
     expect(r.error).toBeDefined();
   });
 });
+
+// ══════════════════════════════════════════
+// Merged from tests/agent/msgpack-tool.test.ts
+// ══════════════════════════════════════════
+
+describe("MsgpackTool — encode int16/float64 ranges (merged)", () => {
+  it("int16 범위 (-32768 ~ -129) → 0xd1 접두사", async () => {
+    const r = await exec({ action: "encode", data: "-1000" });
+    expect((r.hex as string).startsWith("d1")).toBe(true);
+  });
+
+  it("큰 정수 (> int32) → float64 fallback", async () => {
+    const r = await exec({ action: "encode", data: "8589934592" });
+    expect((r.hex as string).startsWith("cb")).toBe(true);
+  });
+
+  it("소수점 숫자 → float64", async () => {
+    const r = await exec({ action: "encode", data: "3.14" });
+    expect((r.hex as string).startsWith("cb")).toBe(true);
+  });
+});
+
+describe("MsgpackTool — encode str16 range (merged)", () => {
+  it("매우 긴 문자열 (256-65535 bytes) → str16 (0xda)", async () => {
+    const long = "B".repeat(300);
+    const r = await exec({ action: "encode", data: JSON.stringify(long) });
+    expect((r.hex as string).startsWith("da")).toBe(true);
+  });
+});
+
+describe("MsgpackTool — info: int/float types (merged)", () => {
+  it("int (uint8) → type: int", async () => {
+    const encoded = await exec({ action: "encode", data: "200" });
+    const r = await exec({ action: "info", hex: (encoded as Record<string, unknown>).hex });
+    expect(r.type).toBe("int");
+  });
+
+  it("float (float64) → type: float", async () => {
+    const encoded = await exec({ action: "encode", data: "3.14" });
+    const r = await exec({ action: "info", hex: (encoded as Record<string, unknown>).hex });
+    expect(r.type).toBe("float");
+  });
+
+  it("str8 → type: str", async () => {
+    const encoded = await exec({ action: "encode", data: JSON.stringify("A".repeat(50)) });
+    const r = await exec({ action: "info", hex: (encoded as Record<string, unknown>).hex });
+    expect(r.type).toBe("str");
+  });
+
+  it("array16 → type: array", async () => {
+    const encoded = await exec({ action: "encode", data: JSON.stringify(new Array(20).fill(0)) });
+    const r = await exec({ action: "info", hex: (encoded as Record<string, unknown>).hex });
+    expect(r.type).toBe("array");
+  });
+
+  it("map16 → type: map", async () => {
+    const obj: Record<string, number> = {};
+    for (let i = 0; i < 20; i++) obj[`k${i}`] = i;
+    const encoded = await exec({ action: "encode", data: JSON.stringify(obj) });
+    const r = await exec({ action: "info", hex: (encoded as Record<string, unknown>).hex });
+    expect(r.type).toBe("map");
+  });
+});
+
+describe("MsgpackTool — unknown action (merged)", () => {
+  it("unknown action → error", async () => {
+    const r = await exec({ action: "unknown" });
+    expect(r.error).toContain("unknown action");
+  });
+});

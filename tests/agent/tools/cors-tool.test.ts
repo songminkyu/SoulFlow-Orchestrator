@@ -300,3 +300,41 @@ describe("CorsTool — 미커버 분기", () => {
     expect(r.allowed).toBe(false);
   });
 });
+
+// ══════════════════════════════════════════
+// Merged from tests/agent/cors-tool.test.ts
+// ══════════════════════════════════════════
+
+describe("CorsTool — build_headers: credentials + wildcard (merged)", () => {
+  it("credentials=true + wildcard → wildcard 비적용, credentials 적용", async () => {
+    const r = await exec({
+      action: "build_headers",
+      origin: "https://site.com",
+      allowed_origins: JSON.stringify(["*"]),
+      credentials: true,
+    }) as Record<string, string>;
+    expect(r["Access-Control-Allow-Credentials"]).toBe("true");
+  });
+
+  it("origin 불일치 → Access-Control-Allow-Origin 없음", async () => {
+    const r = await exec({
+      action: "build_headers",
+      origin: "https://evil.com",
+      allowed_origins: JSON.stringify(["https://example.com"]),
+    }) as Record<string, string>;
+    expect(r["Access-Control-Allow-Origin"]).toBeUndefined();
+  });
+});
+
+describe("CorsTool — preflight: 허용되지 않은 메서드 (merged)", () => {
+  it("허용되지 않은 메서드 → allowed false", async () => {
+    const r = await exec({
+      action: "preflight",
+      origin: "https://app.com",
+      method: "DELETE",
+      allowed_origins: JSON.stringify(["https://app.com"]),
+      allowed_methods: JSON.stringify(["GET", "POST"]),
+    }) as Record<string, unknown>;
+    expect(r.allowed).toBe(false);
+  });
+});

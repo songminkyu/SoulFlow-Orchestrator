@@ -3,7 +3,8 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import { ToolRegistry } from "../../../src/agent/tools/registry.js";
-import type { ToolLike, ToolSchema, ToolCategory } from "../../../src/agent/tools/types.js";
+import type { ToolLike, ToolSchema, ToolCategory, JsonSchema } from "../../../src/agent/tools/types.js";
+import type { ApprovalDecision } from "../../../src/agent/tools/approval-parser.js";
 
 function make_mock_tool(name: string, category: ToolCategory = "memory"): ToolLike {
   return {
@@ -644,5 +645,96 @@ describe("ToolRegistry — JSON result bypasses reducer (L168)", () => {
     expect(reducer.reduce).toHaveBeenCalledWith(
       expect.objectContaining({ tool_name: "text_tool", result_text: "plain text output", is_error: false }),
     );
+  });
+});
+
+// ══════════════════════════════════════════
+// Merged from tests/agent/registry.test.ts
+// ══════════════════════════════════════════
+
+function make_approval_tool_merged(name: string): ToolLike {
+  return {
+    name,
+    description: name,
+    category: "test" as ToolCategory,
+    parameters: { type: "object" } as JsonSchema,
+    execute: async (params: Record<string, unknown>) => {
+      if (!params.__approved) return "Error: approval_required\nreason: needs_approval";
+      return `${name}_approved_result`;
+    },
+    validate_params: () => [],
+    to_schema: () =>
+      ({ type: "function", function: { name, description: name, parameters: {} } }) as ToolSchema,
+  };
+}
+
+function extract_req_id_merged(result: string): string {
+  return result.match(/approval_request_id: ([^\n]+)/)?.[1]?.trim() ?? "";
+}
+
+describe("ToolRegistry — approve_all 자동 실행 (merged)", () => {
+  it("resolve_approval_request: approve_all → 이후 자동 실행", async () => {
+    const reg = new ToolRegistry();
+    reg.register(make_approval_tool_merged("repeatable_tool"));
+    const first = await reg.execute("repeatable_tool", {});
+    const req_id = extract_req_id_merged(first);
+    reg.resolve_approval_request(req_id, "모두 승인");
+    const result2 = await reg.execute("repeatable_tool", {});
+    expect(result2).toBe("repeatable_tool_approved_result");
+  });
+});
+
+describe("ToolRegistry — expire with callback (merged)", () => {
+  it("만료 시 콜백이 있으면 cancel로 호출", async () => {
+    const reg = new ToolRegistry();
+    const { decision } = reg.register_approval_with_callback("cb_tool", "test", undefined, 10000);
+    let resolved_decision: ApprovalDecision | undefined;
+    void decision.then((d: ApprovalDecision) => { resolved_decision = d; });
+    reg.expire_stale_approvals(0);
+    await new Promise<void>((r) => setTimeout(r, 10));
+    expect(resolved_decision).toBe("cancel");
+  });
+});
+
+describe("ToolRegistry — auto_approved + ask hook bypass (merged)", () => {
+  it("auto_approved tool은 ask hook에서 바이패스", async () => {
+    const reg = new ToolRegistry({
+      pre_hooks: [
+        (
+          _name: string,
+          _params: Record<string, unknown>,
+        ) => ({ permission: "ask" as const }),
+      ],
+    });
+    reg.register(make_approval_tool_merged("auto_app"));
+    const first = await reg.execute("auto_app", {});
+    const req_id = extract_req_id_merged(first);
+    reg.resolve_approval_request(req_id, "모두 승인");
+    const result = await reg.execute("auto_app", {});
+    expect(result).toBe("auto_app_approved_result");
+  });
+});
+
+describe("ToolRegistry — tool unregistered after approval (merged)", () => {
+  it("execute_approved_request: tool not found after approval → error", async () => {
+    const reg = new ToolRegistry();
+    reg.register(make_approval_tool_merged("vanishing_tool"));
+    const first = await reg.execute("vanishing_tool", {});
+    const req_id = extract_req_id_merged(first);
+    reg.resolve_approval_request(req_id, "승인");
+    reg.unregister("vanishing_tool");
+    const r = await reg.execute_approved_request(req_id);
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain("tool_not_found");
+  });
+});
+
+describe("ToolRegistry — list_approval_requests without filter (merged)", () => {
+  it("list_approval_requests: status 필터링 없이 전체 반환", async () => {
+    const reg = new ToolRegistry();
+    reg.register(make_approval_tool_merged("list_tool"));
+    await reg.execute("list_tool", {});
+    const all = reg.list_approval_requests();
+    expect(all).toHaveLength(1);
   });
 });

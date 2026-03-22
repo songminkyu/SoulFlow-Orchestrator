@@ -196,3 +196,95 @@ describe("SemverTool — 미커버 분기", () => {
     expect(r.satisfies).toBe(true);
   });
 });
+
+// ══════════════════════════════════════════
+// Merged from tests/agent/semver-tool.test.ts
+// ══════════════════════════════════════════
+
+describe("SemverTool — compare: prerelease 분기 (merged)", () => {
+  it("prerelease 없는 버전 > prerelease 있는 버전 (동일 base)", async () => {
+    const r = await exec({ action: "compare", version: "1.0.0", version2: "1.0.0-alpha" }) as Record<string, unknown>;
+    expect(Number(r.result)).toBeGreaterThan(0);
+    expect(r.description).toBe("greater");
+  });
+
+  it("둘 다 prerelease → localeCompare 비교", async () => {
+    const r = await exec({ action: "compare", version: "1.0.0-beta", version2: "1.0.0-alpha" }) as Record<string, unknown>;
+    expect(Number(r.result)).toBeGreaterThan(0);
+  });
+
+  it("둘 다 prerelease 동일 → equal", async () => {
+    const r = await exec({ action: "compare", version: "2.0.0-rc.1", version2: "2.0.0-rc.1" }) as Record<string, unknown>;
+    expect(r.result).toBe(0);
+    expect(r.description).toBe("equal");
+  });
+});
+
+describe("SemverTool — bump: prerelease 비숫자 → .1 추가 (merged)", () => {
+  it("prerelease='alpha' → 'alpha.1'", async () => {
+    const r = await exec({ action: "bump", version: "1.0.0-alpha", bump_type: "prerelease" }) as Record<string, unknown>;
+    expect(r.bumped).toBe("1.0.0-alpha.1");
+  });
+
+  it("prerelease='rc' → 'rc.1'", async () => {
+    const r = await exec({ action: "bump", version: "3.1.0-rc", bump_type: "prerelease" }) as Record<string, unknown>;
+    expect(r.bumped).toBe("3.1.0-rc.1");
+  });
+
+  it("prerelease='1' (숫자) → '2'", async () => {
+    const r = await exec({ action: "bump", version: "1.0.0-1", bump_type: "prerelease" }) as Record<string, unknown>;
+    expect(r.bumped).toBe("1.0.0-2");
+  });
+
+  it("prerelease='beta.2' (숫자) → 'beta.3'", async () => {
+    const r = await exec({ action: "bump", version: "1.2.3-beta.2", bump_type: "prerelease" }) as Record<string, unknown>;
+    expect(r.bumped).toBe("1.2.3-beta.3");
+  });
+});
+
+describe("SemverTool — bump: default 분기 (merged)", () => {
+  it("알 수 없는 bump_type → patch 증가 (default)", async () => {
+    const r = await exec({ action: "bump", version: "2.3.4", bump_type: "unknown_type" }) as Record<string, unknown>;
+    expect(r.bumped).toBe("2.3.5");
+  });
+});
+
+describe("SemverTool — diff: prerelease 차이 (merged)", () => {
+  it("major/minor/patch 동일, prerelease 다름 → diff='prerelease'", async () => {
+    const r = await exec({ action: "diff", version: "1.0.0-alpha", version2: "1.0.0-beta" }) as Record<string, unknown>;
+    expect(r.diff).toBe("prerelease");
+  });
+});
+
+describe("SemverTool — satisfies: ~ 연산자 상세 (merged)", () => {
+  it("~1.2.3 → 1.3.0 불일치", async () => {
+    const r = await exec({ action: "satisfies", version: "1.3.0", range: "~1.2.3" }) as Record<string, unknown>;
+    expect(r.satisfies).toBe(false);
+  });
+
+  it("~1.2.3 → 1.2.2 불일치 (patch 낮음)", async () => {
+    const r = await exec({ action: "satisfies", version: "1.2.2", range: "~1.2.3" }) as Record<string, unknown>;
+    expect(r.satisfies).toBe(false);
+  });
+});
+
+describe("SemverTool — satisfies: ^ 연산자 상세 (merged)", () => {
+  it("^1.2.3 → 1.2.2 불일치 (동일 minor, patch 낮음)", async () => {
+    const r = await exec({ action: "satisfies", version: "1.2.2", range: "^1.2.3" }) as Record<string, unknown>;
+    expect(r.satisfies).toBe(false);
+  });
+
+  it("^1.2.3 → 1.2.3 일치 (경계값)", async () => {
+    const r = await exec({ action: "satisfies", version: "1.2.3", range: "^1.2.3" }) as Record<string, unknown>;
+    expect(r.satisfies).toBe(true);
+  });
+});
+
+describe("SemverTool — sort: prerelease 포함 정렬 (merged)", () => {
+  it("1.0.0 > 1.0.0-beta (stable > prerelease)", async () => {
+    const r = await exec({ action: "sort", versions: "1.0.0,1.0.0-beta" }) as Record<string, unknown>;
+    const sorted = r.sorted as string[];
+    expect(sorted[0]).toBe("1.0.0-beta");
+    expect(sorted[1]).toBe("1.0.0");
+  });
+});

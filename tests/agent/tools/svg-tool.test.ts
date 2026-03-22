@@ -180,3 +180,67 @@ describe("SvgTool — unknown action", () => {
     expect(r.error).toContain("unknown action");
   });
 });
+
+// ══════════════════════════════════════════
+// Merged from tests/agent/svg-tool.test.ts
+// ══════════════════════════════════════════
+
+describe("SvgTool — text: script escape (merged)", () => {
+  it("특수문자 이스케이프 (<script>)", async () => {
+    const r = await exec({ action: "text", content: "<script>" }) as Record<string, unknown>;
+    expect(String(r.svg)).not.toContain("<script>");
+    expect(String(r.svg)).toContain("&lt;script&gt;");
+  });
+});
+
+describe("SvgTool — group edge cases (merged)", () => {
+  it("빈 자식 → 빈 <g> 태그", async () => {
+    const r = await exec({ action: "group", children: "[]" }) as Record<string, unknown>;
+    expect(String(r.svg)).toContain("<g>");
+    expect(String(r.svg)).toContain("</g>");
+  });
+
+  it("children 생략 → 빈 <g> 태그 (default)", async () => {
+    const r = await exec({ action: "group" }) as Record<string, unknown>;
+    expect(String(r.svg)).toContain("<g>");
+  });
+});
+
+describe("SvgTool — chart line: single data point (merged)", () => {
+  it("line 차트 데이터 1개 (단일 점)", async () => {
+    const data = JSON.stringify([{ label: "Only", value: 50 }]);
+    const r = await exec({ action: "chart", chart_type: "line", data }) as Record<string, unknown>;
+    expect(String(r.svg)).toContain("<svg");
+    expect(r.data_points).toBe(1);
+  });
+});
+
+describe("SvgTool — chart line + title (merged)", () => {
+  it("line 차트 + title → 제목 텍스트 포함", async () => {
+    const data = JSON.stringify([
+      { label: "Q1", value: 100 },
+      { label: "Q2", value: 200 },
+    ]);
+    const r = await exec({
+      action: "chart",
+      chart_type: "line",
+      data,
+      title: "분기별 매출",
+    }) as Record<string, unknown>;
+    expect(String(r.svg)).toContain("분기별 매출");
+    expect(String(r.svg)).toContain("<polyline");
+  });
+});
+
+describe("SvgTool — rect optional attributes (merged)", () => {
+  it("rx/ry/stroke/stroke_width 포함 → 속성 출력", async () => {
+    const r = await exec({
+      action: "rect",
+      x: 0, y: 0, width: 100, height: 100,
+      rx: 5, ry: 5,
+      stroke: "#000", stroke_width: 2,
+    }) as Record<string, unknown>;
+    expect(String(r.svg)).toContain('rx="5"');
+    expect(String(r.svg)).toContain("stroke=\"");
+  });
+});
