@@ -7,6 +7,7 @@ import { useState } from "react";
 import { api } from "../../api/client";
 import { useT } from "../../i18n";
 import { StudioModelPicker, type StudioModelValue } from "../../components/studio-model-picker";
+import { EndpointSelector, type Endpoint } from "../../components/shared/endpoint-selector";
 
 const VIDEO_SIZES = ["1280x720", "1920x1080", "720x1280", "1080x1920", "512x512"];
 const VIDEO_SECONDS = [4, 6, 8, 10, 16];
@@ -55,6 +56,9 @@ export function VideoPanel() {
   const [running, setRunning] = useState(false);
   const [videos, setVideos] = useState<VideoItem[]>([]);
 
+  /** Context endpoint selection */
+  const [ctx_endpoint, setCtxEndpoint] = useState<Endpoint | null>(null);
+
   const handle_run = async () => {
     if (!model.provider_id || !prompt.trim()) return;
     const tmp_id = `vid_${Date.now()}`;
@@ -99,7 +103,7 @@ export function VideoPanel() {
             : v,
         ),
       );
-    } catch (err) {
+    } catch {
       setVideos((prev) =>
         prev.map((v) =>
           v.id === tmp_id
@@ -136,6 +140,16 @@ export function VideoPanel() {
         <div className="ps-pane-sec">
           <span className="ps-pane-sec__label">{t("prompting.model")}</span>
           <StudioModelPicker value={model} onChange={setModel} purpose="video" />
+        </div>
+
+        {/* 엔드포인트 컨텍스트 선택 */}
+        <div className="ps-pane-sec">
+          <span className="ps-pane-sec__label">{t("prompting.context")}</span>
+          <EndpointSelector
+            value={ctx_endpoint}
+            onChange={(ep) => setCtxEndpoint(ep)}
+            className="ps-endpoint-selector"
+          />
         </div>
 
         {/* Size + Duration */}
@@ -192,7 +206,7 @@ export function VideoPanel() {
             onClick={() => void handle_run()}
           >
             {running
-              ? <>⏳ {t("prompting.generating")}</>
+              ? <>&#x23F3; {t("prompting.generating")}</>
               : <>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   {t("prompting.generate_btn")}
@@ -238,7 +252,7 @@ export function VideoPanel() {
                     <div className="ps-video-item__text">
                       <div className="ps-video-item__prompt">{v.prompt}</div>
                       <div className="ps-video-item__meta">
-                        {v.model} · {v.seconds}s · {v.size} · {time_ago(v.created_at)}
+                        {v.model} &middot; {v.seconds}s &middot; {v.size} &middot; {time_ago(v.created_at)}
                       </div>
                     </div>
                     <svg
@@ -276,7 +290,7 @@ export function VideoPanel() {
 
                       {v.status === "err" && (
                         <div style={{ padding: "10px 0", fontSize: 13, color: "var(--err)" }}>
-                          ⚠ 생성 중 오류가 발생했습니다.
+                          &#x26A0; {t("prompting.video_error")}
                         </div>
                       )}
 

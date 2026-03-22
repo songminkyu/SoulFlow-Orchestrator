@@ -8,6 +8,7 @@ import { useState } from "react";
 import { api } from "../../api/client";
 import { useT } from "../../i18n";
 import { StudioModelPicker, type StudioModelValue } from "../../components/studio-model-picker";
+import { EndpointSelector, type Endpoint } from "../../components/shared/endpoint-selector";
 
 const SIZES = ["256x256", "512x512", "1024x1024", "1792x1024", "1024x1792"];
 const RATIOS = ["Auto", "1:1", "4:3", "3:4", "16:9", "9:16"];
@@ -46,6 +47,9 @@ export function ImagePanel() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<ImageResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  /** Context endpoint selection */
+  const [ctx_endpoint, setCtxEndpoint] = useState<Endpoint | null>(null);
 
   const rendered_prompt = apply_vars(template, vars);
 
@@ -93,6 +97,16 @@ export function ImagePanel() {
         <div className="ps-pane-sec">
           <span className="ps-pane-sec__label">{t("prompting.model")}</span>
           <StudioModelPicker value={model} onChange={setModel} purpose="image" />
+        </div>
+
+        {/* 엔드포인트 컨텍스트 선택 */}
+        <div className="ps-pane-sec">
+          <span className="ps-pane-sec__label">{t("prompting.context")}</span>
+          <EndpointSelector
+            value={ctx_endpoint}
+            onChange={(ep) => setCtxEndpoint(ep)}
+            className="ps-endpoint-selector"
+          />
         </div>
 
         {/* Size + Aspect Ratio */}
@@ -204,11 +218,11 @@ export function ImagePanel() {
             onClick={() => void handle_run()}
           >
             {running
-              ? <>⏳ {t("prompting.generating")}</>
+              ? <>&#x23F3; {t("prompting.generating")}</>
               : <>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   {t("prompting.run")}
-                  <span className="ps-shortcut">⌘↵</span>
+                  <span className="ps-shortcut">&#x2318;&#x23CE;</span>
                 </>
             }
           </button>
@@ -217,7 +231,7 @@ export function ImagePanel() {
         {/* Preview 헤더 */}
         <div className="ps-preview-head" style={{ borderTop: "1px solid var(--line)" }}>
           <div className="ps-preview-head__top">
-            <span className="ps-preview-head__icon">✦</span>
+            <span className="ps-preview-head__icon">&#x2736;</span>
             <span className="ps-preview-head__title">{t("prompting.output")}</span>
           </div>
           <div className="ps-preview-head__sub">{t("prompting.image_output_hint")}</div>
@@ -280,7 +294,7 @@ export function ImagePanel() {
                   <polyline points="21 15 16 10 5 21"/>
                 </svg>
               </div>
-              <span>이미지가 여기에 표시됩니다.</span>
+              <span>{t("prompting.image_empty")}</span>
             </div>
           )}
         </div>

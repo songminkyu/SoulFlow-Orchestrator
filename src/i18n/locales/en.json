@@ -1530,6 +1530,8 @@
   "prompting.image_output_hint": "Run the prompt to see your generated image here.",
   "prompting.image_prompt_ph": "Describe the image you want to generate…",
   "prompting.image_title": "Image Generation",
+  "prompting.image_empty": "Images will appear here.",
+  "prompting.video_error": "An error occurred during generation.",
   "prompting.ref_images": "Reference Images",
   "prompting.ref_images_desc": "Add image_url, upload, or drag & drop image files.",
   "prompting.agent_new": "+ New Agent",

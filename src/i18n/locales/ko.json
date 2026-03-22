@@ -1530,6 +1530,8 @@
   "prompting.image_output_hint": "프롬프트를 실행하면 생성된 이미지가 여기에 표시됩니다.",
   "prompting.image_prompt_ph": "생성할 이미지를 설명하세요…",
   "prompting.image_title": "이미지 생성",
+  "prompting.image_empty": "이미지가 여기에 표시됩니다.",
+  "prompting.video_error": "생성 중 오류가 발생했습니다.",
   "prompting.ref_images": "참조 이미지",
   "prompting.ref_images_desc": "image_url 입력, 업로드, 또는 이미지 파일 드래그 & 드롭.",
   "prompting.agent_new": "+ 새 에이전트",
