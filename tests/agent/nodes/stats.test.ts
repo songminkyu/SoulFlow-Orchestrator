@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { stats_handler } from "@src/agent/nodes/stats.js";
 import type { OrcheNodeExecutorContext } from "@src/agent/orche-node-executor.js";
 
-describe("${h^} Node Handler", () => {
+describe("Stats Node Handler", () => {
   it("should have node_type", () => {
     const ctx: OrcheNodeExecutorContext = { memory: {} };
     const node = { node_id: "n", node_type: "stats", label: "Test" };
