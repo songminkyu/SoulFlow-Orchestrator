@@ -85,4 +85,56 @@ describe("CircuitBreaker", () => {
     expect(cb.state).toBe("closed");
     expect(cb.can_acquire()).toBe(true);
   });
+
+  // ── (merged from tests/provider/) ──
+
+  it("실패 threshold 미만 — closed 유지", () => {
+    const cb = new CircuitBreaker({ failure_threshold: 3, reset_timeout_ms: 100, half_open_max: 1 });
+    cb.record_failure();
+    cb.record_failure();
+    expect(cb.state).toBe("closed");
+    expect(cb.try_acquire()).toBe(true);
+  });
+
+  it("can_acquire: closed에서 슬롯 미소비 반복 true", () => {
+    const cb = new CircuitBreaker();
+    expect(cb.can_acquire()).toBe(true);
+    expect(cb.can_acquire()).toBe(true);
+  });
+
+  it("can_acquire: half_open에서 슬롯 미소비 확인", async () => {
+    const cb = new CircuitBreaker({ failure_threshold: 3, reset_timeout_ms: 100, half_open_max: 1 });
+    for (let i = 0; i < 3; i++) cb.record_failure();
+    await new Promise((r) => setTimeout(r, 120));
+    expect(cb.can_acquire()).toBe(true);
+    expect(cb.can_acquire()).toBe(true);
+    expect(cb.try_acquire()).toBe(true);
+    expect(cb.try_acquire()).toBe(false);
+  });
+
+  it("can_acquire: open에서 false", () => {
+    const cb = new CircuitBreaker({ failure_threshold: 3 });
+    for (let i = 0; i < 3; i++) cb.record_failure();
+    expect(cb.can_acquire()).toBe(false);
+  });
+
+  it("성공 기록 → failure_count 리셋 (threshold 재시작)", () => {
+    const cb = new CircuitBreaker({ failure_threshold: 3, reset_timeout_ms: 100, half_open_max: 1 });
+    cb.record_failure();
+    cb.record_failure();
+    cb.record_success();
+    cb.record_failure();
+    cb.record_failure();
+    expect(cb.state).toBe("closed");
+    cb.record_failure();
+    expect(cb.state).toBe("open");
+  });
+
+  it("기본 옵션 (threshold=5, timeout=30000, half_open_max=1)", () => {
+    const def = new CircuitBreaker();
+    for (let i = 0; i < 4; i++) def.record_failure();
+    expect(def.state).toBe("closed");
+    def.record_failure();
+    expect(def.state).toBe("open");
+  });
 });

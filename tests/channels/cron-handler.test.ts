@@ -931,3 +931,36 @@ describe("CronHandler — 자연어 실패 → 가이드", () => {
     expect(typeof result).toBe("boolean");
   });
 });
+
+// ══════════════════════════════════════════
+// (merged from tests/channel/) L157: cron 모드 tz 있음 body 없음
+// ══════════════════════════════════════════
+
+describe("CronHandler — L157: cron 모드 tz 있음 body 없음 → return null", () => {
+  it("/cron add cron * * * * * tz UTC (body 없음) → parse null → 가이드 응답", async () => {
+    const handler = new CronHandler(make_cron());
+    const ctx = make_ctx("add", ["cron", "*", "*", "*", "*", "*", "tz", "UTC"]);
+    await handler.handle(ctx);
+    expect(ctx.replies.length).toBeGreaterThan(0);
+  });
+});
+
+// ══════════════════════════════════════════
+// (merged from tests/channel/) L216: hour > 24 → return null
+// ══════════════════════════════════════════
+
+describe("CronHandler — L216: hour > 24 → return null (invalid time)", () => {
+  it("자연어 '오늘 25시에 알림' → hour=25 > 24 → L216 return null → 가이드 응답", async () => {
+    const handler = new CronHandler(make_cron());
+    const ctx = make_ctx("", [], "오늘 25시에 알림", "slack", "U123");
+    await handler.handle(ctx);
+    expect(ctx.replies.length).toBeGreaterThan(0);
+  });
+
+  it("자연어 '내일 99시에 회의' → hour=99 > 24 → L216 return null", async () => {
+    const handler = new CronHandler(make_cron());
+    const ctx = make_ctx("", [], "내일 99시에 회의");
+    await handler.handle(ctx);
+    expect(ctx.replies.length).toBeGreaterThan(0);
+  });
+});

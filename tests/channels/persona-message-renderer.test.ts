@@ -723,3 +723,112 @@ describe("ConceptPack — chunibyo templates", () => {
     expect(msg).toContain("봉인 해제");
   });
 });
+
+// ══════════════════════════════════════════
+// (merged from tests/channel/) workspace2 Jin persona
+// ══════════════════════════════════════════
+
+describe("PersonaMessageRenderer — render — workspace2 Jin persona (casual + detailed)", () => {
+  const heart = "반말. 편하게 말한다. 자세하게: 맥락과 이유를 충분히 설명한다.";
+  const r = new PersonaMessageRenderer(make_source({
+    name: "Jin",
+    heart,
+  }));
+
+  it("스타일: casual + warm + detailed", () => {
+    const s = r.resolve_style();
+    expect(s.persona_name).toBe("Jin");
+    expect(s.politeness).toBe("casual");
+    expect(s.warmth).toBe("warm");
+    expect(s.brevity).toBe("detailed");
+  });
+
+  it("identity: 반말 + Jin 이름", () => {
+    const text = r.render({ kind: "identity" });
+    expect(text).toBe("나는 Jin이야. 뭐 도와줄까?");
+  });
+
+  it("safe_fallback: 반말", () => {
+    const text = r.render({ kind: "safe_fallback" });
+    expect(text).toContain("Jin이야");
+    expect(text).toContain("할게");
+  });
+
+  it("error: 반말", () => {
+    const text = r.render({ kind: "error", reason: "API timeout" });
+    expect(text).toBe("문제가 생겼어. 사유: API timeout");
+  });
+
+  it("status_started: 반말 + warm", () => {
+    expect(r.render({ kind: "status_started" })).toBe("바로 살펴볼게.");
+  });
+});
+
+// ══════════════════════════════════════════
+// (merged from tests/channel/) command_reply 상세 테스트
+// ══════════════════════════════════════════
+
+describe("PersonaMessageRenderer — render — command_reply 상세", () => {
+  const formal = new PersonaMessageRenderer(make_source({}));
+  const casual = new PersonaMessageRenderer(make_source({ heart: "반말로 편하게" }));
+
+  it("command_reply: body를 그대로 반환", () => {
+    const body = "✅ 확인 가드가 활성화되었습니다.";
+    expect(formal.render({ kind: "command_reply", body })).toBe(body);
+  });
+
+  it("command_reply: casual에서도 body 그대로 반환", () => {
+    const body = "📊 크론 잡 3건 등록됨";
+    expect(casual.render({ kind: "command_reply", body })).toBe(body);
+  });
+
+  it("command_reply: 빈 body", () => {
+    expect(formal.render({ kind: "command_reply", body: "" })).toBe("");
+  });
+});
+
+// ══════════════════════════════════════════
+// (merged from tests/channel/) style_override 테스트
+// ══════════════════════════════════════════
+
+describe("PersonaMessageRenderer — render — style_override", () => {
+  const r = new PersonaMessageRenderer(make_source({}));
+
+  it("override로 casual 적용 시 반말체 응답", () => {
+    const text = r.render({ kind: "identity" }, { politeness: "casual" });
+    expect(text).toContain("이야");
+    expect(text).toContain("도와줄까");
+  });
+
+  it("override 없으면 기본 formal", () => {
+    const text = r.render({ kind: "identity" });
+    expect(text).toContain("입니다");
+    expect(text).toContain("도와드릴까요");
+  });
+
+  it("resolve_style에 override 적용", () => {
+    const s = r.resolve_style({ warmth: "cool", brevity: "detailed" });
+    expect(s.warmth).toBe("cool");
+    expect(s.brevity).toBe("detailed");
+    expect(s.politeness).toBe("formal"); // base 유지
+  });
+});
+
+// ══════════════════════════════════════════
+// (merged from tests/channel/) parse_tone_override — concept 포함
+// ══════════════════════════════════════════
+
+describe("parse_tone_override — concept 포함 (merged)", () => {
+  it("톤 지시 + concept 동시 감지", () => {
+    const o = parse_tone_override("반말로 판타지 주인공처럼 해줘");
+    expect(o).not.toBeNull();
+    expect(o!.politeness).toBe("casual");
+    expect(o!.concept).toBe("fantasy_hero");
+  });
+
+  it("concept만 감지", () => {
+    const o = parse_tone_override("중2병 주인공처럼 대답해");
+    expect(o).not.toBeNull();
+    expect(o!.concept).toBe("chunibyo");
+  });
+});
