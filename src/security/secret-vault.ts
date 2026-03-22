@@ -48,7 +48,7 @@ export interface SecretVaultLike {
 const STORE_FILE = "secrets.db";
 const KEYRING_FILE = "keyring.db";
 const LEGACY_KEY_FILE = "master.key";
-const CIPHERTEXT_TOKEN_RE = /\bsv1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g;
+const CIPHERTEXT_TOKEN_RE = /\bsv1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?![A-Za-z0-9_-])/g;
 
 const MASK_CACHE_TTL_MS = 60_000;
 
@@ -256,7 +256,7 @@ export class SecretVaultService implements SecretVaultLike {
     await this.ensure_ready();
     const key = await this.get_or_create_key();
     const iv = randomBytes(12);
-    const cipher = createCipheriv("aes-256-gcm", key, iv);
+    const cipher = createCipheriv("aes-256-gcm", key, iv, { authTagLength: 16 } as never);
     if (aad) cipher.setAAD(Buffer.from(String(aad), "utf-8"));
     const content = Buffer.concat([cipher.update(String(plaintext || ""), "utf-8"), cipher.final()]);
     const tag = cipher.getAuthTag();
