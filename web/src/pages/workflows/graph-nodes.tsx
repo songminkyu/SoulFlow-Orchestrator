@@ -254,7 +254,7 @@ export function PhaseNode({
           </text>
           {/* context_template {{변수명}} 표시 */}
           {(() => {
-            const tpl = (phase as Record<string, unknown>).context_template as string | undefined;
+            const tpl = (phase as unknown as Record<string, unknown>).context_template as string | undefined;
             if (!tpl) return null;
             const vars = [...new Set((tpl.match(/\{\{(\w+)\}\}/g) || []).map((m: string) => m.slice(2, -2)))].slice(0, 4);
             if (!vars.length) return null;

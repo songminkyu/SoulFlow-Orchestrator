@@ -27,7 +27,7 @@ function tpl_avatar_color(title: string): string {
   const colors = ["#4a9eff", "#8b5cf6", "#10b981", "#f59e0b", "#ec4899", "#6366f1", "#14b8a6", "#ef4444"];
   let hash = 0;
   for (let i = 0; i < title.length; i++) hash = ((hash << 5) - hash + title.charCodeAt(i)) | 0;
-  return colors[Math.abs(hash) % colors.length];
+  return colors[Math.abs(hash) % colors.length] ?? "#4a9eff";
 }
 
 // ── Types ──

@@ -2,7 +2,7 @@
  * Inspector parameter panels — Phase, Agent, Critic, Tool, Skill, EndTarget, SubNode.
  */
 
-import { useState, useRef, useEffect, type ReactNode } from "react";
+import { useState, useRef, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import type { NodeOptions } from "./node-registry";
@@ -16,7 +16,7 @@ import { handleFieldDrop, handleDragOver } from "./inspector-dnd";
 function RichRefEditor({ value, onChange, onDrop, placeholder, rows }: {
   value: string;
   onChange: (v: string) => void;
-  onDrop?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent<Element>) => void;
   placeholder?: string;
   rows?: number;
 }) {
@@ -74,26 +74,6 @@ function RichRefEditor({ value, onChange, onDrop, placeholder, rows }: {
   );
 }
 
-/** 텍스트에서 {{...}} 참조를 뱃지로 표시 (읽기 전용 미리보기) */
-function RefBadgePreview({ text, onRemove }: { text: string; onRemove: (ref: string) => void }) {
-  const refs = [...(text.matchAll(/\{\{([^}]+)\}\}/g))].map((m) => ({ full: m[0], inner: m[1]! }));
-  if (refs.length === 0) return null;
-  return (
-    <div className="ref-badge-preview">
-      {refs.map((ref, i) => {
-        const [nodeId, ...fieldParts] = ref.inner.split(".");
-        return (
-          <span key={i} className="var-ref-chip" style={{ display: "inline-flex", gap: "2px", fontSize: "11px", padding: "1px 6px" }}>
-            <span className="var-ref-chip__node">{nodeId}</span>
-            {fieldParts.length > 0 && <><span className="var-ref-chip__dot">.</span><span className="var-ref-chip__field">{fieldParts.join(".")}</span></>}
-            <button type="button" className="var-ref-chip__remove" onClick={() => onRemove(ref.full)}>&times;</button>
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
 // ── Phase Parameters Panel ──
 
 export function PhaseParamsPanel({ phase, workflow, onChange, onPhaseIdChange, t, options }: {
@@ -107,18 +87,6 @@ export function PhaseParamsPanel({ phase, workflow, onChange, onPhaseIdChange, t
   const pi = workflow.phases.findIndex((p) => p.phase_id === phase.phase_id);
   if (pi < 0) return null;
 
-  // upstream 필드 수집 (삽입 버튼용)
-  const upstreamFields: string[] = (() => {
-    const deps = phase.depends_on || (pi > 0 ? [workflow.phases[pi - 1]!.phase_id] : []);
-    const fields: string[] = [];
-    for (const depId of deps) {
-      const dep = workflow.phases.find((p) => p.phase_id === depId);
-      if (dep) { fields.push(`${depId}.result`, `${depId}.agents`); }
-      const orche = (workflow.orche_nodes || []).find((n) => n.node_id === depId);
-      if (orche) { fields.push(`${depId}.output`); }
-    }
-    return fields;
-  })();
 
   const updatePhase = (patch: Partial<PhaseDef>) => {
     const oldId = phase.phase_id;

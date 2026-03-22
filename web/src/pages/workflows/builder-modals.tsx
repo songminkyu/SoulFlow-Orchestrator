@@ -702,7 +702,7 @@ export function AgentEditModal({ workflow, subNodeId, onChange, onClose, onSubNo
             <label className="builder-checkbox-label">
               <input
                 type="checkbox"
-                checked={!!(agent as Record<string, unknown>).output_json_schema}
+                checked={!!(agent as unknown as Record<string, unknown>).output_json_schema}
                 onChange={(e) => {
                   if (!e.target.checked) updateAgent({ output_json_schema: undefined } as Partial<AgentDef>);
                   else updateAgent({ output_json_schema: '{"type":"object","properties":{}}' } as unknown as Partial<AgentDef>);
@@ -711,12 +711,12 @@ export function AgentEditModal({ workflow, subNodeId, onChange, onClose, onSubNo
               {t("workflows.llm_structured_output")}
             </label>
           </BuilderField>
-          {(agent as Record<string, unknown>).output_json_schema && (
+          {!!(agent as unknown as Record<string, unknown>).output_json_schema && (
             <BuilderField label={t("workflows.llm_schema")}>
               <textarea
                 className="input input--sm code-textarea"
                 rows={4}
-                value={String((agent as Record<string, unknown>).output_json_schema || "")}
+                value={String((agent as unknown as Record<string, unknown>).output_json_schema || "")}
                 onChange={(e) => updateAgent({ output_json_schema: e.target.value } as unknown as Partial<AgentDef>)}
                 placeholder='{"type": "object", "properties": {...}}'
               />

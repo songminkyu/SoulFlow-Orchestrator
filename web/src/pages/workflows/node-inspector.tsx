@@ -271,7 +271,7 @@ function NextNodeSearch({ currentNodeId, workflow, onSelect, t }: {
   const candidates = useMemo(() => {
     const all = [
       ...workflow.phases.map((p) => ({ id: p.phase_id, label: p.title || p.phase_id, type: "phase" })),
-      ...(workflow.orche_nodes || []).map((n) => ({ id: n.node_id, label: n.title || n.node_id, type: n.type })),
+      ...(workflow.orche_nodes || []).map((n) => ({ id: n.node_id, label: n.title || n.node_id, type: String(n.type ?? "") })),
     ].filter((n) => n.id !== currentNodeId);
     if (!query) return all;
     const q = query.toLowerCase();

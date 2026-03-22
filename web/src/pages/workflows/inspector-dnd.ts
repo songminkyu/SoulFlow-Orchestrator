@@ -14,7 +14,7 @@ export function handleOutputFieldDragStart(e: DragEvent, node_id: string, field_
 }
 
 /** 드롭 타겟에서 필드 참조 수신. onInsert 콜백만 사용 (native setter 제거 — 중복 삽입 방지). */
-export function handleFieldDrop(e: DragEvent<HTMLTextAreaElement | HTMLInputElement>, onInsert: (ref: string) => void) {
+export function handleFieldDrop(e: DragEvent<Element>, onInsert: (ref: string) => void) {
   e.preventDefault();
   e.stopPropagation();
   const refData = e.dataTransfer.getData("application/x-field-ref");
@@ -29,7 +29,7 @@ export function handleFieldDrop(e: DragEvent<HTMLTextAreaElement | HTMLInputElem
   }
 }
 
-export function handleDragOver(e: DragEvent<HTMLTextAreaElement | HTMLInputElement>) {
+export function handleDragOver(e: DragEvent<Element>) {
   if (e.dataTransfer.types.includes("application/x-field-ref")) {
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";

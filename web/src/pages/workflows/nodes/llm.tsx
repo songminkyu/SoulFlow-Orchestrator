@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FrontendNodeDescriptor, EditPanelProps } from "../node-registry";
-import { BuilderField, BackendModelPicker, BuilderRowPair, TemperatureField, JsonField } from "../builder-field";
+import { BuilderField, BackendModelPicker, BuilderRowPair, TemperatureField } from "../builder-field";
 
 type MessageRole = "system" | "user" | "assistant";
 interface LlmMessage { role: MessageRole; content: string }
