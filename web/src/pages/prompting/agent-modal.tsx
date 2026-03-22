@@ -5,6 +5,7 @@ import { FormGroup } from "../../components/form-group";
 import { useT } from "../../i18n";
 import { api } from "../../api/client";
 import { useAsyncState } from "../../hooks/use-async-state";
+import { ProfileEditor } from "./profile-editor";
 import type { AgentDefinition, CreateAgentDefinitionInput, UpdateAgentDefinitionInput, GeneratedAgentFields } from "../../../../src/agent/agent-definition.types";
 
 /** 에이전트 모달 모드 — 신규, 편집, 빌트인 포크 */
@@ -75,6 +76,8 @@ export function AgentModal({ mode, onClose, onSaved }: AgentModalProps) {
   const title = is_edit ? t("agents.edit_title") : mode.kind === "fork" ? t("agents.fork_title") : t("agents.add_title");
 
   const [tab, setTab] = useState<"manual" | "ai">("manual");
+  /** IC-2: "raw" = 기존 시스템 프롬프트 textarea, "profile" = ProfileEditor */
+  const [prompt_tab, setPromptTab] = useState<"raw" | "profile">("raw");
   const [aiPrompt, setAiPrompt] = useState("");
   const { pending: generating, run: runGenerate } = useAsyncState();
   const { pending: saving, run: runSave } = useAsyncState();
@@ -88,6 +91,7 @@ export function AgentModal({ mode, onClose, onSaved }: AgentModalProps) {
     setForm(init_form(mode));
     setAiPrompt("");
     setTab("manual");
+    setPromptTab("raw");
   }
 
   const set = <K extends keyof typeof form>(key: K, value: typeof form[K]) =>
@@ -219,39 +223,83 @@ export function AgentModal({ mode, onClose, onSaved }: AgentModalProps) {
         </FormGroup>
       </fieldset>
 
-      {/* ② 역할 (Role Skill) */}
+      {/* ② 역할 + 프롬프트 편집기 탭 */}
       <fieldset className="form-section">
-        <legend className="form-section__title">{t("agents.section_role")}</legend>
-        <FormGroup label={t("agents.role_skill")}>
-          <select className="input" value={form.role_skill} onChange={(e) => set("role_skill", e.target.value)}>
-            {ROLE_SKILLS.map((r) => (
-              <option key={r} value={r}>{r || t("agents.role_custom")}</option>
-            ))}
-          </select>
-        </FormGroup>
-        <FormGroup label={t("agents.soul")}>
-          <textarea className="input" rows={2} value={form.soul} onChange={(e) => set("soul", e.target.value)} placeholder={t("agents.soul_placeholder")} />
-        </FormGroup>
-        <FormGroup label={t("agents.heart")}>
-          <textarea className="input" rows={2} value={form.heart} onChange={(e) => set("heart", e.target.value)} placeholder={t("agents.heart_placeholder")} />
-        </FormGroup>
-      </fieldset>
+        <legend className="form-section__title">{t("profile.editor_section")}</legend>
 
-      {/* ③ 공통 규칙 (Shared Protocols) */}
-      <fieldset className="form-section">
-        <legend className="form-section__title">{t("agents.section_protocols")}</legend>
-        <div className="checkbox-grid">
-          {available_protocols.map((protocol) => (
-            <label key={protocol} className="checkbox-item">
-              <input
-                type="checkbox"
-                checked={form.shared_protocols.includes(protocol)}
-                onChange={() => toggle_protocol(protocol)}
-              />
-              <span>{protocol}</span>
-            </label>
-          ))}
+        {/* IC-2: Raw Prompt / Profile Editor 탭 전환 */}
+        <div className="pe-modal-tabs" role="tablist" aria-label={t("profile.editor_section")}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={prompt_tab === "raw"}
+            className={`pe-modal-tab${prompt_tab === "raw" ? " pe-modal-tab--active" : ""}`}
+            onClick={() => setPromptTab("raw")}
+          >
+            {t("profile.tab_raw")}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={prompt_tab === "profile"}
+            className={`pe-modal-tab${prompt_tab === "profile" ? " pe-modal-tab--active" : ""}`}
+            onClick={() => setPromptTab("profile")}
+          >
+            {t("profile.tab_profile")}
+          </button>
         </div>
+
+        {prompt_tab === "raw" && (
+          <div className="pe-raw-panel">
+            <FormGroup label={t("agents.role_skill")}>
+              <select className="input" value={form.role_skill} onChange={(e) => set("role_skill", e.target.value)}>
+                {ROLE_SKILLS.map((r) => (
+                  <option key={r} value={r}>{r || t("agents.role_custom")}</option>
+                ))}
+              </select>
+            </FormGroup>
+            <FormGroup label={t("agents.soul")}>
+              <textarea className="input" rows={2} value={form.soul} onChange={(e) => set("soul", e.target.value)} placeholder={t("agents.soul_placeholder")} />
+            </FormGroup>
+            <FormGroup label={t("agents.heart")}>
+              <textarea className="input" rows={2} value={form.heart} onChange={(e) => set("heart", e.target.value)} placeholder={t("agents.heart_placeholder")} />
+            </FormGroup>
+            <FormGroup label={t("agents.section_protocols")}>
+              <div className="checkbox-grid">
+                {available_protocols.map((protocol) => (
+                  <label key={protocol} className="checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={form.shared_protocols.includes(protocol)}
+                      onChange={() => toggle_protocol(protocol)}
+                    />
+                    <span>{protocol}</span>
+                  </label>
+                ))}
+              </div>
+            </FormGroup>
+          </div>
+        )}
+
+        {prompt_tab === "profile" && (
+          <ProfileEditor
+            form={{
+              role_skill: form.role_skill,
+              soul: form.soul,
+              heart: form.heart,
+              shared_protocols: form.shared_protocols,
+              extra_instructions: form.extra_instructions,
+            }}
+            available_protocols={available_protocols}
+            onChange={(next) => {
+              set("role_skill", next.role_skill);
+              set("soul", next.soul);
+              set("heart", next.heart);
+              set("shared_protocols", next.shared_protocols);
+              set("extra_instructions", next.extra_instructions);
+            }}
+          />
+        )}
       </fieldset>
 
       {/* ④ 허용 도구 + 추가 스킬 */}

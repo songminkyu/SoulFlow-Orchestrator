@@ -108,7 +108,7 @@ describe("AgentModal -- add mode", () => {
   it("shows correct title", () => { render(<AgentModal mode={{ kind: "add" }} onClose={vi.fn()} onSaved={vi.fn()} />); expect(screen.getByTestId("modal-title").textContent).toBe("agents.add_title"); });
   it("starts with empty name", () => { render(<AgentModal mode={{ kind: "add" }} onClose={vi.fn()} onSaved={vi.fn()} />); expect((screen.getByPlaceholderText("agents.name_placeholder") as HTMLInputElement).value).toBe(""); });
   it("renders form sections", () => { const { container } = render(<AgentModal mode={{ kind: "add" }} onClose={vi.fn()} onSaved={vi.fn()} />); expect(container.querySelectorAll("fieldset.form-section").length).toBeGreaterThanOrEqual(5); });
-  it("renders tabs", () => { render(<AgentModal mode={{ kind: "add" }} onClose={vi.fn()} onSaved={vi.fn()} />); expect(screen.getAllByRole("tab").length).toBe(2); });
+  it("renders tabs", () => { render(<AgentModal mode={{ kind: "add" }} onClose={vi.fn()} onSaved={vi.fn()} />); expect(screen.getAllByRole("tab").length).toBe(4); }); /* IC-2: 2 AI tabs + 2 profile tabs */
   it("submit calls api.post", async () => { render(<AgentModal mode={{ kind: "add" }} onClose={vi.fn()} onSaved={vi.fn()} />); fireEvent.change(screen.getByPlaceholderText("agents.name_placeholder"), { target: { value: "X" } }); fireEvent.submit(screen.getByTestId("form-modal")); await vi.waitFor(() => { expect(mock_api_post).toHaveBeenCalledWith("/api/agent-definitions", expect.objectContaining({ name: "X" })); }); });
 });
 

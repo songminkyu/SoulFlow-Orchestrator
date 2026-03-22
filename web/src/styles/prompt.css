@@ -1240,6 +1240,329 @@
   .ps-image-grid        { grid-template-columns: 1fr; }
 }
 
+/* ══════════════════════════════════════════════
+   IC-2: Profile Editor — pe-* namespace
+   Role selector + protocol checklist + compile preview
+   ══════════════════════════════════════════════ */
+
+/* ── Modal tab switcher (Raw Prompt / Profile Editor) ── */
+.pe-modal-tabs {
+  display: flex;
+  gap: 2px;
+  background: color-mix(in srgb, var(--line) 50%, transparent);
+  border-radius: 7px;
+  padding: 2px;
+  margin-bottom: 4px;
+}
+
+.pe-modal-tab {
+  flex: 1;
+  height: 28px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color var(--duration-normal), background var(--duration-normal);
+}
+.pe-modal-tab:hover { color: var(--text); }
+.pe-modal-tab--active {
+  color: var(--text);
+  background: var(--panel);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+
+.pe-raw-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Full Profile Editor layout (side-by-side in wide modal) ── */
+.pe-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  min-height: 360px;
+}
+
+.pe-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  max-height: 480px;
+  padding-right: 4px;
+}
+
+/* ── Field groups inside editor ── */
+.pe-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pe-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pe-field-hint {
+  font-size: 11px;
+  color: var(--off);
+  line-height: 1.4;
+}
+
+/* ── Protocol checklist ── */
+.pe-protocol-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pe-protocol-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  background: var(--surface-faint);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+.pe-protocol-check:hover { background: var(--surface-subtle); border-color: var(--line); }
+.pe-protocol-check--active {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.pe-protocol-check input[type="checkbox"] {
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
+.pe-protocol-check__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pe-protocol-check__name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+.pe-protocol-check__desc {
+  font-size: 11px;
+  color: var(--off);
+  line-height: 1.4;
+}
+
+/* ── Compile Preview panel ── */
+.pe-preview-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pe-preview {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  overflow: hidden;
+  height: 100%;
+  min-height: 300px;
+}
+
+.pe-preview__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.pe-preview__title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pe-preview__controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.pe-view-toggle {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color var(--duration-fast), background var(--duration-fast);
+  white-space: nowrap;
+}
+.pe-view-toggle:hover { color: var(--text); background: var(--surface-subtle); }
+.pe-view-toggle--active {
+  color: var(--text);
+  background: var(--surface-code);
+}
+
+.pe-preview__spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.pe-preview__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pe-preview__empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--off);
+  text-align: center;
+  padding: 24px;
+}
+
+.pe-preview__error {
+  font-size: 12px;
+  color: var(--err);
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--err) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--err) 25%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Structured view ── */
+.pe-structured {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pe-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pe-section__label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.pe-section__content {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Protocol list in structured view */
+.pe-protocol-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pe-protocol-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 8px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.pe-protocol-item__name {
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+
+.pe-protocol-item__desc {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* ── Raw text view ── */
+.pe-raw {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 120px;
+}
+
+/* ── Responsive: stack vertically on narrow modals ── */
+@media (max-width: 700px) {
+  .pe-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+  }
+  .pe-preview {
+    min-height: 200px;
+  }
+}
+
 @media (hover: none) {
   .ps-tab:hover { color: var(--muted); }
   .ps-tab--active:hover { color: var(--text); }
