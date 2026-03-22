@@ -1,12 +1,14 @@
 /**
- * SecretVaultService — 미커버 분기 보충.
- * put_secret/remove_secret/get_secret_cipher/reveal_secret 빈 이름 → early return,
- * is_valid_ciphertext_shape 다양한 실패 모드,
- * get_mask_plaintexts 캐시 히트 + 짧은 plaintext 필터,
- * resolve_placeholders_with_report: 이름이 빈 placeholder, sv1 미포함 조기 반환,
- * inspect_secret_references: 직접 sv1 토큰 유효 형식 → invalid 아님.
+ * SecretVaultService — 통합 테스트 파일.
+ *
+ * 병합 출처 (VR-4):
+ * - secret-vault.test.ts (원본): 빈 이름 early return, 캐시 히트, sv1 검증 등
+ * - secret-vault-extra.test.ts: resolve/inspect/remove/prune/get_paths 추가 경로
+ * - secret-vault-factory.test.ts: factory singleton + keyring migration + mask cache
+ * - secret-vault-sqlite.test.ts: SQLite 라운드트립 (원본에 이미 커버됨 → 삭제)
  */
 import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -481,5 +483,198 @@ describe("SecretVaultService — resolve_inline_secrets_with_report sv1 direct t
     const token = await cov_vault.encrypt_text(plain, "specific-aad");
     const report = await cov_vault.resolve_inline_secrets_with_report(`data: ${token}`);
     expect(report.invalid_ciphertexts).toContain(token);
+  });
+});
+
+// ══════════════════════════════════════════
+// from secret-vault-extra.test.ts — 고유 경로만 병합
+// ══════════════════════════════════════════
+
+describe("SecretVaultService — resolve_placeholders_with_report 추가 경로", () => {
+  it("placeholder 없음 → 원문 그대로", async () => {
+    const report = await vault.resolve_placeholders_with_report("no secrets here");
+    expect(report.text).toBe("no secrets here");
+    expect(report.missing_keys).toEqual([]);
+    expect(report.invalid_ciphertexts).toEqual([]);
+  });
+
+  it("빈 문자열 → 원문 그대로", async () => {
+    const report = await vault.resolve_placeholders_with_report("");
+    expect(report.text).toBe("");
+    expect(report.missing_keys).toEqual([]);
+  });
+});
+
+describe("SecretVaultService — resolve_inline_secrets placeholder 포함", () => {
+  it("placeholder 포함 → 복호화", async () => {
+    await vault.put_secret("api_key", "my-api-key-123");
+    const result = await vault.resolve_inline_secrets("key={{secret:api_key}}");
+    expect(result).toContain("my-api-key-123");
+  });
+});
+
+describe("SecretVaultService — inspect_secret_references 추가 경로", () => {
+  it("빈 문자열 → 빈 객체", async () => {
+    const result = await vault.inspect_secret_references("");
+    expect(result.missing_keys).toEqual([]);
+    expect(result.invalid_ciphertexts).toEqual([]);
+  });
+
+  it("없는 키 참조 → missing_keys", async () => {
+    const result = await vault.inspect_secret_references("{{secret:nonexistent}}");
+    expect(result.missing_keys).toContain("nonexistent");
+  });
+
+  it("존재하는 키 참조 → missing_keys 없음", async () => {
+    await vault.put_secret("existing_key", "value");
+    const result = await vault.inspect_secret_references("{{secret:existing_key}}");
+    expect(result.missing_keys).not.toContain("existing_key");
+  });
+
+  it("placeholder 없음 → 비어있음", async () => {
+    const result = await vault.inspect_secret_references("no placeholders here");
+    expect(result.missing_keys).toEqual([]);
+    expect(result.invalid_ciphertexts).toEqual([]);
+  });
+});
+
+describe("SecretVaultService — remove_secret 추가 경로", () => {
+  it("존재하는 시크릿 제거 → true", async () => {
+    await vault.put_secret("to_remove", "value");
+    const removed = await vault.remove_secret("to_remove");
+    expect(removed).toBe(true);
+    expect(await vault.reveal_secret("to_remove")).toBeNull();
+  });
+
+  it("존재하지 않는 키 → false", async () => {
+    const removed = await vault.remove_secret("ghost_key");
+    expect(removed).toBe(false);
+  });
+});
+
+describe("SecretVaultService — prune_expired 최근 시크릿 보존", () => {
+  it("최근 시크릿은 삭제 안 됨", async () => {
+    await vault.put_secret("inbound.recent", "value");
+    const count = await vault.prune_expired(60_000 * 60 * 24);
+    expect(count).toBe(0);
+    expect(await vault.reveal_secret("inbound.recent")).toBe("value");
+  });
+});
+
+describe("SecretVaultService — get_paths", () => {
+  it("root_dir / store_path 반환", () => {
+    const paths = vault.get_paths();
+    expect(paths.root_dir).toContain("security");
+    expect(paths.store_path).toContain("secrets.db");
+  });
+});
+
+describe("SecretVaultService — mask_known_secrets 빈 문자열", () => {
+  it("빈 문자열 → 빈 문자열 반환", async () => {
+    const result = await vault.mask_known_secrets("");
+    expect(result).toBe("");
+  });
+});
+
+// ══════════════════════════════════════════
+// from secret-vault-factory.test.ts — factory + keyring migration + mask cache
+// ══════════════════════════════════════════
+
+import { get_shared_secret_vault, set_default_vault_workspace } from "@src/security/secret-vault-factory.js";
+
+describe("secret vault factory", () => {
+  it("reuses instance per workspace path", async () => {
+    const root = await mkdtemp(join(tmpdir(), "secret-vault-factory-"));
+    const nested = join(root, ".");
+    const other = await mkdtemp(join(tmpdir(), "secret-vault-factory-other-"));
+    try {
+      const a = get_shared_secret_vault(root);
+      const b = get_shared_secret_vault(nested);
+      const c = get_shared_secret_vault(other);
+      expect(a).toBe(b);
+      expect(a).not.toBe(c);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+      await rm(other, { recursive: true, force: true });
+    }
+  });
+
+  it("throws when no workspace provided and default not set", () => {
+    expect(() => get_shared_secret_vault()).toThrow("workspace not set");
+  });
+
+  it("uses default workspace when set", async () => {
+    const root = await mkdtemp(join(tmpdir(), "secret-vault-default-"));
+    try {
+      set_default_vault_workspace(root);
+      const a = get_shared_secret_vault();
+      const b = get_shared_secret_vault(root);
+      expect(a).toBe(b);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("secret vault keyring migration", () => {
+  let fac_workspace: string;
+
+  beforeEach(async () => {
+    fac_workspace = await mkdtemp(join(tmpdir(), "sv-keyring-migration-"));
+  });
+
+  it("stores master key in keyring.db, not secrets.db", async () => {
+    const fac_vault = new SecretVaultService(fac_workspace);
+    await fac_vault.put_secret("test_key", "test_value");
+    const keyring_path = join(fac_workspace, "runtime", "security", "keyring.db");
+    expect(existsSync(keyring_path)).toBe(true);
+  });
+
+  it("encrypts and decrypts after keyring separation", async () => {
+    const fac_vault = new SecretVaultService(fac_workspace);
+    await fac_vault.put_secret("my_api_key", "super-secret-123");
+    const plain = await fac_vault.reveal_secret("my_api_key");
+    expect(plain).toBe("super-secret-123");
+  });
+});
+
+describe("secret vault mask cache — put/remove invalidation", () => {
+  let fac_workspace: string;
+
+  beforeEach(async () => {
+    fac_workspace = await mkdtemp(join(tmpdir(), "sv-mask-cache-"));
+  });
+
+  it("mask_known_secrets masks stored secret values", async () => {
+    const fac_vault = new SecretVaultService(fac_workspace);
+    await fac_vault.put_secret("token", "my-secret-token-value");
+    const masked = await fac_vault.mask_known_secrets("The token is my-secret-token-value here");
+    expect(masked).not.toContain("my-secret-token-value");
+    expect(masked).toContain("[REDACTED:SECRET]");
+  });
+
+  it("invalidates cache on put_secret", async () => {
+    const fac_vault = new SecretVaultService(fac_workspace);
+    await fac_vault.put_secret("key_a", "value-alpha-12345");
+    await fac_vault.mask_known_secrets("value-alpha-12345");
+    await fac_vault.put_secret("key_b", "value-beta-67890");
+    const masked = await fac_vault.mask_known_secrets("value-alpha-12345 and value-beta-67890");
+    expect(masked).not.toContain("value-alpha-12345");
+    expect(masked).not.toContain("value-beta-67890");
+  });
+
+  it("invalidates cache on remove_secret", async () => {
+    const fac_vault = new SecretVaultService(fac_workspace);
+    await fac_vault.put_secret("key_x", "value-x-secret");
+    await fac_vault.mask_known_secrets("value-x-secret");
+    await fac_vault.remove_secret("key_x");
+    const masked = await fac_vault.mask_known_secrets("value-x-secret");
+    expect(masked).toContain("value-x-secret");
+  });
+});
+
+describe("set_default_vault_workspace — 빈 인자", () => {
+  it("빈 문자열 → 'workspace is required' throw", () => {
+    expect(() => set_default_vault_workspace("")).toThrow("workspace is required");
   });
 });
