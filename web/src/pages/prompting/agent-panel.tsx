@@ -1,6 +1,6 @@
 /**
  * Prompting — Agent 탭.
- * 에이전트 설계(전체 필드) + 테스트 채팅을 한 화면에 통합.
+ * 에이전트 목록 사이드바 + 선택된 에이전트 편집 + 테스트 채팅을 3열로 통합.
  */
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -78,6 +78,48 @@ function form_from_def(def: AgentDefinition): FormState {
   };
 }
 
+// ── 에이전트 목록 아이템 ──
+function AgentListItem({
+  def,
+  selected,
+  running,
+  onClick,
+}: {
+  def: AgentDefinition;
+  selected: boolean;
+  running: boolean;
+  onClick: () => void;
+}) {
+  const t = useT();
+  return (
+    <button
+      className={`ps-agent-item${selected ? " ps-agent-item--active" : ""}`}
+      onClick={onClick}
+      aria-pressed={selected}
+    >
+      <span className="ps-agent-item__icon" aria-hidden="true">{def.icon || "🤖"}</span>
+      <span className="ps-agent-item__body">
+        <span className="ps-agent-item__name">{def.name}</span>
+        {def.role_skill && (
+          <span className="ps-agent-item__role">{def.role_skill.replace("role:", "")}</span>
+        )}
+      </span>
+      <span className="ps-agent-item__badges">
+        {running && (
+          <span className="badge badge--ok ps-agent-item__badge" title={t("prompting.agent_running")}>
+            ●
+          </span>
+        )}
+        {def.is_builtin && (
+          <span className="badge badge--info ps-agent-item__badge" title={t("agents.builtin_tooltip")}>
+            {t("agents.builtin")}
+          </span>
+        )}
+      </span>
+    </button>
+  );
+}
+
 export function AgentPanel({ initial_id }: AgentPanelProps) {
   const t = useT();
   const qc = useQueryClient();
@@ -88,6 +130,20 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
     queryFn: () => api.get("/api/agent-definitions"),
     staleTime: 10_000,
   });
+
+  // running 에이전트 ID 목록 (running/waiting 상태인 에이전트 정의 ID)
+  const { data: running_agents = [] } = useQuery<Array<{ id: string; status: string }>>({
+    queryKey: ["agents"],
+    queryFn: () => api.get("/api/agents"),
+    refetchInterval: 15_000,
+    staleTime: 5_000,
+  });
+
+  const running_ids = new Set(
+    running_agents
+      .filter((a) => a.status === "running" || a.status === "waiting_user_input" || a.status === "waiting_approval")
+      .map((a) => a.id),
+  );
 
   /** G-13: 동적 프로토콜 목록 — API 실패 시 폴백 사용. */
   const { data: protocols_data } = useQuery<{ protocols: string[] }>({
@@ -111,6 +167,8 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
   const [running, setRunning] = useState(false);
   const [last_result, setLastResult] = useState<RunResultValue | null>(null);
   const [saving, setSaving] = useState(false);
+  const [delete_confirm_id, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -216,40 +274,70 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
         is_builtin: false,
       };
       if (selected_id === "__new__") {
-        await api.post("/api/agent-definitions", payload);
+        const created = await api.post<AgentDefinition>("/api/agent-definitions", payload);
+        void qc.invalidateQueries({ queryKey: ["agent-definitions"] });
+        if (created?.id) setSelectedId(created.id);
       } else {
         await api.put(`/api/agent-definitions/${selected_id}`, payload);
+        void qc.invalidateQueries({ queryKey: ["agent-definitions"] });
       }
-      void qc.invalidateQueries({ queryKey: ["agent-definitions"] });
     } finally {
       setSaving(false);
     }
   };
 
+  const handle_delete = async (id: string) => {
+    setDeleting(true);
+    try {
+      await api.del(`/api/agent-definitions/${id}`);
+      void qc.invalidateQueries({ queryKey: ["agent-definitions"] });
+      setSelectedId("__new__");
+    } finally {
+      setDeleting(false);
+      setDeleteConfirmId(null);
+    }
+  };
+
+  const selected_def = definitions.find((d) => d.id === selected_id);
+
   return (
-    <div className="ps-split">
-      {/* ── 왼쪽: 에이전트 설계 ── */}
+    <div className="ps-agent-layout">
+      {/* ── 왼쪽: 에이전트 목록 ── */}
+      <aside className="ps-agent-sidebar">
+        <div className="ps-agent-sidebar__head">
+          <span className="ps-pane-head__title">{t("prompting.agent_catalog")}</span>
+          <button
+            className="btn btn--xs btn--accent"
+            onClick={() => setSelectedId("__new__")}
+            aria-label={t("prompting.agent_new")}
+          >
+            +
+          </button>
+        </div>
+        <div className="ps-agent-sidebar__list">
+          {definitions.length === 0 && (
+            <div className="ps-agent-sidebar__empty">{t("prompting.agent_list_empty")}</div>
+          )}
+          {definitions.map((def) => (
+            <AgentListItem
+              key={def.id}
+              def={def}
+              selected={selected_id === def.id}
+              running={running_ids.has(def.id)}
+              onClick={() => setSelectedId(def.id)}
+            />
+          ))}
+        </div>
+      </aside>
+
+      {/* ── 가운데: 에이전트 편집 ── */}
       <aside className="ps-config">
         {/* 타이틀 */}
         <div className="ps-pane-head">
           <div className="ps-pane-head__icon">🤖</div>
-          <span className="ps-pane-head__title">{t("prompting.agent_title")}</span>
-        </div>
-
-        {/* 에이전트 선택 */}
-        <div className="ps-pane-sec">
-          <span className="ps-pane-sec__label">{t("prompting.agent_label")}</span>
-          <select
-            className="ps-select-sm"
-            style={{ height: 32, fontSize: 13 }}
-            value={selected_id}
-            onChange={(e) => setSelectedId(e.target.value)}
-          >
-            <option value="__new__">{t("prompting.agent_new")}</option>
-            {definitions.map((d) => (
-              <option key={d.id} value={d.id}>{d.icon} {d.name}{d.is_builtin ? ` ${t("prompting.builtin")}` : ""}</option>
-            ))}
-          </select>
+          <span className="ps-pane-head__title">
+            {selected_id === "__new__" ? t("prompting.agent_new_title") : t("prompting.agent_edit_title")}
+          </span>
         </div>
 
         {/* 기본 정보: 아이콘 + 이름 + 설명 */}
@@ -274,7 +362,6 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
           </div>
           <input
             className="input"
-            style={{ marginTop: 6 }}
             value={form.description}
             onChange={(e) => set("description", e.target.value)}
             placeholder={t("agents.description_placeholder")}
@@ -383,7 +470,6 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
           />
           <input
             className="input"
-            style={{ marginTop: 6 }}
             value={form.skills}
             onChange={(e) => set("skills", e.target.value)}
             placeholder={t("agents.skills_hint")}
@@ -401,7 +487,6 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
           />
           <input
             className="input"
-            style={{ marginTop: 6 }}
             value={form.not_use_for}
             onChange={(e) => set("not_use_for", e.target.value)}
             placeholder={t("agents.not_use_for_placeholder")}
@@ -432,6 +517,29 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
           </button>
           {selected_id !== "__new__" && (
             <button className="btn btn--sm" onClick={() => setSelectedId("__new__")}>{t("prompting.new")}</button>
+          )}
+          {selected_id !== "__new__" && selected_def && !selected_def.is_builtin && (
+            delete_confirm_id === selected_id ? (
+              <>
+                <button
+                  className="btn btn--sm btn--danger"
+                  disabled={deleting}
+                  onClick={() => void handle_delete(selected_id)}
+                >
+                  {deleting ? "…" : t("prompting.agent_delete_confirm")}
+                </button>
+                <button className="btn btn--sm" onClick={() => setDeleteConfirmId(null)}>
+                  {t("common.cancel")}
+                </button>
+              </>
+            ) : (
+              <button
+                className="btn btn--sm btn--danger"
+                onClick={() => setDeleteConfirmId(selected_id)}
+              >
+                {t("prompting.delete")}
+              </button>
+            )
           )}
         </div>
       </aside>

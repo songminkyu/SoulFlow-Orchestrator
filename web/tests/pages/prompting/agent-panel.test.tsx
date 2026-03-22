@@ -82,7 +82,7 @@ describe("AgentPanel", () => {
 
   it("mounts without crash", () => {
     const { container } = render(<AgentPanel />);
-    expect(container.querySelector(".ps-split")).toBeTruthy();
+    expect(container.querySelector(".ps-agent-layout")).toBeTruthy();
   });
 
   it("renders name input field", () => {
@@ -106,8 +106,8 @@ describe("AgentPanel", () => {
   it("renders role_skill select with ROLE_SKILLS options", () => {
     const { container } = render(<AgentPanel />);
     const selects = container.querySelectorAll("select.ps-select-sm");
-    expect(selects.length).toBeGreaterThanOrEqual(2);
-    const role_select = selects[1]!;
+    expect(selects.length).toBeGreaterThanOrEqual(1);
+    const role_select = selects[0]!;
     const options = role_select.querySelectorAll("option");
     expect(options.length).toBeGreaterThanOrEqual(5);
   });
