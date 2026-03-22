@@ -99,6 +99,8 @@ export interface OrchStorageDeps {
 export interface OrchSecurityDeps {
   oauth_store: OAuthIntegrationStore;
   oauth_flow: OAuthFlowService;
+  /** IC-1: 아웃바운드 요청 검증 포트. 미설정 시 빈 allowlist guard 사용. */
+  outbound_guard?: import("../security/outbound-guard.js").OutboundRequestGuardLike | null;
 }
 
 /** 도구/서비스 의존성. MCP, embed, vector, query DB. */
@@ -184,7 +186,7 @@ export async function create_orchestration_bundle(deps: OrchestrationBundleDeps)
     if (!integration) throw new Error(`OAuth integration "${service_id}" not found`);
     if (!integration.enabled) throw new Error(`OAuth integration "${service_id}" is disabled`);
 
-    // SH-2: OAuthFetchTool과 동일한 allowed_hosts 검증 — 공유 헬퍼 사용
+    // SH-2 / IC-1: OutboundRequestGuardLike port 경유 — integration별 guard 생성
     const parsed_url = validate_url(opts.url);
     if (typeof parsed_url === "string") throw new Error(parsed_url);
     const { check_allowed_hosts } = await import("../agent/tools/http-utils.js");

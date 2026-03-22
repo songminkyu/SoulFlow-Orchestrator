@@ -1,5 +1,7 @@
 /** HTTP 요청/응답 처리 공유 유틸리티. HttpRequestTool · OAuthFetchTool 공통. */
 
+import { create_guard_from_integration_settings } from "../../security/outbound-guard.js";
+
 /** 사설망 호스트 차단 패턴 (SSRF 방지). */
 const PRIVATE_HOST_RE =
   /^(localhost|127\.\d+\.\d+\.\d+|::1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+|169\.254\.\d+\.\d+)$/i;
@@ -27,17 +29,20 @@ export function validate_url(url_str: string): URL | string {
 /**
  * SH-2: OAuth allowed_hosts 검증. 미설정 시 차단, 불일치 시 차단.
  * OAuthFetchTool과 oauth_fetch_service가 동일 함수를 사용.
+ * IC-1: OutboundRequestGuardLike port를 통해 동작.
  */
 export function check_allowed_hosts(
   hostname: string,
   settings: { allowed_hosts?: unknown[] } | undefined,
   service_id: string,
 ): string | null {
-  const allowed = Array.isArray(settings?.allowed_hosts)
-    ? settings!.allowed_hosts.map(String).filter(Boolean)
-    : [];
-  if (allowed.length === 0) return `allowed_hosts not configured for "${service_id}". Set allowed_hosts in integration settings.`;
-  if (!allowed.includes(hostname)) return `host "${hostname}" is not in allowed_hosts for "${service_id}"`;
+  const guard = create_guard_from_integration_settings(settings);
+  if (guard.get_allowed_hosts().length === 0)
+    return `allowed_hosts not configured for "${service_id}". Set allowed_hosts in integration settings.`;
+  // port의 is_allowed는 URL 파싱을 사용하므로 hostname만 있는 경우 scheme을 붙여서 검증
+  const dummy_url = `https://${hostname}/`;
+  if (!guard.is_allowed(dummy_url))
+    return `host "${hostname}" is not in allowed_hosts for "${service_id}"`;
   return null;
 }
 

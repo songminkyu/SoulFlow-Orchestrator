@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { EmptyState } from "../../components/empty-state";
 import { DeleteConfirmModal } from "../../components/modal";
@@ -11,6 +12,7 @@ import { useT } from "../../i18n";
 import { time_ago } from "../../utils/format";
 import { PROVIDER_TYPE_LABELS as TYPE_LABELS } from "../../utils/constants";
 import type { ProviderInstance, ProviderConnection, ModalMode, ConnectionModalMode } from "./types";
+import type { ApiSecuritySummary } from "../../api/contracts";
 import { ProviderModal } from "./provider-modal";
 import { ConnectionModal } from "./connection-modal";
 import { useAuthUser } from "../../hooks/use-auth";
@@ -20,6 +22,32 @@ import {
 } from "../../hooks/use-team-providers";
 
 type Tab = "providers" | "chat" | "embedding" | "image" | "video" | "shared";
+
+// ── IC-1: TrustZoneBadge — アウトバウンドリクエストのtrust zone表示 ──────────────
+
+function TrustZoneBadge() {
+  const t = useT();
+  const { data } = useQuery<ApiSecuritySummary>({
+    queryKey: ["admin-security-summary"],
+    queryFn: () => api.get("/api/admin/security/summary"),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  if (!data) return null;
+
+  const zone = data.trust_zone || "internal";
+  const variant = zone === "internal" || zone === "private" ? "ok" : "warn";
+  return (
+    <span
+      className={`badge badge--${variant}`}
+      title={t("providers.trust_zone")}
+      data-testid="trust-zone-badge"
+    >
+      {t("providers.trust_zone")}: {zone}
+    </span>
+  );
+}
 
 export default function ProvidersPage() {
   const { toast } = useToast();
@@ -84,6 +112,7 @@ export default function ProvidersPage() {
       {tab === "providers" && (
         <div className="fade-in">
           <SectionHeader title={t("connections.title")}>
+            <TrustZoneBadge />
             <button className="btn btn--sm btn--accent" onClick={() => setConnModal({ kind: "add" })}>
               {t("connections.add")}
             </button>
