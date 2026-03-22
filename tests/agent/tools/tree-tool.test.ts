@@ -198,3 +198,112 @@ describe("TreeTool — lca: node_a 없음 → L96 error", () => {
     expect(String(r.error)).toContain("ghost");
   });
 });
+
+// ══════════════════════════════════════════
+// root merge: traverse 순서 검증 / flatten depth·parent / find path / depth 통계 / to_ascii / from_parent_list / lca
+// ══════════════════════════════════════════
+
+const SAMPLE_TREE = JSON.stringify({
+  id: "A",
+  children: [
+    { id: "B", children: [{ id: "D" }, { id: "E" }] },
+    { id: "C", children: [{ id: "F" }] },
+  ],
+});
+
+describe("TreeTool — traverse 순서 (root merge)", () => {
+  it("pre-order 순서 검증", async () => {
+    const r = await exec({ action: "traverse", tree: SAMPLE_TREE, order: "pre" }) as Record<string, unknown>;
+    expect(r.nodes).toEqual(["A", "B", "D", "E", "C", "F"]);
+  });
+
+  it("post-order 순서 검증", async () => {
+    const r = await exec({ action: "traverse", tree: SAMPLE_TREE, order: "post" }) as Record<string, unknown>;
+    expect(r.nodes).toEqual(["D", "E", "B", "F", "C", "A"]);
+  });
+
+  it("level-order (BFS) 순서 검증", async () => {
+    const r = await exec({ action: "traverse", tree: SAMPLE_TREE, order: "level" }) as Record<string, unknown>;
+    expect(r.nodes).toEqual(["A", "B", "C", "D", "E", "F"]);
+  });
+
+  it("기본 순서는 pre", async () => {
+    const r = await exec({ action: "traverse", tree: SAMPLE_TREE }) as Record<string, unknown>;
+    expect(r.order).toBe("pre");
+  });
+});
+
+describe("TreeTool — flatten 세부 (root merge)", () => {
+  it("트리를 평탄화 + depth/parent 포함", async () => {
+    const r = await exec({ action: "flatten", tree: SAMPLE_TREE }) as Record<string, unknown>;
+    expect(r.count).toBe(6);
+    const nodes = r.nodes as Array<{ id: string; depth: number; parent?: string }>;
+    const a = nodes.find((n) => n.id === "A");
+    expect(a!.depth).toBe(0);
+    const d = nodes.find((n) => n.id === "D");
+    expect(d!.depth).toBe(2);
+    expect(d!.parent).toBe("B");
+  });
+});
+
+describe("TreeTool — find 세부 (root merge)", () => {
+  it("노드 찾기 + 경로", async () => {
+    const r = await exec({ action: "find", tree: SAMPLE_TREE, target: "E" }) as Record<string, unknown>;
+    expect(r.found).toBe(true);
+    expect(r.path).toEqual(["A", "B", "E"]);
+    expect(r.depth).toBe(2);
+  });
+
+  it("없는 노드 → found=false", async () => {
+    const r = await exec({ action: "find", tree: SAMPLE_TREE, target: "Z" }) as Record<string, unknown>;
+    expect(r.found).toBe(false);
+  });
+});
+
+describe("TreeTool — depth 통계 (root merge)", () => {
+  it("트리 깊이/노드/리프 통계", async () => {
+    const r = await exec({ action: "depth", tree: SAMPLE_TREE }) as Record<string, unknown>;
+    expect(r.max_depth).toBe(2);
+    expect(r.node_count).toBe(6);
+    expect(r.leaf_count).toBe(3);
+  });
+});
+
+describe("TreeTool — to_ascii 세부 (root merge)", () => {
+  it("ASCII 트리 생성 + line_count", async () => {
+    const r = await exec({ action: "to_ascii", tree: SAMPLE_TREE }) as Record<string, unknown>;
+    expect(String(r.ascii)).toContain("A");
+    expect(r.line_count).toBe(6);
+  });
+});
+
+describe("TreeTool — from_parent_list 세부 (root merge)", () => {
+  it("부모 목록에서 트리 구성 (grandchild 포함)", async () => {
+    const parents = JSON.stringify([
+      { id: "root", parent: null },
+      { id: "child1", parent: "root" },
+      { id: "child2", parent: "root" },
+      { id: "grandchild", parent: "child1" },
+    ]);
+    const r = await exec({ action: "from_parent_list", parents }) as Record<string, unknown>;
+    expect((r.tree as { id: string }).id).toBe("root");
+    expect((r.tree as { children: unknown[] }).children).toHaveLength(2);
+  });
+});
+
+describe("TreeTool — lca 세부 (root merge)", () => {
+  it("최소 공통 조상 (같은 서브트리)", async () => {
+    const r = await exec({ action: "lca", tree: SAMPLE_TREE, node_a: "D", node_b: "E" }) as Record<string, unknown>;
+    expect(r.lca).toBe("B");
+  });
+
+  it("서로 다른 서브트리 → 루트가 LCA", async () => {
+    const r = await exec({ action: "lca", tree: SAMPLE_TREE, node_a: "D", node_b: "F" }) as Record<string, unknown>;
+    expect(r.lca).toBe("A");
+  });
+
+  it("없는 노드 → 에러", async () => {
+    const r = await exec({ action: "lca", tree: SAMPLE_TREE, node_a: "D", node_b: "Z" }) as Record<string, unknown>;
+    expect(String(r.error)).toContain("not found");
+  });
+});

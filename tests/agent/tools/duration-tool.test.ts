@@ -197,3 +197,113 @@ describe("DurationTool — 미커버 분기", () => {
     expect(String(r.human)).toContain("week");
   });
 });
+
+// ══════════════════════════════════════════
+// root merge: parse 숫자 문자열 / to_iso / humanize 단수 복수 / subtract·compare 실패 / 자연어
+// ══════════════════════════════════════════
+
+describe("DurationTool — parse: 숫자 문자열 → from_ms", () => {
+  it("'3600000' (ms 숫자 문자열) → 파싱됨", async () => {
+    const r = await exec({ action: "parse", duration: "3600000" }) as Record<string, unknown>;
+    expect((r.parts as Record<string, number>).hours).toBe(1);
+  });
+
+  it("'0' → 파싱됨 (0ms)", async () => {
+    const r = await exec({ action: "parse", duration: "0" }) as Record<string, unknown>;
+    expect((r.parts as Record<string, number>)).toBeDefined();
+    expect(r.ms).toBe(0);
+  });
+});
+
+describe("DurationTool — to_iso: date_part 포함", () => {
+  it("P1Y → ISO 'P1Y'", async () => {
+    const r = await exec({ action: "format", duration: "P1Y" }) as Record<string, unknown>;
+    expect(r.iso).toBe("P1Y");
+  });
+
+  it("P2M → ISO 'P2M'", async () => {
+    const r = await exec({ action: "format", duration: "P2M" }) as Record<string, unknown>;
+    expect(r.iso).toBe("P2M");
+  });
+
+  it("P3W → ISO 'P3W'", async () => {
+    const r = await exec({ action: "format", duration: "P3W" }) as Record<string, unknown>;
+    expect(r.iso).toBe("P3W");
+  });
+
+  it("P1Y2M3D → ISO 'P1Y2M3D'", async () => {
+    const r = await exec({ action: "format", duration: "P1Y2M3D" }) as Record<string, unknown>;
+    expect(r.iso).toBe("P1Y2M3D");
+  });
+});
+
+describe("DurationTool — humanize: years/months/weeks 단수/복수", () => {
+  it("P2Y → '2 years'", async () => {
+    const r = await exec({ action: "humanize", duration: "P2Y" }) as Record<string, unknown>;
+    expect(String(r.human)).toContain("2 years");
+  });
+
+  it("P1Y → '1 year' (단수)", async () => {
+    const r = await exec({ action: "humanize", duration: "P1Y" }) as Record<string, unknown>;
+    expect(String(r.human)).toContain("1 year");
+    expect(String(r.human)).not.toContain("1 years");
+  });
+
+  it("P3M → '3 months'", async () => {
+    const r = await exec({ action: "humanize", duration: "P3M" }) as Record<string, unknown>;
+    expect(String(r.human)).toContain("3 months");
+  });
+
+  it("P1M → '1 month' (단수)", async () => {
+    const r = await exec({ action: "humanize", duration: "P1M" }) as Record<string, unknown>;
+    expect(String(r.human)).toContain("1 month");
+    expect(String(r.human)).not.toContain("1 months");
+  });
+
+  it("P2W → '2 weeks'", async () => {
+    const r = await exec({ action: "humanize", duration: "P2W" }) as Record<string, unknown>;
+    expect(String(r.human)).toContain("2 weeks");
+  });
+
+  it("P1W → '1 week' (단수)", async () => {
+    const r = await exec({ action: "humanize", duration: "P1W" }) as Record<string, unknown>;
+    expect(String(r.human)).toContain("1 week");
+    expect(String(r.human)).not.toContain("1 weeks");
+  });
+});
+
+describe("DurationTool — subtract: duration2 파싱 실패", () => {
+  it("duration2 invalid → error", async () => {
+    const r = await exec({ action: "subtract", duration: "PT1H", duration2: "not-valid" }) as Record<string, unknown>;
+    expect(r.error).toBeDefined();
+  });
+});
+
+describe("DurationTool — compare: duration2 파싱 실패", () => {
+  it("duration2 invalid → error", async () => {
+    const r = await exec({ action: "compare", duration: "PT1H", duration2: "not-valid" }) as Record<string, unknown>;
+    expect(r.error).toBeDefined();
+  });
+});
+
+describe("DurationTool — parse: 자연어 year/month/week/sec", () => {
+  it("'1 year' → years: 1", async () => {
+    const r = await exec({ action: "parse", duration: "1 year" }) as Record<string, unknown>;
+    expect((r.parts as Record<string, number>).years).toBe(1);
+  });
+
+  it("'2 months' → months: 2", async () => {
+    const r = await exec({ action: "parse", duration: "2 months" }) as Record<string, unknown>;
+    expect((r.parts as Record<string, number>).months).toBe(2);
+  });
+
+  it("'3 weeks' → weeks: 3", async () => {
+    const r = await exec({ action: "parse", duration: "3 weeks" }) as Record<string, unknown>;
+    expect((r.parts as Record<string, number>).weeks).toBe(3);
+  });
+
+  it("'30 seconds' → seconds: 30", async () => {
+    const r = await exec({ action: "parse", duration: "30 seconds" }) as Record<string, unknown>;
+    expect((r.parts as Record<string, number>).seconds).toBe(30);
+  });
+});

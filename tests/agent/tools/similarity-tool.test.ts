@@ -189,3 +189,133 @@ describe("SimilarityTool — 미커버 분기", () => {
     expect(Number(r.jaro)).toBeLessThan(1);
   });
 });
+
+// ══════════════════════════════════════════
+// root merge: cosine 벡터/텍스트 / jaccard 세부 / levenshtein / hamming / dice / jaro_winkler / euclidean
+// ══════════════════════════════════════════
+
+describe("SimilarityTool — cosine 추가", () => {
+  it("동일 벡터 → 유사도 1", async () => {
+    const r = await exec({ action: "cosine", a: "[1,2,3]", b: "[1,2,3]" }) as Record<string, unknown>;
+    expect(Number(r.similarity)).toBe(1);
+    expect(r.metric).toBe("cosine");
+  });
+
+  it("직교 벡터 → 유사도 0", async () => {
+    const r = await exec({ action: "cosine", a: "[1,0]", b: "[0,1]" }) as Record<string, unknown>;
+    expect(Number(r.similarity)).toBe(0);
+  });
+
+  it("길이 불일치 → 에러", async () => {
+    const r = await exec({ action: "cosine", a: "[1,2]", b: "[1,2,3]" }) as Record<string, unknown>;
+    expect(r.error).toBeDefined();
+  });
+
+  it("동일 텍스트 → 유사도 1", async () => {
+    const r = await exec({ action: "cosine", a: "hello world", b: "hello world" }) as Record<string, unknown>;
+    expect(Number(r.similarity)).toBe(1);
+    expect(r.metric).toBe("cosine_text");
+  });
+
+  it("다른 텍스트 → 0 < 유사도 < 1", async () => {
+    const r = await exec({ action: "cosine", a: "hello world foo", b: "hello bar baz" }) as Record<string, unknown>;
+    expect(Number(r.similarity)).toBeGreaterThan(0);
+    expect(Number(r.similarity)).toBeLessThan(1);
+  });
+});
+
+describe("SimilarityTool — jaccard 추가", () => {
+  it("동일 집합 → 유사도 1", async () => {
+    const r = await exec({ action: "jaccard", a: "cat dog", b: "dog cat" }) as Record<string, unknown>;
+    expect(Number(r.similarity)).toBe(1);
+  });
+
+  it("겹침 없음 → 유사도 0", async () => {
+    const r = await exec({ action: "jaccard", a: "cat", b: "dog" }) as Record<string, unknown>;
+    expect(Number(r.similarity)).toBe(0);
+    expect(r.intersection).toBe(0);
+  });
+
+  it("부분 겹침 정량", async () => {
+    const r = await exec({ action: "jaccard", a: "a b c", b: "b c d" }) as Record<string, unknown>;
+    expect(Number(r.similarity)).toBe(0.5);
+    expect(r.intersection).toBe(2);
+    expect(r.union).toBe(4);
+  });
+});
+
+describe("SimilarityTool — levenshtein 추가", () => {
+  it("동일 문자열 → 거리 0, 유사도 1", async () => {
+    const r = await exec({ action: "levenshtein", a: "abc", b: "abc" }) as Record<string, unknown>;
+    expect(Number(r.distance)).toBe(0);
+    expect(Number(r.similarity)).toBe(1);
+  });
+
+  it("kitten → sitting 거리 3", async () => {
+    const r = await exec({ action: "levenshtein", a: "kitten", b: "sitting" }) as Record<string, unknown>;
+    expect(Number(r.distance)).toBe(3);
+  });
+});
+
+describe("SimilarityTool — hamming 추가", () => {
+  it("동일 문자열 → 거리 0", async () => {
+    const r = await exec({ action: "hamming", a: "abc", b: "abc" }) as Record<string, unknown>;
+    expect(Number(r.distance)).toBe(0);
+    expect(Number(r.similarity)).toBe(1);
+  });
+
+  it("karolin vs kathrin → 3 differences", async () => {
+    const r = await exec({ action: "hamming", a: "karolin", b: "kathrin" }) as Record<string, unknown>;
+    expect(Number(r.distance)).toBe(3);
+  });
+});
+
+describe("SimilarityTool — dice 추가", () => {
+  it("동일 문자열 → 유사도 1", async () => {
+    const r = await exec({ action: "dice", a: "night", b: "night" }) as Record<string, unknown>;
+    expect(Number(r.similarity)).toBe(1);
+  });
+
+  it("완전히 다른 문자열 → 유사도 0", async () => {
+    const r = await exec({ action: "dice", a: "ab", b: "cd" }) as Record<string, unknown>;
+    expect(Number(r.similarity)).toBe(0);
+  });
+});
+
+describe("SimilarityTool — jaro_winkler 추가", () => {
+  it("동일 문자열 → 유사도 1", async () => {
+    const r = await exec({ action: "jaro_winkler", a: "abc", b: "abc" }) as Record<string, unknown>;
+    expect(Number(r.similarity)).toBe(1);
+  });
+
+  it("공통 접두사 보너스 적용", async () => {
+    const r = await exec({ action: "jaro_winkler", a: "martha", b: "marhta" }) as Record<string, unknown>;
+    expect(Number(r.similarity)).toBeGreaterThan(Number(r.jaro));
+    expect(Number(r.common_prefix)).toBeGreaterThan(0);
+  });
+});
+
+describe("SimilarityTool — euclidean 추가", () => {
+  it("동일 벡터 → 거리 0, 유사도 1", async () => {
+    const r = await exec({ action: "euclidean", a: "[1,2,3]", b: "[1,2,3]" }) as Record<string, unknown>;
+    expect(Number(r.distance)).toBe(0);
+    expect(Number(r.similarity)).toBe(1);
+  });
+
+  it("거리 계산 [0,0]→[3,4]=5", async () => {
+    const r = await exec({ action: "euclidean", a: "[0,0]", b: "[3,4]" }) as Record<string, unknown>;
+    expect(Number(r.distance)).toBe(5);
+  });
+
+  it("비벡터 입력 → 에러", async () => {
+    const r = await exec({ action: "euclidean", a: "hello", b: "world" }) as Record<string, unknown>;
+    expect(r.error).toBeDefined();
+  });
+});
+
+describe("SimilarityTool — unknown action 추가", () => {
+  it("알 수 없는 액션 → 에러", async () => {
+    const r = await exec({ action: "unknown_metric", a: "a", b: "b" }) as Record<string, unknown>;
+    expect(String(r.error)).toContain("unknown action");
+  });
+});

@@ -185,3 +185,111 @@ describe("BloomFilterTool — 미커버 분기", () => {
     expect(Number(r.added)).toBe(0);
   });
 });
+
+// ══════════════════════════════════════════
+// root merge: create 크기 지정 / add+test hash_count / test 미추가 / stats / merge / estimate_size / serialize
+// ══════════════════════════════════════════
+
+describe("BloomFilterTool — create 추가 (root merge)", () => {
+  it("빈 필터 생성 (크기/hash_count 지정)", async () => {
+    const r = await exec({ action: "create", size: 256, hash_count: 3 }) as Record<string, unknown>;
+    expect(r.size).toBe(256);
+    expect(r.hash_count).toBe(3);
+    expect(r.bit_count).toBe(0);
+    expect(r.filter).toBeDefined();
+  });
+});
+
+describe("BloomFilterTool — add+test 추가 (root merge)", () => {
+  it("추가한 항목은 possibly_exists=true (hash_count 명시)", async () => {
+    const create = await exec({ action: "create", size: 1024, hash_count: 3 }) as Record<string, unknown>;
+    const added = await exec({
+      action: "add", filter: String(create.filter), size: 1024, hash_count: 3,
+      items: JSON.stringify(["apple", "banana"]),
+    }) as Record<string, unknown>;
+    expect(Number(added.added)).toBeGreaterThan(0);
+
+    const tested = await exec({
+      action: "test", filter: String(added.filter), size: 1024, hash_count: 3,
+      items: JSON.stringify(["apple", "banana"]),
+    }) as Record<string, unknown>;
+    const results = tested.results as { possibly_exists: boolean }[];
+    expect(results[0]?.possibly_exists).toBe(true);
+    expect(results[1]?.possibly_exists).toBe(true);
+  });
+
+  it("추가하지 않은 항목은 일반적으로 false (item 단일)", async () => {
+    const create = await exec({ action: "create", size: 1024, hash_count: 3 }) as Record<string, unknown>;
+    const added = await exec({
+      action: "add", filter: String(create.filter), size: 1024, hash_count: 3,
+      items: JSON.stringify(["apple"]),
+    }) as Record<string, unknown>;
+    const tested = await exec({
+      action: "test", filter: String(added.filter), size: 1024, hash_count: 3,
+      item: "zzz_not_added_xyz",
+    }) as Record<string, unknown>;
+    const results = tested.results as { possibly_exists: boolean }[];
+    expect(results[0]?.possibly_exists).toBe(false);
+  });
+});
+
+describe("BloomFilterTool — stats 추가 (root merge)", () => {
+  it("추가 후 estimated_items 포함 통계 반환", async () => {
+    const create = await exec({ action: "create", size: 1024, hash_count: 3 }) as Record<string, unknown>;
+    const added = await exec({
+      action: "add", filter: String(create.filter), size: 1024, hash_count: 3,
+      items: JSON.stringify(["a", "b", "c"]),
+    }) as Record<string, unknown>;
+    const stats = await exec({
+      action: "stats", filter: String(added.filter), size: 1024, hash_count: 3,
+    }) as Record<string, unknown>;
+    expect(Number(stats.set_bits)).toBeGreaterThan(0);
+    expect(Number(stats.fill_ratio)).toBeGreaterThan(0);
+    expect(Number(stats.estimated_items)).toBeGreaterThan(0);
+  });
+});
+
+describe("BloomFilterTool — merge 추가 (root merge)", () => {
+  it("두 필터 병합 후 두 항목 모두 존재", async () => {
+    const create = await exec({ action: "create", size: 256, hash_count: 3 }) as Record<string, unknown>;
+    const f1 = await exec({
+      action: "add", filter: String(create.filter), size: 256, hash_count: 3, item: "apple",
+    }) as Record<string, unknown>;
+    const f2 = await exec({
+      action: "add", filter: String(create.filter), size: 256, hash_count: 3, item: "banana",
+    }) as Record<string, unknown>;
+    const merged = await exec({
+      action: "merge", filter: String(f1.filter), filter2: String(f2.filter), size: 256,
+    }) as Record<string, unknown>;
+    const tested = await exec({
+      action: "test", filter: String(merged.filter), size: 256, hash_count: 3,
+      items: JSON.stringify(["apple", "banana"]),
+    }) as Record<string, unknown>;
+    const results = tested.results as { possibly_exists: boolean }[];
+    expect(results[0]?.possibly_exists).toBe(true);
+    expect(results[1]?.possibly_exists).toBe(true);
+  });
+});
+
+describe("BloomFilterTool — estimate_size 추가 (root merge)", () => {
+  it("예상 아이템 수로 필터 크기 추정 (10000개)", async () => {
+    const r = await exec({
+      action: "estimate_size", expected_items: 10000, false_positive_rate: 0.01,
+    }) as Record<string, unknown>;
+    expect(Number(r.recommended_size)).toBeGreaterThan(0);
+    expect(Number(r.recommended_hash_count)).toBeGreaterThan(0);
+    expect(Number(r.memory_bytes)).toBeGreaterThan(0);
+  });
+});
+
+describe("BloomFilterTool — serialize 추가 (root merge)", () => {
+  it("필터 직렬화 정보 (hex 일치 확인)", async () => {
+    const create = await exec({ action: "create", size: 512, hash_count: 5 }) as Record<string, unknown>;
+    const r = await exec({
+      action: "serialize", filter: String(create.filter), size: 512, hash_count: 5,
+    }) as Record<string, unknown>;
+    expect(r.hex).toBe(create.filter);
+    expect(r.size).toBe(512);
+    expect(r.hash_count).toBe(5);
+  });
+});

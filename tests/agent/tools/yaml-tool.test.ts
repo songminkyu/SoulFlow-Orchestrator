@@ -618,3 +618,69 @@ describe("YamlTool — query 깊은 경로", () => {
     expect(parsed).toBeDefined();
   });
 });
+
+// ══════════════════════════════════════════
+// root merge: parse 시퀀스 / generate 배열 / merge deep / query 없는경로
+// ══════════════════════════════════════════
+
+describe("YamlTool — parse 추가 (root merge)", () => {
+  it("시퀀스 파싱", async () => {
+    const yaml = "- apple\n- banana\n- cherry";
+    const r = await exec({ action: "parse", data: yaml });
+    expect(r).toEqual(["apple", "banana", "cherry"]);
+  });
+
+  it("불리언/null 스칼라", async () => {
+    const yaml = "enabled: true\ndisabled: false\nempty: null";
+    const r = await exec({ action: "parse", data: yaml }) as Record<string, unknown>;
+    expect(r.enabled).toBe(true);
+    expect(r.disabled).toBe(false);
+    expect(r.empty).toBeNull();
+  });
+});
+
+describe("YamlTool — generate 추가 (root merge)", () => {
+  it("중첩 객체 → YAML 들여쓰기", async () => {
+    const data = JSON.stringify({ db: { host: "localhost", port: 5432 } });
+    const r = String(await exec({ action: "generate", data }));
+    expect(r).toContain("db:");
+    expect(r).toContain("  host: localhost");
+  });
+
+  it("배열 → - item 형식", async () => {
+    const data = JSON.stringify({ items: ["a", "b", "c"] });
+    const r = String(await exec({ action: "generate", data }));
+    expect(r).toContain("- a");
+    expect(r).toContain("- b");
+  });
+});
+
+describe("YamlTool — merge 추가 (root merge)", () => {
+  it("deep merge (중첩 객체)", async () => {
+    const y1 = "db:\n  host: localhost\n  port: 5432";
+    const y2 = "db:\n  port: 3306\n  name: mydb";
+    const r = String(await exec({ action: "merge", data: y1, data2: y2 }));
+    expect(r).toContain("host: localhost");
+    expect(r).toContain("port: 3306");
+    expect(r).toContain("name: mydb");
+  });
+});
+
+describe("YamlTool — query 추가 (root merge)", () => {
+  it("dot-notation 경로 쿼리", async () => {
+    const yaml = "db:\n  host: localhost\n  port: 5432";
+    const r = await exec({ action: "query", data: yaml, path: "db.host" }) as Record<string, unknown>;
+    expect(r.result).toBe("localhost");
+  });
+
+  it("없는 경로 → null", async () => {
+    const yaml = "a: 1";
+    const r = await exec({ action: "query", data: yaml, path: "b.c" }) as Record<string, unknown>;
+    expect(r.result).toBeNull();
+  });
+
+  it("path 없으면 에러", async () => {
+    const r = String(await exec({ action: "query", data: "a: 1" }));
+    expect(r).toContain("Error");
+  });
+});

@@ -145,3 +145,81 @@ describe("CsvTool — 미커버 분기", () => {
     expect(JSON.stringify(rows[0])).toContain("hello");
   });
 });
+
+// ══════════════════════════════════════════
+// root merge: parse 세부 / generate 세부 / count / headers / filter / 커스텀 구분자
+// ══════════════════════════════════════════
+
+describe("CsvTool — parse 추가 (root merge)", () => {
+  it("헤더 포함 CSV → JSON 객체 배열 (세부 검증)", async () => {
+    const SAMPLE = `name,age,city\nAlice,30,Seoul\nBob,25,Busan\nCharlie,35,Incheon`;
+    const r = await exec({ action: "parse", data: SAMPLE }) as Record<string, unknown>;
+    expect(r.count).toBe(3);
+    expect(r.headers).toEqual(["name", "age", "city"]);
+    const rows = r.rows as Record<string, string>[];
+    expect(rows[0]).toEqual({ name: "Alice", age: "30", city: "Seoul" });
+    expect(rows[2]).toEqual({ name: "Charlie", age: "35", city: "Incheon" });
+  });
+
+  it("따옴표로 감싸진 필드 (쉼표 포함)", async () => {
+    const data = `name,address\nAlice,"Seoul, Korea"\nBob,"Busan, Korea"`;
+    const r = await exec({ action: "parse", data }) as Record<string, unknown>;
+    const rows = r.rows as Record<string, string>[];
+    expect(rows[0]?.address).toBe("Seoul, Korea");
+  });
+
+  it("이스케이프된 따옴표 (\"\")", async () => {
+    const data = `msg\n"He said ""hello"""`;
+    const r = await exec({ action: "parse", data }) as Record<string, unknown>;
+    const rows = r.rows as Record<string, string>[];
+    expect(rows[0]?.msg).toBe('He said "hello"');
+  });
+});
+
+describe("CsvTool — generate 추가 (root merge)", () => {
+  it("2D 배열 → CSV", async () => {
+    const data = JSON.stringify([["a", "b"], [1, 2]]);
+    const r = String(await exec({ action: "generate", data }));
+    expect(r).toContain("a,b");
+    expect(r).toContain("1,2");
+  });
+
+  it("빈 배열 → 빈 문자열", async () => {
+    const r = String(await exec({ action: "generate", data: "[]" }));
+    expect(r).toBe("");
+  });
+});
+
+describe("CsvTool — count 추가 (root merge)", () => {
+  it("행/열 수 반환", async () => {
+    const SAMPLE = `name,age,city\nAlice,30,Seoul\nBob,25,Busan\nCharlie,35,Incheon`;
+    const r = await exec({ action: "count", data: SAMPLE }) as Record<string, unknown>;
+    expect(r.total_rows).toBe(4);
+    expect(r.data_rows).toBe(3);
+    expect(r.columns).toBe(3);
+  });
+});
+
+describe("CsvTool — filter 추가 (root merge)", () => {
+  it("없는 열 이름 → 무시", async () => {
+    const SAMPLE = `name,age,city\nAlice,30,Seoul\nBob,25,Busan\nCharlie,35,Incheon`;
+    const r = await exec({ action: "filter", data: SAMPLE, columns: "name,nonexistent" }) as Record<string, unknown>;
+    expect(r.headers).toEqual(["name"]);
+  });
+});
+
+describe("CsvTool — 커스텀 구분자 추가 (root merge)", () => {
+  it("탭 구분자", async () => {
+    const data = "name\tage\nAlice\t30";
+    const r = await exec({ action: "parse", data, delimiter: "\t" }) as Record<string, unknown>;
+    const rows = r.rows as Record<string, string>[];
+    expect(rows[0]).toEqual({ name: "Alice", age: "30" });
+  });
+});
+
+describe("CsvTool — unsupported action 추가 (root merge)", () => {
+  it("지원하지 않는 action → 에러", async () => {
+    const r = String(await exec({ action: "nope", data: "" }));
+    expect(r).toContain("unsupported action");
+  });
+});
