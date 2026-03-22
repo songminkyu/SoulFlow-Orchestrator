@@ -52,8 +52,6 @@ export default function ProvidersPage() {
 
   const chatProviders = instances?.filter((i) => (i.model_purpose || "chat") === "chat") ?? [];
   const embedProviders = instances?.filter((i) => i.model_purpose === "embedding") ?? [];
-  const imageProviders = instances?.filter((i) => i.model_purpose === "image") ?? [];
-  const videoProviders = instances?.filter((i) => i.model_purpose === "video") ?? [];
 
   const openAddModal = () => {
     const purpose = (tab === "embedding" || tab === "image" || tab === "video") ? tab : "chat";

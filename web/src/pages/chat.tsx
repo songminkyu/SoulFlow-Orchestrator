@@ -477,7 +477,7 @@ export default function ChatPage() {
           onDelete={(id) => setDeleteConfirmId(id)}
         />
       ) : panel === "memory" ? (
-        <MemoryPanel sessionId={activeId} mode="inline" className="chat-memory-panel" />
+        <MemoryPanel sessionId={activeId ?? undefined} mode="inline" className="chat-memory-panel" />
       ) : !has_active ? (
         <div className="chat-empty-hub">
           <div className="chat-empty-hub__center">

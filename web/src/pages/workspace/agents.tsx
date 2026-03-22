@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
+import type { ApiProcessList } from "../../api/contracts";
 import { Badge } from "../../components/badge";
 import { EmptyState } from "../../components/empty-state";
 import { Modal, DeleteConfirmModal } from "../../components/modal";
@@ -78,7 +79,7 @@ export function AgentsTab() {
   const { data: agents = [] } = useQuery<Agent[]>({ queryKey: ["agents"], queryFn: () => api.get("/api/agents"), refetchInterval: 15_000, staleTime: 5_000 });
   const { data: agent_loops = [] } = useQuery<AgentLoop[]>({ queryKey: ["loops"], queryFn: () => api.get("/api/loops"), refetchInterval: 15_000, staleTime: 5_000 });
   const { data: task_loops = [] } = useQuery<TaskLoop[]>({ queryKey: ["tasks"], queryFn: () => api.get("/api/tasks"), refetchInterval: 15_000, staleTime: 5_000 });
-  const { data: raw_processes } = useQuery<{ active: ProcessEntry[]; recent: ProcessEntry[] }>(
+  const { data: raw_processes } = useQuery<ApiProcessList>(
     { queryKey: ["processes"], queryFn: () => api.get("/api/processes"), refetchInterval: 15_000, staleTime: 5_000 }
   );
 

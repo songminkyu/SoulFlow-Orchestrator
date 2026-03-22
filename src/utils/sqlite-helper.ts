@@ -1,6 +1,7 @@
-/** 공유 SQLite 유틸리티 — open-per-call 패턴. */
+/** 공유 SQLite 유틸리티 — open-per-call 패턴. AP-2: 유일한 DB 진입점. */
 
 import Database from "better-sqlite3";
+import * as sqliteVec from "sqlite-vec";
 import { error_message } from "./common.js";
 
 type DatabaseSync = Database.Database;
@@ -72,6 +73,60 @@ export async function with_sqlite_async<T>(
     const msg = error_message(err);
     if (process.env.NODE_ENV !== "test") {
       process.stderr.write(`[sqlite] error at ${db_path}: ${msg}\n`);
+    }
+    return null;
+  } finally {
+    try { db?.close(); } catch { /* no-op */ }
+  }
+}
+
+/* ─── AP-2: sqlite-vec 확장 포함 헬퍼 ───────────────────────────────────── */
+
+/** DB를 열고 sqlite-vec 확장 로드 후 콜백 실행, 닫는다. WAL 기본 적용. 에러 시 stderr 로깅 후 null. */
+export function with_vec_db<T>(
+  db_path: string,
+  run: (db: DatabaseSync) => T,
+  options?: SqliteRunOptions,
+): T | null {
+  let db: DatabaseSync | null = null;
+  try {
+    db = new Database(db_path, options?.readonly ? { readonly: true } : undefined);
+    if (!options?.readonly) db.pragma("journal_mode=WAL");
+    if (options?.pragmas) {
+      for (const p of options.pragmas) db.pragma(p);
+    }
+    sqliteVec.load(db);
+    return run(db);
+  } catch (err) {
+    const msg = error_message(err);
+    if (process.env.NODE_ENV !== "test") {
+      process.stderr.write(`[sqlite-vec] error at ${db_path}: ${msg}\n`);
+    }
+    return null;
+  } finally {
+    try { db?.close(); } catch { /* no-op */ }
+  }
+}
+
+/** DB를 열고 sqlite-vec 확장 로드 후 async 콜백 실행, 닫는다. WAL 기본 적용. 에러 시 stderr 로깅 후 null. */
+export async function with_vec_db_async<T>(
+  db_path: string,
+  run: (db: DatabaseSync) => Promise<T>,
+  options?: SqliteRunOptions,
+): Promise<T | null> {
+  let db: DatabaseSync | null = null;
+  try {
+    db = new Database(db_path, options?.readonly ? { readonly: true } : undefined);
+    if (!options?.readonly) db.pragma("journal_mode=WAL");
+    if (options?.pragmas) {
+      for (const p of options.pragmas) db.pragma(p);
+    }
+    sqliteVec.load(db);
+    return await run(db);
+  } catch (err) {
+    const msg = error_message(err);
+    if (process.env.NODE_ENV !== "test") {
+      process.stderr.write(`[sqlite-vec] error at ${db_path}: ${msg}\n`);
     }
     return null;
   } finally {

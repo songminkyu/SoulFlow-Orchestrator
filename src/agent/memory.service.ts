@@ -3,9 +3,8 @@ import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import type { RechunkJob } from "./memory-rechunk-worker.js";
-import Database from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
-import { with_sqlite, with_sqlite_strict } from "../utils/sqlite-helper.js";
+import { with_sqlite, with_sqlite_strict, with_vec_db, with_vec_db_async } from "../utils/sqlite-helper.js";
 import type {
   ConsolidationMessage,
   ConsolidationSession,
@@ -590,11 +589,7 @@ export class MemoryStore implements MemoryStoreLike {
       if (!embeddings?.[0]?.length) return [];
       const query_vec = normalize_vec_f32(embeddings[0]);
 
-      let db: Database.Database | null = null;
-      try {
-        db = new Database(this.sqlite_path, { readonly: true });
-        sqliteVec.load(db);
-
+      return with_vec_db(this.sqlite_path, (db) => {
         const rows = db.prepare(`
           SELECT v.rowid, v.distance
           FROM memory_chunks_vec v
@@ -604,11 +599,9 @@ export class MemoryStore implements MemoryStoreLike {
 
         if (!rows.length) return [];
 
-        // rowid → chunk_id 매핑
         const rowids = rows.map(r => r.rowid);
         const placeholders = rowids.map(() => "?").join(",");
 
-        // kind/day 필터 적용
         let filter = "";
         const bind_extra: string[] = [];
         if (kind === "longterm") { filter = "AND c.kind = ?"; bind_extra.push("longterm"); }
@@ -621,14 +614,11 @@ export class MemoryStore implements MemoryStoreLike {
           `SELECT c.rowid, c.chunk_id FROM memory_chunks c WHERE c.rowid IN (${placeholders}) ${filter}`,
         ).all(...rowids, ...bind_extra) as { rowid: number; chunk_id: string }[];
 
-        // WHERE IN은 rowid 순서를 보장하지 않음 — KNN distance 순서 복원
         const rowid_to_chunk = new Map(chunk_rows.map(r => [Number(r.rowid), r.chunk_id]));
         return rowids
           .map(rid => rowid_to_chunk.get(Number(rid)))
           .filter((id): id is string => id !== undefined);
-      } finally {
-        try { db?.close(); } catch { /* no-op */ }
-      }
+      }, { readonly: true }) ?? [];
     } catch {
       return [];
     }
@@ -647,17 +637,13 @@ export class MemoryStore implements MemoryStoreLike {
 
     if (stale.length === 0) return;
 
-    let db: Database.Database | null = null;
-    try {
-      db = new Database(this.sqlite_path);
-      db.pragma("journal_mode=WAL");
-      sqliteVec.load(db);
+    await with_vec_db_async(this.sqlite_path, async (db) => {
       const ins_vec = db.prepare("INSERT OR REPLACE INTO memory_chunks_vec (rowid, embedding) VALUES (?, ?)");
 
       for (let offset = 0; offset < stale.length; offset += EMBED_BATCH_SIZE) {
         const batch = stale.slice(offset, offset + EMBED_BATCH_SIZE);
         const texts = batch.map(r => r.content.slice(0, MAX_EMBED_CHARS));
-        const { embeddings } = await this.embed_fn(texts, { dimensions: VEC_DIMENSIONS });
+        const { embeddings } = await this.embed_fn!(texts, { dimensions: VEC_DIMENSIONS });
         if (!embeddings || embeddings.length !== batch.length) continue;
 
         const tx = db.transaction(() => {
@@ -667,9 +653,7 @@ export class MemoryStore implements MemoryStoreLike {
         });
         tx();
       }
-    } finally {
-      try { db?.close(); } catch { /* no-op */ }
-    }
+    });
   }
 
   private get_chunk_meta(chunk_id: string): { doc_key: string; kind: string; day: string; heading: string; start_line: number; content: string } | null {

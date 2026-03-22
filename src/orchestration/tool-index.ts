@@ -11,8 +11,7 @@
 
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import Database from "better-sqlite3";
-import * as sqliteVec from "sqlite-vec";
+import { with_vec_db, with_vec_db_async } from "../utils/sqlite-helper.js";
 import type { ToolSchema } from "../agent/tools/types.js";
 import type { EmbedFn } from "../agent/memory.service.js";
 import { TOOL_INDEX_PROFILE, build_fts5_tokenize_clause } from "../search/index.js";
@@ -274,19 +273,14 @@ export class ToolIndex {
     this.fresh_checked_at = 0; // 강제 freshness 재확인
 
     mkdirSync(dirname(this.db_path), { recursive: true });
-    const db = new Database(this.db_path);
-    try {
-      db.pragma("journal_mode=WAL");
+    with_vec_db(this.db_path, (db) => {
       // 마이그레이션: 구 스키마 또는 손상된 FTS5 shadow 테이블 정리.
-      // tool_docs가 없으면 구 스키마 → 전체 정리 후 재생성.
-      // tool_docs가 있더라도 FTS5 shadow 테이블이 손상되었으면 FTS만 재생성.
       const has_tool_docs = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='tool_docs'").get();
       if (!has_tool_docs) {
         for (const t of ["tools_fts", "tools_fts_content", "tools_fts_data", "tools_fts_idx", "tools_fts_docsize", "tools_fts_config"]) {
           db.exec(`DROP TABLE IF EXISTS ${t}`);
         }
       } else {
-        // FTS5 무결성 검사 — shadow 테이블 손상 시 재생성
         try {
           db.prepare("SELECT 1 FROM tools_fts LIMIT 0").run();
         } catch {
@@ -296,13 +290,8 @@ export class ToolIndex {
         }
       }
       db.exec(INIT_SQL);
-
-      // sqlite-vec 확장 로드 + vec0 테이블 생성
-      sqliteVec.load(db);
       db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS tools_vec USING vec0(embedding float[${VEC_DIMENSIONS}])`);
 
-      // 기존 데이터 삭제 후 재삽입
-      // FTS5 external content 모드에서는 DELETE가 shadow 테이블 접근 오류를 유발하므로 DROP+CREATE
       db.exec("DELETE FROM tools");
       db.exec("DELETE FROM tool_docs");
       db.exec("DROP TABLE IF EXISTS tools_fts");
@@ -340,9 +329,7 @@ export class ToolIndex {
       });
       batch();
       this.tool_count = schemas.length;
-    } finally {
-      db.close();
-    }
+    });
     this._build_mem(schemas, category_map);
   }
 
@@ -522,11 +509,7 @@ export class ToolIndex {
     if (!query_buf) return [];
 
     // KNN
-    const db = new Database(this.db_path, { readonly: true });
-    try {
-      sqliteVec.load(db);
-      // vec0에서 가까운 rowid → tool_docs에서 name 조회
-      // rowid는 tool_docs.rowid와 일치 (build에서 동기화)
+    return with_vec_db(this.db_path, (db) => {
       const rows = db.prepare(`
         SELECT v.rowid, v.distance
         FROM tools_vec v
@@ -541,9 +524,7 @@ export class ToolIndex {
         `SELECT name FROM tool_docs WHERE rowid IN (${placeholders})`,
       ).all(...rowids) as { name: string }[];
       return name_rows.map(r => r.name);
-    } finally {
-      db.close();
-    }
+    }, { readonly: true }) ?? [];
   }
 
   /** 쿼리 임베딩 캐시 조회 또는 신규 생성. */
@@ -582,11 +563,7 @@ export class ToolIndex {
     if (now - this.fresh_checked_at < FRESH_CHECK_TTL_MS) return;
     this.fresh_checked_at = now;
 
-    const db = new Database(this.db_path);
-    try {
-      sqliteVec.load(db);
-
-      // vec0에 없는 도구 또는 content_hash가 변경된 도구 검출
+    await with_vec_db_async(this.db_path, async (db) => {
       const stale_rows = db.prepare(`
         SELECT c.rowid, t.name, t.desc_raw, t.content_hash
         FROM tools t
@@ -596,9 +573,8 @@ export class ToolIndex {
 
       if (!stale_rows.length) return;
 
-      // 배치 임베딩
       const texts = stale_rows.map(r => `${r.name}: ${r.desc_raw}`.slice(0, MAX_EMBED_CHARS));
-      const { embeddings } = await this.embed_fn(texts, { dimensions: VEC_DIMENSIONS });
+      const { embeddings } = await this.embed_fn!(texts, { dimensions: VEC_DIMENSIONS });
 
       const del_vec = db.prepare("DELETE FROM tools_vec WHERE rowid = ?");
       const ins_vec = db.prepare("INSERT INTO tools_vec (rowid, embedding) VALUES (?, ?)");
@@ -613,9 +589,7 @@ export class ToolIndex {
         }
       });
       batch();
-    } finally {
-      db.close();
-    }
+    });
   }
 
   /** 요청 텍스트에서 FTS5 MATCH 쿼리를 생성. */

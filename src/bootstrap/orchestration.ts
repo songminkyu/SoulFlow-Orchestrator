@@ -46,46 +46,79 @@ import { create_local_artifact_store } from "../services/artifact-store.js";
 import type { CoordinationStoreLike } from "../bus/coordination-store.js";
 import { create_local_coordination_store } from "../bus/coordination-store.js";
 
-export interface OrchestrationBundleDeps {
+/* ─── AP-1: Sub-bundle 타입 정의 ─────────────────────────────────────────── */
+
+/** 인프라/설정 의존성. workspace 경로, 앱 설정, 로거, observability. */
+export interface OrchInfraDeps {
   ctx: TeamWorkspace;
   workspace: string;
   user_dir: string;
   data_dir: string;
   app_config: AppConfig;
+  logger: ReturnType<typeof create_logger>;
+  observability?: ObservabilityLike | null;
+  primary_provider: string;
+  default_chat_id: string;
+  resolve_instance_to_type: (id: string) => string;
+}
+
+/** 에이전트 런타임 의존성. provider, backend registry, 프로세스/확인/HITL. */
+export interface OrchAgentDeps {
   providers: ProviderRegistry;
   agent: AgentDomain;
   agent_runtime: ReturnType<typeof create_agent_runtime>;
   agent_backend_registry: AgentBackendRegistry;
   provider_caps: ProviderCapabilities;
+  process_tracker: ProcessTracker;
+  persona_renderer: PersonaMessageRenderer;
+  hitl_pending_store: HitlPendingStore;
+  confirmation_guard: ConfirmationGuard;
+  usage_store?: import("../orchestration/agent-hooks-builder.js").UsageRecorderLike | null;
+}
+
+/** 이벤트/메시징 의존성. bus, broadcaster, kanban. */
+export interface OrchEventDeps {
   bus: MessageBusRuntime;
   events: WorkflowEventService;
   decisions: DecisionService;
-  process_tracker: ProcessTracker;
-  mcp: McpClientManager;
-  phase_workflow_store: PhaseWorkflowStore;
   broadcaster: MutableBroadcaster;
-  confirmation_guard: ConfirmationGuard;
-  oauth_store: OAuthIntegrationStore;
-  oauth_flow: OAuthFlowService;
-  embed_service: EmbedServiceFn | undefined;
-  vector_store_service: ReturnType<typeof create_vector_store_service> | undefined;
-  webhook_store: WebhookStore;
   kanban_store: KanbanStoreLike;
-  query_db_service: ReturnType<typeof create_query_db_service> | undefined;
-  persona_renderer: PersonaMessageRenderer;
-  hitl_pending_store: HitlPendingStore;
-  tool_index: ToolIndex;
-  resolve_instance_to_type: (id: string) => string;
-  primary_provider: string;
-  default_chat_id: string;
-  logger: ReturnType<typeof create_logger>;
-  observability?: ObservabilityLike | null;
-  usage_store?: import("../orchestration/agent-hooks-builder.js").UsageRecorderLike | null;
+}
+
+/** 저장소 의존성. workflow, webhook, artifact, coordination. */
+export interface OrchStorageDeps {
+  phase_workflow_store: PhaseWorkflowStore;
+  webhook_store: WebhookStore;
   /** PA-5: 아티팩트 저장 포트. 미지정 시 bootstrap이 로컬 어댑터를 생성. */
   artifact_store?: ArtifactStoreLike | null;
   /** PA-5: 에이전트 협업 상태 조율 포트. 미지정 시 bootstrap이 로컬 어댑터를 생성. */
   coordination_store?: CoordinationStoreLike | null;
 }
+
+/** 인증/OAuth 의존성. */
+export interface OrchSecurityDeps {
+  oauth_store: OAuthIntegrationStore;
+  oauth_flow: OAuthFlowService;
+}
+
+/** 도구/서비스 의존성. MCP, embed, vector, query DB. */
+export interface OrchToolDeps {
+  mcp: McpClientManager;
+  tool_index: ToolIndex;
+  embed_service: EmbedServiceFn | undefined;
+  vector_store_service: ReturnType<typeof create_vector_store_service> | undefined;
+  query_db_service: ReturnType<typeof create_query_db_service> | undefined;
+}
+
+/* ─── Composition: 기존 OrchestrationBundleDeps 하위 호환 ────────────── */
+
+export type OrchestrationBundleDeps =
+  OrchInfraDeps &
+  OrchAgentDeps &
+  OrchEventDeps &
+  OrchStorageDeps &
+  OrchSecurityDeps &
+  OrchToolDeps;
 
 export interface OrchestrationBundleResult {
   orchestration: OrchestrationService;

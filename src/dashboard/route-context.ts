@@ -57,6 +57,8 @@ export type RouteContext = {
   correlation: CorrelationContext;
   /** PA-3: TeamStore factory. concrete 생성을 route handler에서 제거. */
   create_team_store: (team_id: string) => import("../auth/team-store.js").TeamStoreLike;
+  /** AP-4: Observability MetricsEmitter (write-only). snapshot() 미노출 — 읽기는 admin 라우트에서 observability 직접 접근. */
+  obs_metrics: Pick<import("../observability/metrics.js").MetricsSinkLike, "counter" | "gauge" | "histogram"> | null;
 };
 
 export type RouteHandler = (ctx: RouteContext) => Promise<boolean>;

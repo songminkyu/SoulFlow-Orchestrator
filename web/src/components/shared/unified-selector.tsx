@@ -138,7 +138,7 @@ function UnifiedSelectorInner({
     // native_tools + definitions에서 MCP 서버 도구를 제외한 앱 내장 도구
     const native = toolsRaw.native_tools ?? [];
     const defs = toolsRaw.definitions ?? {};
-    const appNames = Object.keys(defs).filter((n) => !mcpServerNames.has(n.split("/")[0]));
+    const appNames = Object.keys(defs).filter((n) => !mcpServerNames.has(n.split("/")[0] ?? n));
     const allNames = [...new Set([...native, ...appNames])];
     return allNames.map((name) => ({
       type: "app-tool" as const,

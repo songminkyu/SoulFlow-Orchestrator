@@ -2,30 +2,12 @@
 
 import { join } from "node:path";
 import { mkdirSync } from "node:fs";
-import Database from "better-sqlite3";
-import * as sqliteVec from "sqlite-vec";
+import { type DatabaseSync, with_vec_db } from "../utils/sqlite-helper.js";
 import { create_logger } from "../logger.js";
-import { error_message } from "../utils/common.js";
 
 const log = create_logger("vector-store");
 
-type VecDb = Database.Database;
-
-/** sqlite-vec 확장이 로드된 DB를 열고 콜백 실행 후 닫는다. */
-function with_vec_db<T>(db_path: string, run: (db: VecDb) => T): T | null {
-  let db: VecDb | null = null;
-  try {
-    db = new Database(db_path);
-    db.pragma("journal_mode=WAL");
-    sqliteVec.load(db);
-    return run(db);
-  } catch (err) {
-    log.warn("vec_db_error", { db_path, error: error_message(err) });
-    return null;
-  } finally {
-    try { db?.close(); } catch { /* no-op */ }
-  }
-}
+type VecDb = DatabaseSync;
 
 function safe_name(name: string): string {
   return name.replace(/[^a-zA-Z0-9_]/g, "_");

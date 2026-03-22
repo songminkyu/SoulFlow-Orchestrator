@@ -337,6 +337,7 @@ export class DashboardService implements ServiceLike {
       create_team_store: this.options.create_team_store ?? ((team_id: string) =>
         new TeamStore(join(this.options.workspace ?? "", "tenants", team_id, "team.db"), team_id)
       ),
+      obs_metrics: this.options.observability?.metrics ?? null,
     };
   }
 
