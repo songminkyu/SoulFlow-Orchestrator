@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import yaml from "js-yaml";
 import { api } from "../../api/client";
+import type { ApiBuilderModel, ApiBuilderOauthIntegration, ApiBuilderWorkflowTemplate, ApiBuilderKanbanBoard, ApiBuilderAgentDefinition } from "../../api/contracts";
 
 import { useToast } from "../../components/toast";
 const YamlEditor = lazy(() => import("../../components/yaml-editor").then(m => ({ default: m.YamlEditor })));
@@ -322,7 +323,7 @@ export default function WorkflowBuilderPage() {
     queryFn: () => api.get("/api/agents/providers"),
     staleTime: 60_000,
   });
-  const { data: modelsData } = useQuery<{ name: string }[]>({
+  const { data: modelsData } = useQuery<ApiBuilderModel[]>({
     queryKey: ["models"],
     queryFn: () => api.get("/api/models"),
     staleTime: 60_000,
@@ -338,22 +339,22 @@ export default function WorkflowBuilderPage() {
       return models;
     } catch { return []; }
   }, []);
-  const { data: oauthData } = useQuery<{ instance_id: string; label: string; service_type: string; enabled: boolean }[]>({
+  const { data: oauthData } = useQuery<ApiBuilderOauthIntegration[]>({
     queryKey: ["oauth-integrations"],
     queryFn: () => api.get("/api/oauth/integrations"),
     staleTime: 60_000,
   });
-  const { data: wfTemplatesData } = useQuery<{ title: string; slug: string }[]>({
+  const { data: wfTemplatesData } = useQuery<ApiBuilderWorkflowTemplate[]>({
     queryKey: ["workflow-templates-list"],
     queryFn: () => api.get("/api/workflow/templates"),
     staleTime: 60_000,
   });
-  const { data: kanbanBoardsData } = useQuery<{ board_id: string; name: string }[]>({
+  const { data: kanbanBoardsData } = useQuery<ApiBuilderKanbanBoard[]>({
     queryKey: ["kanban-boards"],
     queryFn: () => api.get("/api/kanban/boards"),
     staleTime: 60_000,
   });
-  const { data: agentDefinitionsData } = useQuery<{ id: string; name: string; icon: string; role_skill: string | null; soul: string; heart: string; model: string | null; preferred_providers: string[] }[]>({
+  const { data: agentDefinitionsData } = useQuery<ApiBuilderAgentDefinition[]>({
     queryKey: ["agent-definitions"],
     queryFn: () => api.get("/api/agent-definitions"),
     staleTime: 60_000,

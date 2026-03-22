@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
+import type { ApiProtocolList } from "../../api/contracts";
 import { useT } from "../../i18n";
 import { StudioModelPicker, type StudioModelValue } from "../../components/studio-model-picker";
 import { ChatPromptBar } from "../../components/chat-prompt-bar";
@@ -146,7 +147,7 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
   );
 
   /** G-13: 동적 프로토콜 목록 — API 실패 시 폴백 사용. */
-  const { data: protocols_data } = useQuery<{ protocols: string[] }>({
+  const { data: protocols_data } = useQuery<ApiProtocolList>({
     queryKey: ["protocols"],
     queryFn: () => api.get("/api/protocols"),
     staleTime: 300_000,

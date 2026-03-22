@@ -81,6 +81,14 @@ export default function ChannelsPage() {
                   aria-label={t("common.enabled")}
                 />
               </div>
+              {/* LF-2: worker dispatch mode chip */}
+              {typeof inst.settings?.dispatch_mode === "string" && (
+                <div className="stat-card__extra">
+                  <span className={`chip chip--${inst.settings.dispatch_mode === "sync" ? "info" : inst.settings.dispatch_mode === "queue" ? "warn" : "ok"}`} data-testid="dispatch-mode-chip">
+                    {t(`channels.dispatch_mode_${inst.settings.dispatch_mode}`)}
+                  </span>
+                </div>
+              )}
               {inst.default_target && (
                 <div className="stat-card__extra">
                   <span className="text-xs text-muted">{inst.default_target}</span>

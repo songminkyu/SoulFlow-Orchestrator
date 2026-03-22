@@ -73,6 +73,9 @@ export default function SettingsPage() {
         {t("settings.description")}
       </p>
 
+      {/* LF-5: local-first defaults summary */}
+      {data && <LocalFirstSummary data={data} />}
+
       <StatusView status={viewStatus} onRetry={() => void refetch()}>
         {data && (() => {
           const sections = (data.sections ?? []).filter((s) => !CHANNEL_SECTIONS.has(s.id));
@@ -126,6 +129,35 @@ export default function SettingsPage() {
           );
         })()}
       </StatusView>
+    </div>
+  );
+}
+
+/** LF-5: local-first defaults summary — channel.dispatch/dedupe/grouping 섹션에서 override 집계 표시. */
+function LocalFirstSummary({ data }: { data: ConfigResponse }) {
+  const t = useT();
+  const LOCAL_SECTIONS = new Set(["channel", "channel.streaming", "channel.grouping", "channel.dispatch", "channel.dedupe"]);
+  const local_sections = (data.sections ?? []).filter((s) => LOCAL_SECTIONS.has(s.id));
+  const overridden_count = local_sections.reduce((sum, s) => sum + s.fields.filter((f) => f.overridden).length, 0);
+  const total_count = local_sections.reduce((sum, s) => sum + s.fields.length, 0);
+  if (total_count === 0) return null;
+  return (
+    <div className="panel panel--flush mb-3" data-testid="local-first-summary">
+      <div className="li-flex">
+        <span className="fw-600 text-sm">{t("settings.local_first_summary")}</span>
+        <span className={`badge badge--${overridden_count > 0 ? "ok" : "info"}`}>{overridden_count} / {total_count} overridden</span>
+      </div>
+      <p className="text-xs text-muted mt-1">{t("settings.local_first_desc")}</p>
+      <div className="li-flex mt-1" style={{ flexWrap: "wrap", gap: 4 }}>
+        {local_sections.map((s) => {
+          const n = s.fields.filter((f) => f.overridden).length;
+          return (
+            <span key={s.id} className={`chip chip--${n > 0 ? "ok" : "off"}`}>
+              {s.id} {n > 0 && `(${n})`}
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 }

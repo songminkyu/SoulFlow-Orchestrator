@@ -122,6 +122,16 @@ export function MonitoringPanel() {
                   </div>
                 );
               })}
+              {/* LF-3: relay status badge */}
+              {s.channels && (
+                <div className="kv mt-1 mb-0" data-testid="relay-status">
+                  <Badge
+                    status={s.channels.mention_loop_running ? t("channels.relay_active") : t("channels.relay_inactive")}
+                    variant={s.channels.mention_loop_running ? "ok" : "off"}
+                  />
+                  <span className="text-xs text-muted">{t("channels.relay_status")}</span>
+                </div>
+              )}
               {s.channels?.mention_loop_running && (
                 <div className="text-xs text-ok mt-2">↺ {t("overview.mention_loop")}</div>
               )}

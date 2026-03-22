@@ -176,7 +176,22 @@ export function AgentsTab() {
         {active_processes.length > 0 && (
           <span className="section-header__badge">{t("agents.processes_active", { count: active_processes.length })}</span>
         )}
-      </>} />
+      </>}>
+        {/* TN-5: scope badge — 현재 팀/개인 스코프 표시 */}
+        {auth_enabled && auth_user?.sub && (
+          <span
+            className={`badge badge--${auth_user.role === "superadmin" ? "info" : "ok"}`}
+            data-testid="scope-badge"
+            title={t("agents.scope_badge")}
+          >
+            {auth_user.role === "superadmin"
+              ? t("agents.scope_global")
+              : auth_user.tid
+                ? t("agents.scope_team")
+                : t("agents.scope_personal")}
+          </span>
+        )}
+      </SectionHeader>
 
       {!active_processes.length ? (
         <EmptyState type="empty" title={t("agents.no_processes")} icon="⚡" />

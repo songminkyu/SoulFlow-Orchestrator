@@ -181,6 +181,40 @@ export async function handle_chat(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
+  // POST /api/chat/sessions/:id/canvas-action — IC-5: 캔버스 액션 (action_id + data)
+  const canvas_match = path.match(/^\/api\/chat\/sessions\/([^/]+)\/canvas-action$/);
+  if (canvas_match && req.method === "POST") {
+    const session_id = decodeURIComponent(canvas_match[1]);
+    const session = chat_sessions.get(session_id);
+    if (!session || session.user_id !== user_id || session.team_id !== team_id) { json(res, 404, { error: "session_not_found" }); return true; }
+    const body = await read_body(req);
+    const action_id = typeof body?.action_id === "string" ? body.action_id.trim() : "";
+    if (!action_id) { json(res, 400, { error: "action_id_required" }); return true; }
+    const data: Record<string, unknown> = (body?.data && typeof body.data === "object" && !Array.isArray(body.data))
+      ? (body.data as Record<string, unknown>)
+      : {};
+    // 캔버스 액션을 인바운드 버스 메시지로 발행 — 에이전트가 action_id에 따라 처리
+    await bus.publish_inbound({
+      id: `canvas_${short_id(8)}`,
+      provider: "web" as const,
+      channel: "web",
+      sender_id: publish_ctx.user_id || "web_user",
+      chat_id: session_id,
+      content: `[canvas-action:${action_id}]`,
+      at: now_iso(),
+      team_id: publish_ctx.team_id || "web",
+      metadata: {
+        canvas_action: true,
+        action_id,
+        action_data: data,
+        ...(publish_ctx.team_id ? { team_id: publish_ctx.team_id } : {}),
+        ...(publish_ctx.workspace_dir ? { workspace_dir: publish_ctx.workspace_dir } : {}),
+      },
+    });
+    json(res, 200, { ok: true, action_id });
+    return true;
+  }
+
   // POST /api/chat/sessions/:id/messages { content, media? }
   const msg_match = path.match(/^\/api\/chat\/sessions\/([^/]+)\/messages$/);
   if (msg_match && req.method === "POST") {

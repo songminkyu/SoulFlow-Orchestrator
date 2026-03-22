@@ -71,3 +71,33 @@ export type ApiToolsInfo = { names: string[]; definitions: Array<Record<string, 
 /* ─── Reconcile ─── */
 export type ApiReconcileModel = { task_id: string; reconcile_summaries: unknown[]; critic_summaries: unknown[] };
 export type ApiReconcileList = { data: ApiReconcileModel[] };
+
+/* ─── MCP ─── */
+/** AP/IC-4: MCP 서버 정보 — /api/mcp/servers 응답의 servers 배열 원소. */
+export type ApiMcpServer = { name: string; tools: Array<{ name: string; description?: string }>; connected?: boolean; error?: string };
+export type ApiMcpServerList = { servers: ApiMcpServer[] };
+
+/* ─── Secrets / Protocols / References ─── */
+/** AP/IC-4: 시크릿 이름 목록. */
+export type ApiSecretList = { names: string[] };
+/** AP/IC-4: 프로토콜 목록. */
+export type ApiProtocolList = { protocols: string[] };
+/** AP/IC-4: 참조 문서 목록 + 통계. */
+export type ApiRefDocument = {
+  path: string; chunks: number; size: number; updated_at: string;
+  lexical_profile?: string; tokenizer_hint?: string;
+  retrieval_status?: "indexed" | "pending" | "failed"; hidden_reason?: string;
+};
+export type ApiRefStats = { total_docs: number; total_chunks: number; last_sync: string | null };
+export type ApiRefDocumentList = { documents: ApiRefDocument[]; stats: ApiRefStats };
+
+/* ─── Workflow Builder Resources ─── */
+/** AP/IC-4: 워크플로우 빌더에서 사용하는 공유 리소스 타입 모음. */
+export type ApiBuilderModel = { name: string };
+export type ApiBuilderOauthIntegration = { instance_id: string; label: string; service_type: string; enabled: boolean };
+export type ApiBuilderWorkflowTemplate = { title: string; slug: string };
+export type ApiBuilderKanbanBoard = { board_id: string; name: string };
+export type ApiBuilderAgentDefinition = {
+  id: string; name: string; icon: string; role_skill: string | null;
+  soul: string; heart: string; model: string | null; preferred_providers: string[];
+};

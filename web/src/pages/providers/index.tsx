@@ -23,6 +23,31 @@ import {
 
 type Tab = "providers" | "chat" | "embedding" | "image" | "video" | "shared";
 
+// ── FC-5: ProviderDeployMeta — 프로바이더 배포 메타데이터 표시 ──────────────
+
+function ProviderDeployMeta({ inst }: { inst: ProviderInstance }) {
+  const t = useT();
+  const region = typeof inst.settings?.region === "string" ? inst.settings.region : null;
+  const tier = typeof inst.settings?.tier === "string" ? inst.settings.tier : null;
+  const deploy_kind = typeof inst.settings?.deploy_kind === "string" ? inst.settings.deploy_kind : null;
+  if (!region && !tier && !deploy_kind) return null;
+  return (
+    <div className="stat-card__tags" data-testid="provider-deploy-meta">
+      {deploy_kind && (
+        <span className="badge badge--info" title={t("providers.deployment_meta")}>
+          {deploy_kind === "cloud" ? t("providers.deploy_cloud") : deploy_kind === "local" ? t("providers.deploy_local") : deploy_kind === "on_prem" ? t("providers.deploy_on_prem") : deploy_kind}
+        </span>
+      )}
+      {region && (
+        <span className="badge badge--info" title={t("providers.deployment_region")}>{region}</span>
+      )}
+      {tier && (
+        <span className="badge badge--info" title={t("providers.deployment_tier")}>{tier}</span>
+      )}
+    </div>
+  );
+}
+
 // ── IC-1: TrustZoneBadge — アウトバウンドリクエストのtrust zone表示 ──────────────
 
 function TrustZoneBadge() {
@@ -223,6 +248,8 @@ export default function ProvidersPage() {
                       {inst.supported_modes.map((m) => <span key={m} className="badge badge--info">{m}</span>)}
                     </div>
                   )}
+                  {/* FC-5: provider deployment metadata */}
+                  <ProviderDeployMeta inst={inst} />
                   {inst.updated_at && (
                     <div className="text-xs text-muted">{time_ago(inst.updated_at)}</div>
                   )}
@@ -280,6 +307,8 @@ export default function ProvidersPage() {
                       <span className="text-err">{t("providers.no_token")}</span>
                     )}
                   </div>
+                  {/* FC-5: provider deployment metadata */}
+                  <ProviderDeployMeta inst={inst} />
                   {inst.updated_at && (
                     <div className="text-xs text-muted">{time_ago(inst.updated_at)}</div>
                   )}

@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
+import type { ApiToolsInfo } from "../../api/contracts";
 import { Badge } from "../../components/badge";
 import { EmptyState } from "../../components/empty-state";
 import { Modal } from "../../components/modal";
@@ -178,13 +179,13 @@ export function SkillsTab() {
     staleTime: 30_000,
   });
 
-  const { data: tools_data } = useQuery<{ names: string[]; native_tools?: string[] }>({
+  const { data: tools_data } = useQuery<ApiToolsInfo>({
     queryKey: ["tools"],
     queryFn: () => api.get("/api/tools"),
     staleTime: 60_000,
   });
   const all_tools = tools_data?.names ?? [];
-  const native_tools = tools_data?.native_tools ?? [];
+  const native_tools: string[] = tools_data?.native_tools ? [...tools_data.native_tools] : [];
 
   const { data: oauth_presets = [] } = useQuery<Array<{ service_type: string; label: string }>>({
     queryKey: ["oauth-presets"],

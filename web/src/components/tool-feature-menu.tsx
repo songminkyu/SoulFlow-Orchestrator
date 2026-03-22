@@ -6,14 +6,10 @@
 import { useRef, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
+import type { ApiMcpServerList } from "../api/contracts";
 import { useT } from "../i18n";
 import { useClickOutside } from "../hooks/use-click-outside";
 import type { MentionItem } from "./mention-picker";
-
-interface McpServer {
-  name: string;
-  tools: Array<{ name: string; description?: string }>;
-}
 
 interface WorkflowDef {
   slug: string;
@@ -66,9 +62,9 @@ function ToolFeatureMenuInner({
 
   useClickOutside(wrapRef, onClose, true);
 
-  const { data: mcpRaw } = useQuery<{ servers: McpServer[] }>({
+  const { data: mcpRaw } = useQuery<ApiMcpServerList>({
     queryKey: ["mention-mcp-servers"],
-    queryFn: () => api.get<{ servers: McpServer[] }>("/api/mcp/servers"),
+    queryFn: () => api.get<ApiMcpServerList>("/api/mcp/servers"),
     staleTime: 30_000,
   });
   const mcpServers = mcpRaw?.servers ?? [];

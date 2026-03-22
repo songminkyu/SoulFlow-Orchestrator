@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
+import type { ApiRefDocumentList } from "../../api/contracts";
 import { Badge } from "../../components/badge";
 import { EmptyState } from "../../components/empty-state";
 import { Modal, DeleteConfirmModal } from "../../components/modal";
@@ -14,27 +15,6 @@ import { time_ago } from "../../utils/format";
 import { DataTable } from "../../components/data-table";
 import { RichResultRenderer } from "../../components/rich-result-renderer";
 import { StatusView } from "../../components/status-contract";
-
-interface RefDocument {
-  path: string;
-  chunks: number;
-  size: number;
-  updated_at: string;
-  /** FE-5: 어휘 프로파일 (언어/토크나이저 힌트). */
-  lexical_profile?: string;
-  /** FE-5: 토크나이저 이름. */
-  tokenizer_hint?: string;
-  /** FE-5: 검색 완료 피드백 (indexed/pending/failed). */
-  retrieval_status?: "indexed" | "pending" | "failed";
-  /** FE-5: 숨김/차단 사유. */
-  hidden_reason?: string;
-}
-
-interface RefStats {
-  total_docs: number;
-  total_chunks: number;
-  last_sync: string | null;
-}
 
 interface RefSearchResult {
   doc_path: string;
@@ -65,7 +45,7 @@ export function ReferencesTab() {
   const { pending: searching, run: run_search } = useAsyncState();
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery<{ documents: RefDocument[]; stats: RefStats }>({
+  const { data, isLoading } = useQuery<ApiRefDocumentList>({
     queryKey: ["references"],
     queryFn: () => api.get("/api/references"),
     refetchInterval: 30_000,

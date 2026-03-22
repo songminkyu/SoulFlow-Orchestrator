@@ -21,12 +21,15 @@ interface ChatBottomBarProps {
   session_reuse?: boolean;
   /** FE-4/GW: 실행 경로 분류 (direct/workflow/agent). */
   execution_route?: string | null;
+  /** LF-4: 전달 상태 — 최근 전달 불일치 건수. 0 = 정상, > 0 = 저하. */
+  delivery_mismatch_count?: number;
   onStop: () => void;
 }
 
 export function ChatBottomBar({
   session_label, is_busy, is_streaming, tool_name, active_session_id,
-  requested_channel, delivered_channel, session_reuse, execution_route, onStop,
+  requested_channel, delivered_channel, session_reuse, execution_route,
+  delivery_mismatch_count, onStop,
 }: ChatBottomBarProps) {
   if (!is_busy) return null;
 
@@ -41,6 +44,7 @@ export function ChatBottomBar({
       delivered_channel={delivered_channel ?? null}
       session_reuse={session_reuse ?? false}
       execution_route={execution_route ?? null}
+      delivery_mismatch_count={delivery_mismatch_count ?? 0}
       onStop={onStop}
     />
   );
@@ -49,12 +53,13 @@ export function ChatBottomBar({
 /** is_busy=true 시에만 마운트되는 내부 컴포넌트 — 마운트 즉시 elapsed=0에서 시작. */
 function BusyBar({
   session_label, is_streaming, tool_name, active_session_id,
-  requested_channel, delivered_channel, session_reuse, execution_route, onStop,
+  requested_channel, delivered_channel, session_reuse, execution_route,
+  delivery_mismatch_count, onStop,
 }: {
   session_label: string; is_streaming: boolean; tool_name: string | null;
   active_session_id: string | null; requested_channel: string | null;
   delivered_channel: string | null; session_reuse: boolean;
-  execution_route: string | null; onStop: () => void;
+  execution_route: string | null; delivery_mismatch_count: number; onStop: () => void;
 }) {
   const t = useT();
   const [elapsed_s, setElapsedS] = useState(0);
@@ -102,6 +107,17 @@ function BusyBar({
       {session_reuse && (
         <span className="chat-bottom-bar__reuse-chip" title={t("chat.session_reuse_hint")}>
           ↩ {t("chat.session_reuse")}
+        </span>
+      )}
+      {/* LF-4: delivery health card — 전달 불일치 경고 */}
+      {delivery_mismatch_count > 0 && (
+        <span
+          className="chat-bottom-bar__delivery-health chat-bottom-bar__delivery-health--degraded"
+          data-testid="delivery-health"
+          title={t("channels.delivery_mismatch_count", { count: String(delivery_mismatch_count) })}
+          aria-label={t("channels.delivery_degraded")}
+        >
+          ⚠ {t("channels.delivery_degraded")}
         </span>
       )}
       <button className="chat-bottom-bar__stop" onClick={onStop} aria-label={t("chat.stop")}>

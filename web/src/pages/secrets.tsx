@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
+import type { ApiSecretList } from "../api/contracts";
 import { EmptyState } from "../components/empty-state";
 import { StatusView } from "../components/status-contract";
 import { useToast } from "../components/toast";
@@ -29,7 +30,7 @@ export default function SecretsPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const run_action = useAsyncAction();
-  const { data, isLoading: secretsLoading, isError: secretsError, refetch: refetchSecrets } = useQuery<{ names: string[] }>({ queryKey: ["secrets"], queryFn: () => api.get("/api/secrets"), refetchInterval: 30_000, staleTime: 10_000 });
+  const { data, isLoading: secretsLoading, isError: secretsError, refetch: refetchSecrets } = useQuery<ApiSecretList>({ queryKey: ["secrets"], queryFn: () => api.get("/api/secrets"), refetchInterval: 30_000, staleTime: 10_000 });
   const names = data?.names ?? [];
 
   const [adding, setAdding] = useState(false);

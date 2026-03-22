@@ -6,6 +6,7 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
+import type { ApiMcpServerList } from "../api/contracts";
 import { useT } from "../i18n";
 import { useClickOutside } from "../hooks/use-click-outside";
 
@@ -14,11 +15,6 @@ export interface MentionItem {
   id: string;
   name: string;
   description?: string;
-}
-
-interface McpServer {
-  name: string;
-  tools: Array<{ name: string; description?: string }>;
 }
 
 interface WorkflowDef {
@@ -65,9 +61,9 @@ function MentionPickerInner({ onClose, onSelect, agents = [], className }: Omit<
   }, []);
 
   // MCP 도구 목록 fetch — API 응답: { servers: McpServer[] }
-  const { data: mcpRaw } = useQuery<{ servers: McpServer[] }>({
+  const { data: mcpRaw } = useQuery<ApiMcpServerList>({
     queryKey: ["mention-mcp-servers"],
-    queryFn: () => api.get<{ servers: McpServer[] }>("/api/mcp/servers"),
+    queryFn: () => api.get<ApiMcpServerList>("/api/mcp/servers"),
     staleTime: 30_000,
   });
   const mcpServers = mcpRaw?.servers ?? [];

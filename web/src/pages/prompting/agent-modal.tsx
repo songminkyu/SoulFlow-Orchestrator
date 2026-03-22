@@ -4,6 +4,7 @@ import { FormModal } from "../../components/modal";
 import { FormGroup } from "../../components/form-group";
 import { useT } from "../../i18n";
 import { api } from "../../api/client";
+import type { ApiProtocolList } from "../../api/contracts";
 import { useAsyncState } from "../../hooks/use-async-state";
 import { ProfileEditor } from "./profile-editor";
 import type { AgentDefinition, CreateAgentDefinitionInput, UpdateAgentDefinitionInput, GeneratedAgentFields } from "../../../../src/agent/agent-definition.types";
@@ -64,7 +65,7 @@ function init_form(mode: AgentModalMode) {
 
 export function AgentModal({ mode, onClose, onSaved }: AgentModalProps) {
   const t = useT();
-  const { data: protocols_data } = useQuery<{ protocols: string[] }>({
+  const { data: protocols_data } = useQuery<ApiProtocolList>({
     queryKey: ["protocols"],
     queryFn: () => api.get("/api/protocols"),
     staleTime: 300_000,
