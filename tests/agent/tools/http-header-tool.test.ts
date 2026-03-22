@@ -93,4 +93,27 @@ describe("HttpHeaderTool — authorization", () => {
     expect(r.scheme).toBe("Bearer");
     expect(r.credentials).toBe("mytoken123");
   });
+
+  it("Basic Authorization 빌드", async () => {
+    const r = await exec({ action: "authorization", type: "Basic", token: "dXNlcjpwYXNz" }) as Record<string, unknown>;
+    expect(String(r.value)).toBe("Basic dXNlcjpwYXNz");
+  });
+});
+
+describe("HttpHeaderTool — content_disposition", () => {
+  it("ASCII 파일명", async () => {
+    const r = await exec({ action: "content_disposition", filename: "report.pdf" }) as Record<string, unknown>;
+    expect(String(r.value)).toContain('filename="report.pdf"');
+  });
+
+  it("비ASCII 파일명 → UTF-8 인코딩", async () => {
+    const r = await exec({ action: "content_disposition", filename: "보고서.pdf" }) as Record<string, unknown>;
+    expect(String(r.value)).toContain("filename*=UTF-8''");
+  });
+
+  it("헤더 파싱", async () => {
+    const r = await exec({ action: "content_disposition", header: 'attachment; filename="test.zip"' }) as Record<string, unknown>;
+    const p = r.params as Record<string, string>;
+    expect(p["filename"]).toBe("test.zip");
+  });
 });

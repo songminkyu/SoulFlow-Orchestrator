@@ -117,6 +117,15 @@ describe("EmailTool — 파라미터 검증", () => {
     expect(String(r)).toContain("Error");
     expect(String(r)).toContain("receive");
   });
+
+  it("from 없음 → Error", async () => {
+    const r = await make_tool().execute({
+      action: "send",
+      to: "a@b.com", from: "", subject: "test",
+      body: "hello", smtp_host: "smtp.example.com",
+    });
+    expect(String(r)).toContain("Error");
+  });
 });
 
 // ══════════════════════════════════════════

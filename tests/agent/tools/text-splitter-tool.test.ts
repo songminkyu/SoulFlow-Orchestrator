@@ -98,3 +98,19 @@ describe("TextSplitterTool — regex", () => {
     expect(r.chunk_count).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe("TextSplitterTool — 빈 텍스트", () => {
+  it("빈 텍스트 → chunk_count: 0", async () => {
+    const r = await exec({ action: "fixed", text: "" });
+    expect(r.chunk_count).toBe(0);
+  });
+});
+
+describe("TextSplitterTool — chunk_size 클램핑", () => {
+  it("chunk_size 최소 50 강제", async () => {
+    const text = "a".repeat(100);
+    const r = await exec({ action: "fixed", text, chunk_size: 10, chunk_overlap: 0 });
+    // chunk_size가 50으로 클램핑됨
+    expect(r.chunks[0]).toHaveLength(50);
+  });
+});

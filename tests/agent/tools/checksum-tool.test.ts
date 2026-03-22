@@ -86,4 +86,33 @@ describe("ChecksumTool — 미커버 분기", () => {
     const r = await exec({ action: "hmac", data: "test" }) as Record<string, unknown>;
     expect(r.error).toContain("key is required");
   });
+
+  it("sha256 action + md5 algorithm 오버라이드", async () => {
+    const r = await exec({ action: "sha256", data: "hello", algorithm: "md5" }) as Record<string, unknown>;
+    expect(r.algorithm).toBe("md5");
+    expect(String(r.checksum)).toHaveLength(32);
+  });
+
+  it("verify: 잘못된 체크섬 → match=false", async () => {
+    const r = await exec({ action: "verify", data: "test", expected: "wrong" }) as Record<string, unknown>;
+    expect(r.match).toBe(false);
+  });
+
+  it("compare: 다른 데이터 → all_match=false", async () => {
+    const r = await exec({
+      action: "compare",
+      entries: JSON.stringify([{ name: "a.txt", data: "aaa" }, { name: "b.txt", data: "bbb" }]),
+    }) as Record<string, unknown>;
+    expect(r.all_match).toBe(false);
+  });
+
+  it("manifest: entries 상세 검증", async () => {
+    const r = await exec({
+      action: "manifest",
+      entries: JSON.stringify([{ name: "file1.txt", data: "hello" }, { name: "file2.txt", data: "world" }]),
+    }) as Record<string, unknown>;
+    expect((r.entries as unknown[]).length).toBe(2);
+    expect(String(r.manifest)).toContain("file1.txt");
+    expect(String(r.manifest)).toContain("file2.txt");
+  });
 });

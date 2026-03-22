@@ -28,6 +28,11 @@ describe("DataMaskTool — mask_email", () => {
     const r = await exec({ action: "mask_email", text: "no email here" }) as Record<string, unknown>;
     expect(r.count).toBe(0);
   });
+
+  it("여러 이메일 모두 마스킹", async () => {
+    const r = await exec({ action: "mask_email", text: "a@b.com and c@d.com" }) as Record<string, unknown>;
+    expect(r.count).toBe(2);
+  });
 });
 
 describe("DataMaskTool — mask_phone", () => {

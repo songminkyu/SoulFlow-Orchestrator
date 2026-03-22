@@ -140,6 +140,15 @@ describe("UuidTool — 미커버 분기", () => {
     expect(r.date).toBeDefined();
   });
 
+  it("parse: v7 UUID timestamp ≥ 생성 시점", async () => {
+    const before = Date.now();
+    const v7 = await exec({ action: "generate", version: 7 }) as Record<string, unknown>;
+    const r = await exec({ action: "parse", uuid: String(v7.uuid) }) as Record<string, unknown>;
+    expect(r.version).toBe(7);
+    expect(r.timestamp).toBeGreaterThanOrEqual(before - 1000);
+    expect(r.date).toBeTruthy();
+  });
+
   it("parse: nil UUID → L104 nil=true", async () => {
     // nil UUID: 00000000-0000-0000-0000-000000000000 → result.nil = true
     const r = await exec({ action: "parse", uuid: "00000000-0000-0000-0000-000000000000" }) as Record<string, unknown>;

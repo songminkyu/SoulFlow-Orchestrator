@@ -133,3 +133,23 @@ describe("PaginationTool — unknown action (L109)", () => {
     expect(r.error).toContain("unknown action");
   });
 });
+
+describe("PaginationTool — 중간 페이지 offset", () => {
+  it("2페이지 메타데이터 (has_prev + has_next)", async () => {
+    const r = await exec({ action: "offset", page: 2, per_page: 10, total: 95 }) as Record<string, unknown>;
+    expect(r.mode).toBe("offset");
+    expect(r.offset).toBe(10);
+    expect(r.total_pages).toBe(10);
+    expect(r.has_prev).toBe(true);
+    expect(r.has_next).toBe(true);
+  });
+});
+
+describe("PaginationTool — calculate 상세", () => {
+  it("3페이지 범위 계산 (from/to/showing)", async () => {
+    const r = await exec({ action: "calculate", page: 3, per_page: 10, total: 55 }) as Record<string, unknown>;
+    expect(r.from).toBe(21);
+    expect(r.to).toBe(30);
+    expect(r.showing).toBe(10);
+  });
+});

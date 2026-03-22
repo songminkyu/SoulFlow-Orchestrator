@@ -160,3 +160,30 @@ describe("SentimentTool — unknown action", () => {
     expect(r.error).toContain("unknown action");
   });
 });
+
+describe("SentimentTool — batch 라벨 검증", () => {
+  it("긍정/부정/중립 라벨 정확히 반환", async () => {
+    const texts = JSON.stringify(["I love it", "I hate it", "table"]);
+    const r = await exec({ action: "batch", texts }) as Record<string, unknown>;
+    const results = r.results as Array<{ label: string }>;
+    expect(results[0].label).toBe("positive");
+    expect(results[1].label).toBe("negative");
+    expect(results[2].label).toBe("neutral");
+  });
+});
+
+describe("SentimentTool — score_text 상쇄", () => {
+  it("good + bad 상쇄 → total=0", async () => {
+    const r = await exec({ action: "score_text", text: "good bad" }) as Record<string, unknown>;
+    const ws = r.word_scores as Array<{ word: string; score: number }>;
+    expect(ws.length).toBe(2);
+    expect(r.total).toBe(0);
+  });
+});
+
+describe("SentimentTool — analyze scored_words", () => {
+  it("긍정 텍스트 → scored_words > 0", async () => {
+    const r = await exec({ action: "analyze", text: "I love this amazing wonderful product" }) as Record<string, unknown>;
+    expect(r.scored_words).toBeGreaterThan(0);
+  });
+});
