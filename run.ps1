@@ -55,7 +55,8 @@ function ConvertTo-WslPath {
 function Get-ComposeEnvExports {
   $vars = @(
     "BUILD_TARGET", "NODE_ENV", "DEBUG", "MEMORY", "CPUS",
-    "HOST_WORKSPACE", "PROJECT_NAME", "WEB_PORT",
+    "HOST_WORKSPACE", "PROJECT_NAME", "WEB_PORT", "REDIS_PORT",
+    "REDIS_URL", "BUS_REDIS_URL", "BUS_BACKEND",
     "SKIP_INSTANCE_LOCK", "NODE_HEAP_MB", "BASE_PROFILE"
   )
   $exports = @("export DOCKER_HOST=$($script:WslDockerHost)")
@@ -114,6 +115,8 @@ function Run-Runtime {
 # Named 파라미터 파싱 — 소비된 값은 PositionalArgs에서 제외
 $Workspace = $null
 $WebPort = $null
+$RedisPort = $null
+$RedisUrl = $null
 $Instance = $null
 $Watch = $null
 $PositionalArgs = @()
@@ -130,12 +133,20 @@ for ($i = 0; $i -lt $Arguments.Count; $i++) {
     $Workspace = $val
   } elseif ($arg -match "^--(web-port|webport)=(.+)$") {
     $WebPort = $matches[2]
+  } elseif ($arg -match "^--redis-port=(.+)$") {
+    $RedisPort = $matches[1]
+  } elseif ($arg -match "^--redis-url=(.+)$") {
+    $RedisUrl = $matches[1]
   } elseif ($arg -match "^--(instance|name)=(.+)$") {
     $Instance = $matches[2]
   } elseif ($arg -match "^--(workspace)$" -and $i + 1 -lt $Arguments.Count) {
     $i++; $Workspace = $Arguments[$i]
   } elseif ($arg -match "^--(web-port|webport)$" -and $i + 1 -lt $Arguments.Count) {
     $i++; $WebPort = $Arguments[$i]
+  } elseif ($arg -match "^--redis-port$" -and $i + 1 -lt $Arguments.Count) {
+    $i++; $RedisPort = $Arguments[$i]
+  } elseif ($arg -match "^--redis-url$" -and $i + 1 -lt $Arguments.Count) {
+    $i++; $RedisUrl = $Arguments[$i]
   } elseif ($arg -match "^--(instance|name)$" -and $i + 1 -lt $Arguments.Count) {
     $i++; $Instance = $Arguments[$i]
   } elseif ($arg -match "^--watch=(.+)$") {
@@ -192,6 +203,8 @@ function Show-Help {
   Write-Host "  --workspace=PATH   - 워크스페이스 경로 (필수)"
   Write-Host "  --instance=NAME    - 인스턴스 이름 (다중 인스턴스 스케일링)"
   Write-Host "  --web-port=PORT    - 웹 포트 (기본값: 환경별 다름)"
+  Write-Host "  --redis-url=URL    - 외부 Redis URL (내장 Redis 비활성화)"
+  Write-Host "  --redis-port=PORT  - Redis 호스트 포트 (기본값: 6379)"
   Write-Host "  --watch            - 전체 소스 마운트 + 핫 리로드 (tsx watch)"
   Write-Host "  --watch=web        - 웹 소스만 마운트 + 핫 리로드"
   Write-Host "  --skip-lock        - 인스턴스 락 비활성화 (복구/디버그 전용)"
@@ -228,6 +241,7 @@ function Start-Environment {
   Write-Host "   워크스페이스: $Workspace"
   Write-Host "   프로젝트: $projectName"
   if ($Instance) { Write-Host "   인스턴스: $Instance" }
+  if ($RedisUrl) { Write-Host "   Redis (외부): $RedisUrl" -ForegroundColor Cyan }
   if ($Watch) { Write-Host "   watch: $Watch" -ForegroundColor Cyan }
   if ($SkipLock) { Write-Host "   skip lock: enabled" -ForegroundColor Yellow }
   Write-Host ""
@@ -251,6 +265,12 @@ function Start-Environment {
   $env:WEB_PORT = if ($WebPort) { $WebPort } else { $p.WEB_PORT }
   $env:SKIP_INSTANCE_LOCK = if ($SkipLock) { "1" } else { "0" }
   $env:NODE_HEAP_MB = $p.NODE_HEAP_MB
+  if ($RedisPort) { $env:REDIS_PORT = $RedisPort }
+  if ($RedisUrl) {
+    $env:REDIS_URL = $RedisUrl
+    $env:BUS_REDIS_URL = $RedisUrl
+    $env:BUS_BACKEND = "redis"
+  }
 
   # instance 모드: 기본 인프라(redis, docker-proxy)를 먼저 보장
   if ($Instance) {
@@ -262,6 +282,10 @@ function Start-Environment {
 
   # compose 실행
   $composeArgs = @("-f", "docker/docker-compose.yml")
+  # 외부 Redis: 내장 Redis 비활성화 + 외부 연결
+  if ($RedisUrl) {
+    $composeArgs += @("-f", "docker/docker-compose.external-redis.override.yml")
+  }
   $effectiveWatch = if ($ProfileName -eq "dev" -and -not $Watch) { "all" } else { $Watch }
   if ($effectiveWatch -eq "all") {
     $composeArgs += @("-f", "docker/docker-compose.dev.override.yml")

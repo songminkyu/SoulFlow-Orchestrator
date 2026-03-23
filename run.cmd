@@ -32,6 +32,8 @@ if defined CONTAINER_RUNTIME (
 REM 파라미터 파싱
 set "WORKSPACE="
 set "WEB_PORT="
+set "REDIS_PORT="
+set "REDIS_URL="
 set "INSTANCE="
 set "WATCH="
 set "SKIP_LOCK=0"
@@ -46,6 +48,8 @@ for %%a in (%*) do (
   if defined PREV_KEY (
     if "!PREV_KEY!"=="workspace" set "WORKSPACE=!arg!"
     if "!PREV_KEY!"=="web-port" set "WEB_PORT=!arg!"
+    if "!PREV_KEY!"=="redis-port" set "REDIS_PORT=!arg!"
+    if "!PREV_KEY!"=="redis-url" set "REDIS_URL=!arg!"
     if "!PREV_KEY!"=="instance" set "INSTANCE=!arg!"
     set "PREV_KEY="
   ) else (
@@ -61,6 +65,10 @@ for %%a in (%*) do (
     if "!arg:~0,11!"=="--web-port=" set "WEB_PORT=!arg:~11!"
     if "!arg!"=="--web-port" set "PREV_KEY=web-port"
     if "!arg:~0,10!"=="--webport=" set "WEB_PORT=!arg:~10!"
+    if "!arg:~0,13!"=="--redis-port=" set "REDIS_PORT=!arg:~13!"
+    if "!arg!"=="--redis-port" set "PREV_KEY=redis-port"
+    if "!arg:~0,12!"=="--redis-url=" set "REDIS_URL=!arg:~12!"
+    if "!arg!"=="--redis-url" set "PREV_KEY=redis-url"
     if "!arg:~0,11!"=="--instance=" set "INSTANCE=!arg:~11!"
     if "!arg!"=="--instance" set "PREV_KEY=instance"
     if "!arg:~0,7!"=="--name=" set "INSTANCE=!arg:~7!"
@@ -136,6 +144,10 @@ if not "%INSTANCE%"=="" set "PROJECT_NAME=!PROJECT_NAME!-!INSTANCE!"
 
 set "HOST_WORKSPACE=%WORKSPACE%"
 set "SKIP_INSTANCE_LOCK=%SKIP_LOCK%"
+if not "%REDIS_URL%"=="" (
+  set "BUS_REDIS_URL=%REDIS_URL%"
+  set "BUS_BACKEND=redis"
+)
 
 echo.
 echo %YELLOW%🚀 %COMMAND% 환경 시작 중...%NC%
@@ -163,6 +175,8 @@ if /i "%COMMAND%"=="dev" if "%WATCH%"=="" set "EFFECTIVE_WATCH=all"
 
 REM compose 실행
 set "COMPOSE_CMD=!RT! compose -f docker/docker-compose.yml"
+REM 외부 Redis: 내장 Redis 비활성화 + 외부 연결
+if not "%REDIS_URL%"=="" set "COMPOSE_CMD=!COMPOSE_CMD! -f docker/docker-compose.external-redis.override.yml"
 if "!EFFECTIVE_WATCH!"=="all" set "COMPOSE_CMD=!COMPOSE_CMD! -f docker/docker-compose.dev.override.yml"
 if "!EFFECTIVE_WATCH!"=="web" set "COMPOSE_CMD=!COMPOSE_CMD! -f docker/docker-compose.web-watch.override.yml"
 if not "%INSTANCE%"=="" (
@@ -322,6 +336,8 @@ echo %YELLOW%옵션:%NC%
 echo   --workspace=PATH   - 워크스페이스 경로 (필수)
 echo   --instance=NAME    - 인스턴스 이름
 echo   --web-port=PORT    - 웹 포트
+echo   --redis-url=URL    - 외부 Redis URL (내장 Redis 비활성화)
+echo   --redis-port=PORT  - Redis 호스트 포트 (기본값: 6379)
 echo   --watch            - 전체 소스 마운트 + 핫 리로드 (tsx watch)
 echo   --watch=web        - 웹 소스만 마운트 + 핫 리로드
 echo   --skip-lock        - 인스턴스 락 비활성화 (복구/디버그 전용)

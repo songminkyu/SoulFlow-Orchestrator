@@ -165,8 +165,18 @@ run_env() {
     PROJECT_NAME="$base_project" $RUNTIME compose -f docker/docker-compose.yml -p "$base_project" up -d redis docker-proxy 2>/dev/null || true
   fi
 
+  # 외부 Redis 사용 시 override 적용 + BUS 환경변수 설정
+  if [ -n "$REDIS_URL" ]; then
+    export BUS_REDIS_URL="$REDIS_URL"
+    export BUS_BACKEND=redis
+  fi
+
   # compose 실행
   local compose_args=("-f" "docker/docker-compose.yml")
+  # 외부 Redis: 내장 Redis 비활성화 + 외부 연결
+  if [ -n "$REDIS_URL" ]; then
+    compose_args+=("-f" "docker/docker-compose.external-redis.override.yml")
+  fi
   local effective_watch="$WATCH"
   [ "$profile" = "dev" ] && [ -z "$effective_watch" ] && effective_watch="all"
   if [ "$effective_watch" = "all" ]; then
