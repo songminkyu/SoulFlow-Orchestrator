@@ -77,7 +77,7 @@ function create_cli_agent(cli: "claude" | "codex"): AgentHandle {
 
 // ── Claude 단독 페르소나 테스트 ──
 
-describe.skipIf(!CLAUDE_OK)("Persona E2E: Claude 페르소나 부여", () => {
+describe.skipIf(SKIP || !CLAUDE_OK)("Persona E2E: Claude 페르소나 부여", () => {
   const handles: AgentHandle[] = [];
   afterEach(() => { handles.forEach(h => h.agent.stop()); handles.length = 0; });
 
@@ -127,7 +127,7 @@ describe.skipIf(!CLAUDE_OK)("Persona E2E: Claude 페르소나 부여", () => {
 
 // ── Cross-CLI 역할극 테스트 ──
 
-describe.skipIf(!BOTH_OK)("Persona E2E: Claude ↔ Codex 역할극 대화", () => {
+describe.skipIf(SKIP || !BOTH_OK)("Persona E2E: Claude ↔ Codex 역할극 대화", () => {
   const handles: AgentHandle[] = [];
   afterEach(() => { handles.forEach(h => h.agent.stop()); handles.length = 0; });
 

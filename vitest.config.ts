@@ -12,6 +12,7 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     exclude: [
       "tests/e2e/**",
+      "tests/agent/pty/e2e-*.test.ts",
       "**/node_modules/**",
       // CI에서 sqlite-vec 네이티브 확장 없는 환경은 vec DB 테스트 제외
       ...(process.env.SKIP_VEC_TESTS
