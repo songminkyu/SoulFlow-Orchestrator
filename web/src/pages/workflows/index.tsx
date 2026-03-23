@@ -184,17 +184,17 @@ export default function WorkflowsPage() {
 
       {/* Tabs */}
       <div className="wf-tabs" role="tablist">
-        <button role="tab" aria-selected={tab === "templates"} className={`wf-tab${tab === "templates" ? " wf-tab--active" : ""}`} onClick={() => setTab("templates")}>
+        <button id="wf-tab-templates" role="tab" aria-selected={tab === "templates"} aria-controls="wf-panel-templates" className={`wf-tab${tab === "templates" ? " wf-tab--active" : ""}`} onClick={() => setTab("templates")}>
           {t("workflows.templates")} ({tplCount})
         </button>
-        <button role="tab" aria-selected={tab === "running"} className={`wf-tab${tab === "running" ? " wf-tab--active" : ""}`} onClick={() => setTab("running")}>
+        <button id="wf-tab-running" role="tab" aria-selected={tab === "running"} aria-controls="wf-panel-running" className={`wf-tab${tab === "running" ? " wf-tab--active" : ""}`} onClick={() => setTab("running")}>
           {t("workflows.running_tab")} ({runningCount})
         </button>
       </div>
 
       {/* Templates */}
       {tab === "templates" && (
-        <>
+        <div id="wf-panel-templates" role="tabpanel" aria-labelledby="wf-tab-templates">
           {tplLoading ? (
             <SkeletonGrid count={4} cardStyle={{ height: 180 }} />
           ) : (
@@ -299,7 +299,7 @@ export default function WorkflowsPage() {
             onConfirm={() => deleteTarget && deleteMut.mutate(deleteTarget)}
             confirmLabel={t("workflows.delete_template")}
           />
-        </>
+        </div>
       )}
 
       {/* Creation Wizard Modal */}
@@ -323,7 +323,7 @@ export default function WorkflowsPage() {
 
       {/* Running */}
       {tab === "running" && (
-        <>
+        <div id="wf-panel-running" role="tabpanel" aria-labelledby="wf-tab-running">
           {wfLoading ? (
             <SkeletonGrid count={4} cardStyle={{ height: 180 }} />
           ) : !sortedWorkflows.length ? (
@@ -370,7 +370,7 @@ export default function WorkflowsPage() {
               })}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
@@ -554,8 +554,8 @@ function ImportModal({ open, onClose, onImported }: {
   if (!open) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="modal modal--wide" ref={modalRef} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal modal--wide" ref={modalRef} tabIndex={-1} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t("workflows.import_yaml")}>
         <div className="modal__header">
           <h3 className="modal__title">{t("workflows.import_yaml")}</h3>
           <button className="modal__close btn btn--xs btn--ghost" onClick={onClose} aria-label="close">
@@ -606,8 +606,8 @@ function CreateWizardModal({ onClose, onCreateBlank, onCreateWithPrompt }: {
   useModalEffects(true, onClose);
 
   return (
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="wf-wizard" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="wf-wizard" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t("workflows.new_workflow")}>
         <div className="wf-wizard__header">
           <h2 className="wf-wizard__title">{t("workflows.title")}</h2>
           <p className="wf-wizard__subtitle">{t("workflows.description")}</p>

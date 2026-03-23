@@ -343,6 +343,7 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
               onChange={(e) => set("icon", e.target.value)}
               maxLength={4}
               placeholder="🤖"
+              aria-label={t("agents.icon")}
             />
             <input
               className="input"
@@ -350,6 +351,7 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
               placeholder={t("agents.name_placeholder")}
+              aria-label={t("agents.name")}
             />
           </div>
           <input
@@ -357,6 +359,7 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
             value={form.description}
             onChange={(e) => set("description", e.target.value)}
             placeholder={t("agents.description_placeholder")}
+            aria-label={t("agents.description")}
           />
         </div>
 
@@ -368,6 +371,7 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
             style={{ height: 32, fontSize: 13, width: "100%" }}
             value={form.role_skill}
             onChange={(e) => set("role_skill", e.target.value)}
+            aria-label={t("agents.section_role")}
           >
             {ROLE_SKILLS.map((r) => (
               <option key={r} value={r}>{r || t("agents.role_custom")}</option>
@@ -417,6 +421,7 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
             value={form.soul}
             onChange={(e) => set("soul", e.target.value)}
             placeholder={t("prompting.soul_ph")}
+            aria-label={t("prompting.soul")}
           />
         </div>
 
@@ -431,6 +436,7 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
             value={form.heart}
             onChange={(e) => set("heart", e.target.value)}
             placeholder={t("prompting.heart_ph")}
+            aria-label={t("prompting.heart")}
           />
         </div>
 

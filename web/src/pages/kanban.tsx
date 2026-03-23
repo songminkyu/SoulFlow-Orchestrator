@@ -264,10 +264,10 @@ export default function KanbanPage() {
 
         <div className="kanban-header__actions">
           <div className="view-toggle" role="tablist">
-            <button className={`view-toggle__btn ${view === "board" ? "view-toggle__btn--active" : ""}`}
-              role="tab" aria-selected={view === "board"} onClick={() => set_view("board")}>{t("kanban.view_board")}</button>
-            <button className={`view-toggle__btn ${view === "list" ? "view-toggle__btn--active" : ""}`}
-              role="tab" aria-selected={view === "list"} onClick={() => set_view("list")}>{t("kanban.view_list")}</button>
+            <button id="kanban-tab-board" className={`view-toggle__btn ${view === "board" ? "view-toggle__btn--active" : ""}`}
+              role="tab" aria-selected={view === "board"} aria-controls="kanban-panel-board" onClick={() => set_view("board")}>{t("kanban.view_board")}</button>
+            <button id="kanban-tab-list" className={`view-toggle__btn ${view === "list" ? "view-toggle__btn--active" : ""}`}
+              role="tab" aria-selected={view === "list"} aria-controls="kanban-panel-list" onClick={() => set_view("list")}>{t("kanban.view_list")}</button>
           </div>
           <div className="kanban-filters">
             {FILTER_KEYS.map(f => (
@@ -312,8 +312,8 @@ export default function KanbanPage() {
         ) : (
           <>
             {view === "board"
-              ? <BoardView columns={columns} cards={filtered_cards} selectedCard={selectedCard} onSelect={setSelectedCard} onAddCard={add_card} onMoveCard={move_card} />
-              : <ListView cards={filtered_cards} columns={columns} selectedCard={selectedCard} onSelect={setSelectedCard} />
+              ? <div id="kanban-panel-board" role="tabpanel" aria-labelledby="kanban-tab-board"><BoardView columns={columns} cards={filtered_cards} selectedCard={selectedCard} onSelect={setSelectedCard} onAddCard={add_card} onMoveCard={move_card} /></div>
+              : <div id="kanban-panel-list" role="tabpanel" aria-labelledby="kanban-tab-list"><ListView cards={filtered_cards} columns={columns} selectedCard={selectedCard} onSelect={setSelectedCard} /></div>
             }
 
             {selectedCard && (

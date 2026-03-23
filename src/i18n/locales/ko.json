@@ -397,6 +397,7 @@
   "chat.msgs_fmt": "{count}개 메시지",
   "chat.new_session": "새 세션",
   "chat.newline_hint": "줄바꿈",
+  "chat.message_log": "채팅 메시지",
   "chat.no_messages": "아직 메시지가 없습니다",
   "chat.no_sessions": "세션 없음",
   "chat.params_toggle": "매개변수",

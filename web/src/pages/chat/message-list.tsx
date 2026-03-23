@@ -24,7 +24,7 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(function
   const last_idx = props.messages.length - 1;
 
   return (
-    <div className="chat-messages" ref={ref}>
+    <div className="chat-messages" ref={ref} role="log" aria-live="polite" aria-relevant="additions" aria-label={t("chat.message_log")}>
       <div className="chat-messages__inner">
         {!props.messages.length && !props.pending_approvals.length && (
           <EmptyState icon="💬" title={t("chat.no_messages")} />
