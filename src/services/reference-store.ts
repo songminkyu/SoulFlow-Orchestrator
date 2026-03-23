@@ -17,6 +17,7 @@ import { now_iso } from "../utils/common.js";
 import { with_sqlite, with_sqlite_strict, with_sqlite_async, type DatabaseSync } from "../utils/sqlite-helper.js";
 import { sha256_short } from "../utils/crypto.js";
 import { normalize_vec, VEC_DIMENSIONS } from "../utils/vec.js";
+import { error_message } from "../utils/common.js";
 
 const MAX_EMBED_CHARS = 1500;
 const CHUNK_SIZE = 1200;
@@ -202,6 +203,7 @@ export class ReferenceStore implements ReferenceStoreLike {
   private image_embed_fn: ImageEmbedFn | null = null;
   private last_sync = 0;
   private initialized = false;
+  private _syncing: Promise<{ added: number; updated: number; removed: number }> | null = null;
 
   constructor(private readonly workspace: string) {
     this.refs_dir = join(workspace, "references");
@@ -228,7 +230,17 @@ export class ReferenceStore implements ReferenceStoreLike {
   async sync(opts?: { force?: boolean }): Promise<{ added: number; updated: number; removed: number }> {
     const now = Date.now();
     if (!opts?.force && now - this.last_sync < SYNC_DEBOUNCE_MS) return { added: 0, updated: 0, removed: 0 };
-    this.last_sync = now;
+    // 이미 sync 진행 중이면 기존 Promise 재사용 (중복 실행 방지)
+    if (this._syncing) return this._syncing;
+    this._syncing = this._do_sync(opts);
+    try {
+      return await this._syncing;
+    } finally {
+      this._syncing = null;
+    }
+  }
+
+  private async _do_sync(opts?: { force?: boolean }): Promise<{ added: number; updated: number; removed: number }> {
     this.ensure_init();
 
     if (!existsSync(this.refs_dir)) {
@@ -329,6 +341,8 @@ export class ReferenceStore implements ReferenceStoreLike {
         await this.embed_image_chunks(db, to_image_embed);
       }
 
+      // sync 성공 후에만 타임스탬프 갱신 — 실패 시 다음 호출에서 재시도
+      this.last_sync = Date.now();
       return { added, updated, removed };
     }) ?? { added: 0, updated: 0, removed: 0 };
   }
@@ -364,7 +378,7 @@ export class ReferenceStore implements ReferenceStoreLike {
 
           const rows = db.prepare(sql).all(...params) as Array<ReferenceSearchResult>;
           for (const r of rows) found.set(r.chunk_id, { ...r, score: Math.abs(r.score) });
-        } catch { /* FTS 실패 시 벡터만 사용 */ }
+        } catch (e) { process.stderr.write(`[reference-store] FTS search failed, falling back to vector: ${error_message(e)}\n`); }
       }
 
       // 벡터 시멘틱 검색
@@ -399,7 +413,7 @@ export class ReferenceStore implements ReferenceStoreLike {
               }
             }
           }
-        } catch { /* 벡터 검색 실패 시 FTS 결과만 사용 */ }
+        } catch (e) { process.stderr.write(`[reference-store] vector search failed, using FTS results only: ${error_message(e)}\n`); }
       }
 
       // 이미지 KNN 검색 (멀티모달 embed가 있을 때만)
@@ -425,7 +439,7 @@ export class ReferenceStore implements ReferenceStoreLike {
               }
             }
           }
-        } catch { /* 이미지 검색 실패 시 무시 */ }
+        } catch (e) { process.stderr.write(`[reference-store] image search failed: ${error_message(e)}\n`); }
       }
 
       return found;
@@ -634,7 +648,9 @@ export class ReferenceStore implements ReferenceStoreLike {
           }
         });
         tx();
-      } catch { /* 이미지 임베딩 실패 시 경로만 저장된 상태 유지 */ }
+      } catch (e) {
+        process.stderr.write(`[reference-store] image embed failed (batch ${i / BATCH_SIZE + 1}): ${error_message(e)}\n`);
+      }
     }
   }
 
@@ -669,7 +685,9 @@ export class ReferenceStore implements ReferenceStoreLike {
           }
         });
         tx();
-      } catch { /* 임베딩 실패 시 벡터 없이 FTS만 사용 */ }
+      } catch (e) {
+        process.stderr.write(`[reference-store] text embed failed (batch ${i / BATCH_SIZE + 1}, ${batch.length} chunks): ${error_message(e)}\n`);
+      }
     }
   }
 }

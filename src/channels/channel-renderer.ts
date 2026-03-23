@@ -99,7 +99,8 @@ export class WebChannelRenderer implements ChannelRendererLike {
   }
 
   async flush(final_content?: string): Promise<void> {
-    this.on_web_stream?.(this.chat_id, final_content ?? this._accumulated, true);
+    // || 사용: 빈 문자열("")도 _accumulated로 폴백 — ?? 는 null/undefined만 체크
+    this.on_web_stream?.(this.chat_id, final_content || this._accumulated, true);
   }
 
   async flush_on_error(): Promise<void> {

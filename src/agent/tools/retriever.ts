@@ -111,11 +111,15 @@ export class RetrieverTool extends Tool {
       return "Error: no reference store configured for vector action";
     }
 
-    // 두 스토어에서 병렬 조회 후 결과 병합
-    const [ref_raw, skill_raw] = await Promise.all([
+    // 두 스토어에서 병렬 조회 후 결과 병합 — allSettled로 한쪽 실패 시 부분 결과 유지
+    const settled = await Promise.allSettled([
       this._reference_store?.search(query, { limit: top_k * 2, doc_filter: collection }) ?? Promise.resolve([]),
       this._skill_ref_store?.search(query, { limit: top_k * 2, doc_filter: collection }) ?? Promise.resolve([]),
     ]);
+    const ref_raw = settled[0].status === "fulfilled" ? settled[0].value : [];
+    const skill_raw = settled[1].status === "fulfilled" ? settled[1].value : [];
+    if (settled[0].status === "rejected") process.stderr.write(`[retriever] reference search failed: ${settled[0].reason}\n`);
+    if (settled[1].status === "rejected") process.stderr.write(`[retriever] skill search failed: ${settled[1].reason}\n`);
 
     const seen = new Set<string>();
     const merged = [...ref_raw, ...skill_raw]

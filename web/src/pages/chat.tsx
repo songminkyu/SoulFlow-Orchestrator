@@ -337,7 +337,10 @@ export default function ChatPage() {
   const new_assistant_arrived =
     raw_messages.length > sent_msg_count &&
     raw_messages[raw_messages.length - 1]?.direction === "assistant";
-  if (waiting_response && (is_streaming || new_assistant_arrived)) {
+  // 스트림 done 또는 어시스턴트 메시지 도착 시 대기 상태 해제
+  // stream_active && done (= 스트림 완료): BE 저장 전이라도 FE는 입력 가능해야 함
+  const stream_done = stream_active && active_stream?.done;
+  if (waiting_response && (is_streaming || new_assistant_arrived || stream_done)) {
     setWaitingResponse(false);
   }
 
