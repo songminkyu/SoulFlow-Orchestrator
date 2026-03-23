@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { memo, useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -126,7 +126,7 @@ function StreamingText({ content }: { content: string }) {
   );
 }
 
-export function MarkdownContent({ content, streaming }: { content: string; streaming?: boolean }) {
+export const MarkdownContent = memo(function MarkdownContent({ content, streaming }: { content: string; streaming?: boolean }) {
   if (streaming) return <StreamingText content={content} />;
 
   const needs_math = HAS_MATH_RE.test(content);
@@ -154,4 +154,4 @@ export function MarkdownContent({ content, streaming }: { content: string; strea
       </ReactMarkdown>
     </div>
   );
-}
+});

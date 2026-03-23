@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from "react";
+import { memo, useRef, type ReactNode } from "react";
 import { MarkdownContent } from "../pages/chat/markdown-content";
 
 export interface MessageBubbleProps {
@@ -27,7 +27,7 @@ const DIRECTION_MAP: Record<string, "user" | "assistant"> = {
   system: "assistant",
 };
 
-export function MessageBubble({
+export const MessageBubble = memo(function MessageBubble({
   role, content, at, avatar, streaming,
   showRoleBadge, alignUserRight = true, header, children, timeLabel,
 }: MessageBubbleProps) {
@@ -60,4 +60,4 @@ export function MessageBubble({
       </div>
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, memo, useState } from "react";
 import { EmptyState } from "../../components/empty-state";
 import { useT } from "../../i18n";
 import { ChatMessageBubble } from "./message-bubble";
@@ -71,7 +71,7 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(function
 });
 
 /** FE-4/GW: 채널 어피니티 + 실행 경로 인터랙티브 drill-down. */
-function DeliveryTraceDrillDown({
+const DeliveryTraceDrillDown = memo(function DeliveryTraceDrillDown({
   requested_channel, delivered_channel, execution_route, has_mismatch,
 }: {
   requested_channel?: string; delivered_channel?: string;
@@ -111,4 +111,4 @@ function DeliveryTraceDrillDown({
       )}
     </div>
   );
-}
+});

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useT } from "../../i18n";
 import { MessageBubble } from "../../components/message-bubble";
 import { MediaDisplay } from "./media-preview";
@@ -12,7 +13,7 @@ interface ChatMessageBubbleProps {
   thinking_blocks?: ThinkingEntry[];
 }
 
-export function ChatMessageBubble({ message, streaming, thinking_blocks }: ChatMessageBubbleProps) {
+export const ChatMessageBubble = memo(function ChatMessageBubble({ message, streaming, thinking_blocks }: ChatMessageBubbleProps) {
   const t = useT();
   const is_user = message.direction === "user";
   const blocks = thinking_blocks ?? message.thinking_blocks;
@@ -32,4 +33,4 @@ export function ChatMessageBubble({ message, streaming, thinking_blocks }: ChatM
       {message.media && message.media.length > 0 && <MediaDisplay media={message.media} />}
     </MessageBubble>
   );
-}
+});
