@@ -122,6 +122,7 @@ function verify_discord_ed25519(
     verify.end(message);
     return verify.verify({ key: der_key, format: "der", type: "spki" }, sig);
   } catch {
+    // PCH-Q1: 잘못된 키 형식 / 서명 오류 → "검증 실패"로 처리 (의도적 silent catch)
     return false;
   }
 }

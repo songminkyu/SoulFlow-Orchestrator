@@ -88,6 +88,7 @@ function parse_just_bash_output(stdout: string): { stdout: string; stderr: strin
       exit_code: Number.isFinite(exit_num) ? Math.round(exit_num) : null,
     };
   } catch {
+    // PCH-Q1: JSON 파싱 실패 = 비표준 출력 형식 — null 반환으로 호출자가 처리
     return null;
   }
 }

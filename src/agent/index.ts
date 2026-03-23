@@ -24,6 +24,7 @@ import { seal_inbound_sensitive_text } from "../security/inbound-seal.js";
 import { redact_sensitive_text } from "../security/sensitive.js";
 import type { SecretVaultLike } from "../security/secret-vault.js";
 import type { Logger } from "../logger.js";
+import { error_message } from "../utils/common.js";
 
 export class AgentDomain implements ServiceLike {
   readonly name = "agent-domain";
@@ -94,7 +95,9 @@ export class AgentDomain implements ServiceLike {
               chat_id: request.origin_chat_id,
               vault,
             })).text;
-          } catch {
+          } catch (e) {
+            // PCH-Q1: vault sealing 실패 시 warn 기록 — 보안 강등(degradation) 추적
+            args?.logger?.warn("seal_inbound_sensitive_text failed, falling back to redact", { error: error_message(e) });
             sealed_task = redact_sensitive_text(request.task).text;
           }
         }

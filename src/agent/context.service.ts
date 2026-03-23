@@ -486,6 +486,7 @@ export class ContextBuilder {
       const b64 = Buffer.from(bytes).toString("base64");
       return `data:${mime};base64,${b64}`;
     } catch {
+      // PCH-Q1: 파일 삭제/권한 경쟁 조건 — null 반환으로 조용히 처리 (이미지 첨부 미지원으로 graceful 강등)
       return null;
     }
   }
