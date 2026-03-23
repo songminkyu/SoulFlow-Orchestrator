@@ -7,6 +7,40 @@ import type { Components } from "react-markdown";
 import type { Pluggable } from "unified";
 import "highlight.js/styles/github-dark.min.css";
 import { MapBlock } from "./map-embed.js";
+// PCH-F1: highlight.js 언어 서브셋 — 전체 ~189개 대신 20개 공통 언어만 로드 (~220KB 절감)
+import hljs_bash from "highlight.js/lib/languages/bash";
+import hljs_c from "highlight.js/lib/languages/c";
+import hljs_cpp from "highlight.js/lib/languages/cpp";
+import hljs_csharp from "highlight.js/lib/languages/csharp";
+import hljs_css from "highlight.js/lib/languages/css";
+import hljs_dockerfile from "highlight.js/lib/languages/dockerfile";
+import hljs_go from "highlight.js/lib/languages/go";
+import hljs_java from "highlight.js/lib/languages/java";
+import hljs_javascript from "highlight.js/lib/languages/javascript";
+import hljs_json from "highlight.js/lib/languages/json";
+import hljs_kotlin from "highlight.js/lib/languages/kotlin";
+import hljs_markdown from "highlight.js/lib/languages/markdown";
+import hljs_php from "highlight.js/lib/languages/php";
+import hljs_python from "highlight.js/lib/languages/python";
+import hljs_rust from "highlight.js/lib/languages/rust";
+import hljs_sql from "highlight.js/lib/languages/sql";
+import hljs_swift from "highlight.js/lib/languages/swift";
+import hljs_typescript from "highlight.js/lib/languages/typescript";
+import hljs_xml from "highlight.js/lib/languages/xml";
+import hljs_yaml from "highlight.js/lib/languages/yaml";
+
+const HIGHLIGHT_LANGUAGES = {
+  bash: hljs_bash, shell: hljs_bash, c: hljs_c, cpp: hljs_cpp,
+  csharp: hljs_csharp, cs: hljs_csharp,
+  css: hljs_css, dockerfile: hljs_dockerfile, go: hljs_go,
+  java: hljs_java, javascript: hljs_javascript, js: hljs_javascript,
+  json: hljs_json, kotlin: hljs_kotlin, kt: hljs_kotlin,
+  markdown: hljs_markdown, md: hljs_markdown,
+  php: hljs_php, python: hljs_python, py: hljs_python,
+  rust: hljs_rust, rs: hljs_rust, sql: hljs_sql,
+  swift: hljs_swift, typescript: hljs_typescript, ts: hljs_typescript,
+  xml: hljs_xml, html: hljs_xml, yaml: hljs_yaml, yml: hljs_yaml,
+};
 
 /** highlight.js + KaTeX가 추가하는 클래스명/인라인 스타일을 sanitize에서 허용 */
 const SANITIZE_SCHEMA = {
@@ -80,7 +114,8 @@ const COMPONENTS: Components = {
 
 const REMARK_BASE: Pluggable[] = [remarkGfm];
 const REHYPE_BASE: Pluggable[] = [
-  rehypeHighlight,
+  // PCH-F1: 명시적 언어 서브셋 — tree-shaking으로 미사용 언어 번들 제외
+  [rehypeHighlight, { languages: HIGHLIGHT_LANGUAGES }],
   [rehypeSanitize, SANITIZE_SCHEMA],
 ];
 

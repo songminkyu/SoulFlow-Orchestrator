@@ -441,17 +441,19 @@
   font-size: 14px;
   line-height: 1;
   color: var(--muted);
-  padding: 4px 6px;
-  min-width: 24px;
-  min-height: 24px;
+  /* PCH-F3: WCAG 2.5.5 — 최소 44×44 터치 타겟 */
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
   border-radius: 2px;
   opacity: 0;
   transition: opacity 0.1s, background 0.1s;
   cursor: pointer;
 }
+/* PCH-F3: 활성 탭은 hover 없이도 닫기 버튼 표시 (모바일 접근성) */
 .chat-tabs__tab:hover .chat-tabs__close,
 .chat-tabs__tab--active .chat-tabs__close { opacity: 1; }
-.chat-tabs__close:hover { color: var(--err); }
+.chat-tabs__close:hover { color: var(--err); background: color-mix(in srgb, var(--err) 12%, transparent); }
 .chat-tabs__add {
   display: flex;
   align-items: center;
