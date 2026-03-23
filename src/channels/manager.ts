@@ -506,7 +506,7 @@ export class ChannelManager implements ServiceLike {
       await this.registry.set_typing(channel_id, message.chat_id, false, anchor_ts);
     }
     } catch (err) {
-      inbound_span.fail(err instanceof Error ? err.message : String(err));
+      inbound_span.fail(error_message(err));
       throw err;
     } finally {
       // current-turn override는 이번 턴 응답까지만 적용 — 다음 턴에 누수 방지

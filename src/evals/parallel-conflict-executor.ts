@@ -20,6 +20,7 @@ import { evaluate_critic_condition } from "../orchestration/critic-gate.js";
 import { extract_reconcile_read_model } from "../orchestration/reconcile-read-model.js";
 import type { DeterministicReconcilePolicy } from "../orchestration/reconcile-policy.js";
 import type { ParallelAgentResult } from "../orchestration/parallel-contracts.js";
+import { error_message } from "../utils/common.js";
 
 // ── 입력 타입 ─────────────────────────────────────────────────────
 
@@ -93,7 +94,7 @@ export function create_parallel_conflict_executor(): EvalExecutorLike {
 
         return { output: "", error: `unknown type: ${(input as Record<string, unknown>).type}` };
       } catch (e) {
-        return { output: "", error: e instanceof Error ? e.message : String(e) };
+        return { output: "", error: error_message(e) };
       }
     },
   };

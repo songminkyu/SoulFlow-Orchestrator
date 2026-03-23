@@ -8,6 +8,7 @@ import type { ObservabilityLike } from "./context.js";
 import type { SpanKind, SpanHandle } from "./span.js";
 import type { CorrelationContext } from "./correlation.js";
 import type { Labels } from "./metrics.js";
+import { error_message } from "../utils/common.js";
 
 export type InstrumentOptions = {
   kind: SpanKind;
@@ -56,7 +57,7 @@ export async function instrument<T>(
 
     return value;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = error_message(err);
     handle.fail(message);
 
     const duration = Date.now() - start;
@@ -88,7 +89,7 @@ export function instrument_sync<T>(
 
     return value;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = error_message(err);
     handle.fail(message);
 
     const duration = Date.now() - start;

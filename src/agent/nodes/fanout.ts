@@ -7,6 +7,7 @@ import {
   build_parallel_envelope,
   type ParallelAgentResult,
 } from "../../orchestration/parallel-contracts.js";
+import { error_message } from "../../utils/common.js";
 
 export const fanout_handler: NodeHandler = {
   node_type: "fanout",
@@ -153,7 +154,7 @@ async function run_branch(
     }
     return await resolve_branch_result(branch_id, last_id, ctx);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = error_message(err);
     return { agent_id: branch_id, content: null, error: message };
   }
 }

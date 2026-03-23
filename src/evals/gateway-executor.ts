@@ -24,6 +24,7 @@ import { build_delivery_envelope } from "../orchestration/gateway-contracts.js";
 import type { ProviderCapabilities, ExecutorProvider } from "../providers/executor.js";
 import type { InboundMessage } from "../bus/types.js";
 import type { ExecutionMode } from "../orchestration/types.js";
+import { error_message } from "../utils/common.js";
 
 /** executor가 파싱하는 입력 구조. */
 export type GatewayEvalInput =
@@ -121,7 +122,7 @@ export function create_gateway_executor(): EvalExecutorLike {
 
         return { output: "", error: `unknown gateway eval type: ${(input as Record<string, unknown>).type}` };
       } catch (e) {
-        return { output: "", error: e instanceof Error ? e.message : String(e) };
+        return { output: "", error: error_message(e) };
       }
     },
   };

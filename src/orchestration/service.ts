@@ -70,6 +70,7 @@ import { create_protocol_resolver } from "./protocol-resolver.js";
 import { streaming_cfg_for } from "./execution/runner-deps.js";
 import { record_turn_to_daily } from "./turn-memory-recorder.js";
 import { record_guardrail_metrics } from "./guardrails/observability.js";
+import { error_message } from "../utils/common.js";
 
 type OrchestratorConfig = {
   executor_provider: ExecutorProvider;
@@ -500,7 +501,7 @@ export class OrchestrationService implements OrchestrationServiceLike {
     return result;
 
     } catch (err) {
-      exec_span.fail(err instanceof Error ? err.message : String(err));
+      exec_span.fail(error_message(err));
       this._obs.metrics.counter("orchestration_runs_total", 1, { provider: req.provider, status: "error" });
       this._obs.metrics.histogram("orchestration_run_duration_ms", Date.now() - exec_start, { provider: req.provider });
       throw err;

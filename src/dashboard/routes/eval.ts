@@ -19,6 +19,7 @@ import { create_memory_executor } from "../../evals/memory-executor.js";
 import { create_guardrail_executor } from "../../evals/guardrail-executor.js";
 import { create_tokenizer_executor } from "../../evals/tokenizer-executor.js";
 import { create_gateway_executor } from "../../evals/gateway-executor.js";
+import { error_message } from "../../utils/common.js";
 
 export async function handle_eval(ctx: RouteContext): Promise<boolean> {
   const { url, req, res, json } = ctx;
@@ -114,7 +115,7 @@ export async function handle_eval(ctx: RouteContext): Promise<boolean> {
 
       json(res, 200, { report, summaries });
     } catch (e) {
-      json(res, 500, { error: e instanceof Error ? e.message : String(e) });
+      json(res, 500, { error: error_message(e) });
     }
     return true;
   }

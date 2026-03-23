@@ -3,6 +3,7 @@
 import type { EvalCase, EvalDataset, EvalResult, EvalRunSummary, EvalExecutorLike, EvalScorerLike } from "./contracts.js";
 import type { EvalJudgeLike } from "./judges.js";
 import { CONTAINS_SCORER } from "./scorers.js";
+import { error_message } from "../utils/common.js";
 
 export interface EvalRunnerOptions {
   /** 케이스당 타임아웃 (ms). 기본 30초. */
@@ -92,7 +93,7 @@ export class EvalRunner {
         case_id: eval_case.id, dataset: dataset_name,
         passed: false, score: 0,
         duration_ms: Date.now() - start,
-        error: e instanceof Error ? e.message : String(e),
+        error: error_message(e),
       };
     }
   }

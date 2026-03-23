@@ -12,6 +12,7 @@
 import type { EvalExecutorLike } from "./contracts.js";
 import { evaluate_reuse, build_session_evidence } from "../orchestration/guardrails/index.js";
 import { create_budget_tracker, is_over_budget } from "../orchestration/guardrails/index.js";
+import { error_message } from "../utils/common.js";
 
 /** executor가 파싱하는 입력 구조. */
 export type GuardrailEvalInput =
@@ -54,7 +55,7 @@ export function create_guardrail_executor(): EvalExecutorLike {
 
         return { output: "", error: `unknown guardrail type: ${(input as Record<string, unknown>).type}` };
       } catch (e) {
-        return { output: "", error: e instanceof Error ? e.message : String(e) };
+        return { output: "", error: error_message(e) };
       }
     },
   };

@@ -17,6 +17,7 @@ import type { EvalExecutorLike } from "./contracts.js";
 import { DEFAULT_TOKENIZER } from "../search/index.js";
 import { normalize_query } from "../orchestration/guardrails/session-reuse.js";
 import { rrf_merge, mmr_rerank } from "../agent/memory-scoring.js";
+import { error_message } from "../utils/common.js";
 
 export type TokenizerEvalInput =
   | { type: "tokenize"; text: string }
@@ -72,7 +73,7 @@ export function create_tokenizer_executor(): EvalExecutorLike {
 
         return { output: "", error: `unknown tokenizer eval type: ${(input as Record<string, unknown>).type}` };
       } catch (e) {
-        return { output: "", error: e instanceof Error ? e.message : String(e) };
+        return { output: "", error: error_message(e) };
       }
     },
   };

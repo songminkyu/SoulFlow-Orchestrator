@@ -7,6 +7,7 @@
  */
 
 import { sandbox_eval } from "../agent/tools/sandbox-runner.js";
+import { error_message } from "../utils/common.js";
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ export function evaluate_critic_condition(value: unknown, condition: string): Cr
     if (result === "rework") return { verdict: "rework", rework_instruction: "condition returned rework" };
     return { verdict: "fail", reason: `condition evaluated to: ${JSON.stringify(result)}` };
   } catch (err) {
-    return { verdict: "fail", reason: `condition error: ${err instanceof Error ? err.message : String(err)}` };
+    return { verdict: "fail", reason: `condition error: ${error_message(err)}` };
   }
 }
 
