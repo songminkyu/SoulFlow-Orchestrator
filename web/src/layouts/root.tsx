@@ -8,6 +8,7 @@ import { useI18n } from "../i18n";
 import { api } from "../api/client";
 import { useRef, useState } from "react";
 import { useAuthStatus, useAuthUser } from "../hooks/use-auth";
+import { ErrorBoundary } from "../components/error-boundary";
 import type { ApiBootstrapStatus } from "../api/contracts";
 import { useToast } from "../components/toast";
 import { useStatus } from "../api/hooks";
@@ -208,7 +209,9 @@ export function RootLayout() {
           </div>
         </header>
         <main className="app__content" id="main-content">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>
