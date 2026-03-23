@@ -1058,3 +1058,99 @@ describe("execute_dispatch — GW-5 gateway/direct binding", () => {
     expect(deps.run_agent_loop).not.toHaveBeenCalled();
   });
 });
+
+// ══════════════════════════════════════════
+// PCH-1: system_prompt_override 보안 정책 주입
+// ══════════════════════════════════════════
+
+describe("PCH-1: system_prompt_override 보안 정책 주입", () => {
+  let gatewaySpy: any;
+
+  beforeEach(() => {
+    gatewaySpy = vi.spyOn(gatewayModule, "resolve_gateway");
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("system_prompt_override 사용 시 보안 정책이 prepend된다", async () => {
+    const deps = createMockDeps();
+    deps.get_security_policy = () => "# Security Policy\n- Rule 1";
+
+    const runOnceSpy = vi.fn(async (args: RunExecutionArgs) => ({
+      reply: "ok",
+      mode: "once" as const,
+      tool_calls_count: 0,
+      streamed: false,
+      _captured_system_base: args.system_base,
+    }));
+    deps.run_once = runOnceSpy;
+
+    gatewaySpy.mockResolvedValue({
+      action: "execute",
+      mode: "once",
+      executor: "chatgpt",
+    } as GatewayDecision);
+
+    const overrideReq = { ...mockRequest, system_prompt_override: "Custom system prompt" };
+    await execute_dispatch(deps, overrideReq, mockPreflight);
+
+    expect(runOnceSpy).toHaveBeenCalled();
+    const captured = runOnceSpy.mock.calls[0][0].system_base;
+    expect(captured).toContain("# Security Policy");
+    expect(captured).toContain("Custom system prompt");
+    // 보안 정책이 override 앞에 위치
+    expect(captured.indexOf("# Security Policy")).toBeLessThan(captured.indexOf("Custom system prompt"));
+  });
+
+  it("system_prompt_override 없으면 build_system_prompt가 호출된다", async () => {
+    const deps = createMockDeps();
+    deps.get_security_policy = () => "# Security Policy\n- Rule 1";
+    const buildSpy = vi.fn(async () => "normal system prompt");
+    deps.build_system_prompt = buildSpy;
+
+    const runOnceSpy = vi.fn(async () => ({
+      reply: "ok",
+      mode: "once" as const,
+      tool_calls_count: 0,
+      streamed: false,
+    }));
+    deps.run_once = runOnceSpy;
+
+    gatewaySpy.mockResolvedValue({
+      action: "execute",
+      mode: "once",
+      executor: "chatgpt",
+    } as GatewayDecision);
+
+    await execute_dispatch(deps, mockRequest, mockPreflight);
+
+    expect(buildSpy).toHaveBeenCalled();
+  });
+
+  it("get_security_policy 미설정 시 override가 그대로 사용된다", async () => {
+    const deps = createMockDeps();
+    // get_security_policy 설정 안 함 (undefined)
+
+    const runOnceSpy = vi.fn(async (args: RunExecutionArgs) => ({
+      reply: "ok",
+      mode: "once" as const,
+      tool_calls_count: 0,
+      streamed: false,
+    }));
+    deps.run_once = runOnceSpy;
+
+    gatewaySpy.mockResolvedValue({
+      action: "execute",
+      mode: "once",
+      executor: "chatgpt",
+    } as GatewayDecision);
+
+    const overrideReq = { ...mockRequest, system_prompt_override: "Raw override" };
+    await execute_dispatch(deps, overrideReq, mockPreflight);
+
+    const captured = runOnceSpy.mock.calls[0][0].system_base;
+    expect(captured).toBe("Raw override");
+  });
+});

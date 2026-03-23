@@ -435,6 +435,7 @@ export class OrchestrationService implements OrchestrationServiceLike {
       log_event: (e) => this.log_event(e, team_id, req?.message?.sender_id),
       build_identity_reply: () => this._build_identity_reply(),
       build_system_prompt: (names, prov, chat, cats, alias) => this._build_system_prompt(names, prov, chat, cats, alias),
+      get_security_policy: () => this.runtime.get_context_builder().security_override_policy(),
       generate_guard_summary: (text) => this._generate_guard_summary(text),
       run_once: (args) => _run_once(this._runner_deps(args.req), args),
       run_agent_loop: (args) => _run_agent_loop(this._runner_deps(args.req), args),

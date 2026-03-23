@@ -48,6 +48,8 @@ export type ExecuteDispatcherDeps = {
   log_event: (input: AppendWorkflowEventInput) => void;
   build_identity_reply: () => string;
   build_system_prompt: (names: string[], provider: string, chat_id: string, cats?: ReadonlySet<string>, alias?: string) => Promise<string>;
+  /** PCH-1: Security Override Policy 텍스트. override 시에도 항상 prepend. */
+  get_security_policy?: () => string;
   generate_guard_summary: (task_text: string) => Promise<string>;
   run_once: (args: RunExecutionArgs) => Promise<OrchestrationResult>;
   run_agent_loop: (args: RunExecutionArgs & { media: string[] }) => Promise<OrchestrationResult>;
@@ -225,8 +227,10 @@ export async function execute_dispatch(
   const { tools: tool_definitions, categories } = await select_tools_for_request(
     all_tool_definitions, task_with_media, mode, skill_tool_names, classifier_cats, category_map, undefined, deps.tool_index,
   );
+  // PCH-1: system_prompt_override 사용 시에도 보안 정책을 최상단에 주입
   const system_base = req.system_prompt_override
-    ?? await deps.build_system_prompt(skill_names, req.provider, req.message.chat_id, new Set(categories), req.alias);
+    ? (deps.get_security_policy ? `${deps.get_security_policy()}\n\n${req.system_prompt_override}` : req.system_prompt_override)
+    : await deps.build_system_prompt(skill_names, req.provider, req.message.chat_id, new Set(categories), req.alias);
   deps.logger.info("dispatch", { mode, executor, skills: skill_names, tool_count: tool_definitions.length, system_override: !!req.system_prompt_override });
 
   // Confirmation Guard: 중요 작업 실행 전 사용자 확인
