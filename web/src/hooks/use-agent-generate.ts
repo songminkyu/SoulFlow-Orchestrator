@@ -20,9 +20,6 @@ export type AgentFormFields = {
   model?: string;
 };
 
-type GenerateResult = {
-  data: GeneratedAgentFields;
-};
 
 /**
  * AI 에이전트 생성 API 호출 + 폼 필드 매핑.

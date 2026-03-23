@@ -57,20 +57,20 @@ export function EndpointSelector({ value, onChange, className }: EndpointSelecto
   useClickOutside(wrapRef, () => setOpen(false), open);
 
   const { data: providers = [] } = useQuery<ProviderInfo[]>({
-    queryKey: ["endpoint-selector-providers"],
+    queryKey: ["providers"],
     queryFn: () => api.get<ProviderInfo[]>("/api/agents/providers"),
     staleTime: 30_000,
   });
 
   const { data: agents = [] } = useQuery<AgentDefinition[]>({
-    queryKey: ["endpoint-selector-agents"],
+    queryKey: ["agent-definitions"],
     queryFn: () => api.get<AgentDefinition[]>("/api/agent-definitions"),
     staleTime: 30_000,
     enabled: open,
   });
 
   const { data: workflows = [] } = useQuery<WorkflowDef[]>({
-    queryKey: ["endpoint-selector-workflows"],
+    queryKey: ["workflow-definitions"],
     queryFn: () => api.get<WorkflowDef[]>("/api/workflow/definitions"),
     staleTime: 30_000,
     enabled: open,
@@ -83,7 +83,7 @@ export function EndpointSelector({ value, onChange, className }: EndpointSelecto
 
   const modelQueryResults = useQueries({
     queries: availableProviders.map((p) => ({
-      queryKey: ["endpoint-selector-models", p.instance_id],
+      queryKey: ["provider-models", p.instance_id],
       queryFn: () =>
         api.get<ModelInfo[]>(
           `/api/agents/providers/${encodeURIComponent(p.instance_id)}/models`,

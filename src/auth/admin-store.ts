@@ -45,6 +45,15 @@ const INIT_SQL = `
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    at          TEXT NOT NULL DEFAULT (datetime('now')),
+    actor_id    TEXT,
+    action      TEXT NOT NULL,
+    target_id   TEXT,
+    detail_json TEXT
+  );
 `;
 
 export interface UserRecord {
@@ -75,6 +84,15 @@ export interface SharedProviderRecord {
   api_key_ref: string;
   enabled: boolean;
   created_at: string;
+}
+
+export interface AuditLogEntry {
+  id: number;
+  at: string;
+  actor_id: string | null;
+  action: string;
+  target_id: string | null;
+  detail_json: string | null;
 }
 
 interface TeamRow { id: string; name: string; created_at: string; }
@@ -236,11 +254,41 @@ export class AdminStore {
     return true;
   }
 
-  delete_user(id: string): boolean {
-    return this._db_strict((db) => {
+  delete_user(id: string, actor_id?: string): boolean {
+    const deleted = this._db_strict((db) => {
       const r = db.prepare("DELETE FROM users WHERE id = ?").run(id);
       return r.changes > 0;
     }, { pragmas: PRAGMAS });
+    if (deleted) {
+      this.log_audit({ actor_id: actor_id ?? null, action: "user.delete", target_id: id });
+    }
+    return deleted;
+  }
+
+  // ── 감사 로그 ──
+
+  /** SOC2 CC6.2: 감사 이벤트를 audit_log 테이블에 기록한다. */
+  log_audit(entry: { actor_id: string | null; action: string; target_id?: string | null; detail?: Record<string, unknown> | null }): void {
+    this._db_strict((db) => {
+      db.prepare(
+        "INSERT INTO audit_log (actor_id, action, target_id, detail_json) VALUES (?, ?, ?, ?)"
+      ).run(
+        entry.actor_id ?? null,
+        entry.action,
+        entry.target_id ?? null,
+        entry.detail ? JSON.stringify(entry.detail) : null,
+      );
+      return true;
+    }, { pragmas: PRAGMAS });
+  }
+
+  /** 감사 로그 최신 항목 조회 (기본 50개). */
+  get_audit_log(limit = 50): AuditLogEntry[] {
+    return this._db((db) => {
+      return db.prepare(
+        "SELECT id, at, actor_id, action, target_id, detail_json FROM audit_log ORDER BY id DESC LIMIT ?"
+      ).all(limit) as AuditLogEntry[];
+    }, { pragmas: PRAGMAS }) ?? [];
   }
 
   // ── 팀 ──

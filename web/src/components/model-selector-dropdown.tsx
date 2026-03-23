@@ -36,7 +36,7 @@ export function ModelSelectorDropdown({ value, onSelect, className }: ModelSelec
   useClickOutside(wrapRef, () => setOpen(false), open);
 
   const { data: providers = [] } = useQuery<ProviderInfo[]>({
-    queryKey: ["model-selector-providers"],
+    queryKey: ["providers"],
     queryFn: () => api.get<ProviderInfo[]>("/api/agents/providers"),
     staleTime: 30_000,
   });
@@ -49,7 +49,7 @@ export function ModelSelectorDropdown({ value, onSelect, className }: ModelSelec
   // useQueries: 프로바이더별 모델 목록을 병렬 fetch (hooks-in-loop 방지)
   const modelQueryResults = useQueries({
     queries: availableProviders.map((p) => ({
-      queryKey: ["model-selector-models", p.instance_id],
+      queryKey: ["provider-models", p.instance_id],
       queryFn: () =>
         api.get<ModelInfo[]>(
           `/api/agents/providers/${encodeURIComponent(p.instance_id)}/models`,

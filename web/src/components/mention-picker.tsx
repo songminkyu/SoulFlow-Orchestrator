@@ -62,7 +62,7 @@ function MentionPickerInner({ onClose, onSelect, agents = [], className }: Omit<
 
   // MCP 도구 목록 fetch — API 응답: { servers: McpServer[] }
   const { data: mcpRaw } = useQuery<ApiMcpServerList>({
-    queryKey: ["mention-mcp-servers"],
+    queryKey: ["mcp-servers"],
     queryFn: () => api.get<ApiMcpServerList>("/api/mcp/servers"),
     staleTime: 30_000,
   });
@@ -70,7 +70,7 @@ function MentionPickerInner({ onClose, onSelect, agents = [], className }: Omit<
 
   // 워크플로우 목록 fetch
   const { data: workflows = [] } = useQuery<WorkflowDef[]>({
-    queryKey: ["mention-workflows"],
+    queryKey: ["workflow-definitions"],
     queryFn: () => api.get<WorkflowDef[]>("/api/workflow/definitions"),
     staleTime: 30_000,
   });

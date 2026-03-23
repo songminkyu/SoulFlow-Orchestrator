@@ -63,14 +63,14 @@ function ToolFeatureMenuInner({
   useClickOutside(wrapRef, onClose, true);
 
   const { data: mcpRaw } = useQuery<ApiMcpServerList>({
-    queryKey: ["mention-mcp-servers"],
+    queryKey: ["mcp-servers"],
     queryFn: () => api.get<ApiMcpServerList>("/api/mcp/servers"),
     staleTime: 30_000,
   });
   const mcpServers = mcpRaw?.servers ?? [];
 
   const { data: workflows = [] } = useQuery<WorkflowDef[]>({
-    queryKey: ["mention-workflows"],
+    queryKey: ["workflow-definitions"],
     queryFn: () => api.get<WorkflowDef[]>("/api/workflow/definitions"),
     staleTime: 30_000,
   });

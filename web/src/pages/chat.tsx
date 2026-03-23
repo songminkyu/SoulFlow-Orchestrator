@@ -160,11 +160,10 @@ export default function ChatPage() {
   useEffect(() => {
     if (!init_def) return;
     // L20: mounted 가드 — unmount 후 setState 방지
+    // PCH-I5: name을 POST body에 포함하여 PATCH waterfall 제거
     let mounted = true;
     (async () => {
-      const res = await api.post<ApiChatSessionCreated>("/api/chat/sessions");
-      if (!mounted) return;
-      await api.patch(`/api/chat/sessions/${encodeURIComponent(res.id)}`, { name: `${init_def.icon} ${init_def.name}` });
+      const res = await api.post<ApiChatSessionCreated>("/api/chat/sessions", { name: `${init_def.icon} ${init_def.name}` });
       if (!mounted) return;
       setActiveId(res.id);
       void qc.invalidateQueries({ queryKey: ["chat-sessions"] });

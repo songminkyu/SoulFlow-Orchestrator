@@ -165,13 +165,18 @@ export class AuthService {
 
   delete_team(id: string): boolean { return this.store.delete_team(id); }
 
-  delete_user(id: string): boolean { return this.store.delete_user(id); }
+  delete_user(id: string, actor_id?: string): boolean { return this.store.delete_user(id, actor_id); }
 
-  async update_password(id: string, password: string): Promise<boolean> {
+  async update_password(id: string, password: string, actor_id?: string): Promise<boolean> {
     const hash = await this.hash_password(password);
     // H-7: 비밀번호 변경 시 현재 시각을 기록 — 이전 JWT를 일괄 무효화
     const now_iso = new Date().toISOString();
-    return this.store.update_user(id, { password_hash: hash, password_changed_at: now_iso });
+    const ok = this.store.update_user(id, { password_hash: hash, password_changed_at: now_iso });
+    if (ok) {
+      // SOC2 CC6.2: 비밀번호 변경 감사 로그
+      this.store.log_audit({ actor_id: actor_id ?? null, action: "user.password.change", target_id: id });
+    }
+    return ok;
   }
 
   /**
@@ -188,6 +193,14 @@ export class AuthService {
     const changed_at_unix = Math.floor(new Date(changed_at_iso).getTime() / 1000);
     // iat가 비밀번호 변경 시각과 같거나 이후이면 유효
     return iat >= changed_at_unix;
+  }
+
+  // ── 감사 로그 ──
+
+  get_audit_log(limit?: number) { return this.store.get_audit_log(limit); }
+
+  log_audit(entry: { actor_id: string | null; action: string; target_id?: string | null; detail?: Record<string, unknown> | null }): void {
+    this.store.log_audit(entry);
   }
 
   // ── 전역 프로바이더 (AdminStore 위임) ──
@@ -235,10 +248,21 @@ export class AuthService {
    */
   async login(username: string, password: string): Promise<{ token: string; payload: JwtPayload } | null> {
     const user = this.store.get_user_by_username(username);
-    if (!user || !user.password_hash) return null;
-    if (!(await this.verify_password(password, user.password_hash))) return null;
+    if (!user || !user.password_hash) {
+      // SOC2 CC6.2: 로그인 실패 (사용자 없음) 감사 로그
+      this.store.log_audit({ actor_id: null, action: "user.login.fail", target_id: null, detail: { username, reason: "user_not_found" } });
+      return null;
+    }
+    const pw_ok = await this.verify_password(password, user.password_hash);
+    if (!pw_ok) {
+      // SOC2 CC6.2: 로그인 실패 (비밀번호 불일치) 감사 로그
+      this.store.log_audit({ actor_id: null, action: "user.login.fail", target_id: user.id, detail: { username, reason: "wrong_password" } });
+      return null;
+    }
 
     this.store.update_user(user.id, { last_login_at: new Date().toISOString() });
+    // SOC2 CC6.2: 로그인 성공 감사 로그
+    this.store.log_audit({ actor_id: user.id, action: "user.login.success", target_id: user.id });
 
     const tid = user.default_team_id || "default";
     const wdir = `tenants/${tid}/users/${user.id}`;

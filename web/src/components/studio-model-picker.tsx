@@ -128,13 +128,13 @@ function ProviderDropdown({
 export function StudioModelPicker({ value, onChange, purpose, hideModel, compact, onCompare }: Props) {
   const t = useT();
   const { data: providers = [] } = useQuery<ProviderInfo[]>({
-    queryKey: ["studio-providers"],
+    queryKey: ["providers"],
     queryFn: () => api.get("/api/agents/providers"),
     staleTime: 30_000,
   });
 
   const { data: all_models = [], isLoading: loadingModels } = useQuery<ModelInfo[]>({
-    queryKey: ["studio-models", value.provider_id],
+    queryKey: ["provider-models", value.provider_id],
     queryFn: () => api.get<ModelInfo[]>(`/api/agents/providers/${encodeURIComponent(value.provider_id)}/models`),
     enabled: !!value.provider_id,
     staleTime: 30_000,

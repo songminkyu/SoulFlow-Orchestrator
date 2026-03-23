@@ -84,25 +84,25 @@ function UnifiedSelectorInner({
   /* ── Data Sources ── */
 
   const { data: agents = [] } = useQuery<AgentDefinition[]>({
-    queryKey: ["unified-selector-agents"],
+    queryKey: ["agent-definitions"],
     queryFn: () => api.get<AgentDefinition[]>("/api/agent-definitions"),
     staleTime: 30_000,
   });
 
   const { data: mcpRaw } = useQuery<ApiMcpServerList>({
-    queryKey: ["unified-selector-mcp"],
+    queryKey: ["mcp-servers"],
     queryFn: () => api.get<ApiMcpServerList>("/api/mcp/servers"),
     staleTime: 30_000,
   });
 
   const { data: toolsRaw } = useQuery<ToolsResponse>({
-    queryKey: ["unified-selector-app-tools"],
+    queryKey: ["app-tools"],
     queryFn: () => api.get<ToolsResponse>("/api/tools"),
     staleTime: 30_000,
   });
 
   const { data: workflows = [] } = useQuery<WorkflowDef[]>({
-    queryKey: ["unified-selector-workflows"],
+    queryKey: ["workflow-definitions"],
     queryFn: () => api.get<WorkflowDef[]>("/api/workflow/definitions"),
     staleTime: 30_000,
   });

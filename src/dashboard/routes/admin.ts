@@ -114,6 +114,8 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
     }
 
     const user = await auth_svc.create_user({ username, password, system_role: role, default_team_id: team_id });
+    // PCH-C2: 사용자 생성 감사 기록
+    auth_svc.log_audit({ actor_id: auth_user.sub, action: "user.create", target_id: user.id, detail: { username, role, team_id } });
     if (workspace && team_id) {
       ensure_user_workspace(workspace, team_id, user.id);
       // TeamStore 멤버십 동기화
@@ -128,7 +130,26 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
   const del_m = RE_USER.exec(url.pathname);
   if (del_m && req.method === "DELETE") {
     if (del_m[1] === auth_user.sub) { json(res, 400, { error: "cannot_delete_self" }); return true; }
-    const deleted = auth_svc.delete_user(del_m[1]);
+    const target_user = auth_svc.get_user_by_id(del_m[1]);
+    const deleted = auth_svc.delete_user(del_m[1], auth_user.sub);
+    if (deleted && target_user) {
+      // GDPR Art.17 / PCH-C3: 사용자 삭제 시 채팅 세션 cascade 삭제
+      const session_store = ctx.session_store;
+      if (session_store?.list_by_prefix && session_store.delete) {
+        // 모든 팀에서 해당 사용자의 세션 삭제: web:{*team_id*}:{user_id}:* 패턴
+        const all_teams = auth_svc.list_teams();
+        const team_ids = all_teams.map((t) => t.id);
+        // default 팀도 포함
+        if (!team_ids.includes("default")) team_ids.push("default");
+        for (const tid of team_ids) {
+          const prefix = `web:${tid}:${target_user.id}:`;
+          const sessions = await session_store.list_by_prefix(prefix, 1000);
+          for (const s of sessions) {
+            await session_store.delete(s.key);
+          }
+        }
+      }
+    }
     json(res, deleted ? 200 : 404, deleted ? { ok: true } : { error: "not_found" });
     return true;
   }
@@ -141,7 +162,7 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
     if (!body) { json(res, 400, { error: "invalid_body" }); return true; }
     const password = typeof body.password === "string" ? body.password : "";
     if (password.length < 6) { json(res, 400, { error: "password_min_6" }); return true; }
-    const updated = await auth_svc.update_password(pw_m[1], password);
+    const updated = await auth_svc.update_password(pw_m[1], password, auth_user.sub);
     json(res, updated ? 200 : 404, updated ? { ok: true } : { error: "not_found" });
     return true;
   }
@@ -160,6 +181,8 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
     const user = auth_svc.get_user_by_id(tm_m[1]);
     if (!user) { json(res, 404, { error: "not_found" }); return true; }
     auth_svc.assign_team(user.id, team_id);
+    // PCH-C2: 팀 배정 감사 기록
+    auth_svc.log_audit({ actor_id: auth_user.sub, action: "user.team.assign", target_id: user.id, detail: { team_id } });
     if (workspace) {
       ensure_user_workspace(workspace, team_id, user.id);
       // TeamStore 멤버십 동기화 (기본 역할 member)
@@ -196,6 +219,8 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
     if (!id || !name) { json(res, 400, { error: "id_name_required" }); return true; }
     if (!/^[a-z0-9-]+$/.test(id)) { json(res, 400, { error: "id_must_be_lowercase_alphanumeric_hyphen" }); return true; }
     const team = auth_svc.ensure_team(id, name);
+    // PCH-C2: 팀 생성 감사 기록
+    auth_svc.log_audit({ actor_id: auth_user.sub, action: "team.create", target_id: id, detail: { name } });
     // team.db 초기화 (shared/ 디렉토리 포함)
     if (workspace) {
       for (const sub of ["shared/templates", "shared/workflows", "shared/references"]) {
@@ -300,6 +325,8 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
     if (req.method === "DELETE") {
       if (!team) { json(res, 404, { error: "not_found" }); return true; }
       auth_svc.delete_team(team_id);
+      // PCH-C2: 팀 삭제 감사 기록
+      auth_svc.log_audit({ actor_id: auth_user.sub, action: "team.delete", target_id: team_id, detail: { name: team.name } });
       if (workspace) {
         const safe_id = sanitize_filename(team_id);
         const tenants_base = join(workspace, "tenants");
@@ -311,6 +338,15 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
       json(res, 200, { ok: true });
       return true;
     }
+  }
+
+  // ── GET /api/admin/audit-log ── (PCH-C2: SOC2 CC6.2 감사 이력 조회)
+
+  if (url.pathname === "/api/admin/audit-log" && req.method === "GET") {
+    const limit = Math.min(Math.max(1, Number(url.searchParams.get("limit") ?? "50") || 50), 200);
+    const entries = auth_svc.get_audit_log(limit);
+    json(res, 200, { entries });
+    return true;
   }
 
   return false;

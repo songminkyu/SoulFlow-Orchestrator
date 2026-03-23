@@ -87,10 +87,12 @@ export async function handle_chat(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // POST /api/chat/sessions — 새 세션 생성
+  // POST /api/chat/sessions — 새 세션 생성 (PCH-I5: name 파라미터 수용으로 waterfall 제거)
   if (path === "/api/chat/sessions" && req.method === "POST") {
+    const body = await read_body(req).catch(() => null);
+    const init_name = typeof body?.name === "string" ? body.name.trim().slice(0, 100) || undefined : undefined;
     const id = `web_${short_id(8)}`;
-    const session: ChatSession = { id, user_id, team_id, created_at: now_iso(), messages: [] };
+    const session: ChatSession = { id, user_id, team_id, created_at: now_iso(), messages: [], name: init_name };
     chat_sessions.set(id, session);
     if (chat_sessions.size > MAX_CHAT_SESSIONS) {
       const oldest = chat_sessions.keys().next().value;
