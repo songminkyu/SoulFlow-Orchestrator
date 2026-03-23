@@ -70,6 +70,13 @@ export class RedisMessageBus implements MessageBusRuntime, ReliableMessageBus {
       retryStrategy: (times) => Math.min(times * 200, 3000),
       lazyConnect: true,
     });
+    // L3: 에러 핸들러 미등록 시 unhandledError → process crash 위험 방지
+    this.client.on("error", (err) => {
+      if (!this._closed) log.warn("redis connection error", { error: error_message(err) });
+    });
+    this.client.on("reconnecting", (delay: number) => {
+      log.info("redis reconnecting", { delay_ms: delay });
+    });
     this.prefix = options.key_prefix || "sf:bus:";
     this.block_ms = options.block_ms ?? DEFAULT_BLOCK_MS;
     this.claim_idle_ms = options.claim_idle_ms ?? DEFAULT_CLAIM_IDLE_MS;
