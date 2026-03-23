@@ -476,6 +476,9 @@
   gap: 6px;
 }
 .li-flex--baseline { align-items: baseline; }
+/* PCH-F11: gap-override + wrap variants */
+.li-flex--wrap { flex-wrap: wrap; gap: var(--sp-2); }
+.li-flex--g8 { gap: var(--sp-2); }
 .panel--flush { margin: 0; }
 .net-row {
   display: flex;

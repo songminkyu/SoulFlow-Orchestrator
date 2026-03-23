@@ -139,8 +139,8 @@ function TeamsPanel() {
 
   return (
     <section className="panel mb-3">
-      <div className="li-flex" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-        <h2 style={{ margin: 0 }}>{t("admin.teams.title")}</h2>
+      <div className="net-row mb-3">
+        <h2 className="m-0">{t("admin.teams.title")}</h2>
         <button className="btn btn--sm btn--primary" onClick={() => setForm((f) => ({ ...f, open: !f.open }))}>
           {form.open ? t("common.cancel") : t("admin.teams.add")}
         </button>
@@ -148,7 +148,7 @@ function TeamsPanel() {
 
       {form.open && (
         <div className="panel panel--inset mb-2">
-          <div className="li-flex" style={{ gap: "8px", flexWrap: "wrap" }}>
+          <div className="li-flex li-flex--wrap">
             <input
               className="form-input" style={{ flex: "1 1 120px" }}
               placeholder={t("admin.teams.id_placeholder")} value={form.id}
@@ -177,11 +177,11 @@ function TeamsPanel() {
           {teams.map((team) => (
             <div key={team.id}>
               <div className="users-list__item li-flex">
-                <div className="users-list__info" style={{ flex: 1 }}>
+                <div className="users-list__info flex-1">
                   {rename_target === team.id ? (
-                    <div className="li-flex" style={{ gap: "6px" }}>
+                    <div className="li-flex">
                       <input
-                        className="form-input" style={{ flex: "1" }}
+                        className="form-input flex-1"
                         value={rename_draft}
                         onChange={(e) => set_rename_draft(e.target.value)}
                         onKeyDown={(e) => {
@@ -202,7 +202,7 @@ function TeamsPanel() {
                   )}
                 </div>
                 {rename_target !== team.id && (
-                  <div className="li-flex" style={{ gap: "6px" }}>
+                  <div className="li-flex">
                     <button className="btn btn--xs" onClick={() => setExpanded((prev) => prev === team.id ? null : team.id)}>
                       {expanded === team.id ? t("admin.teams.collapse") : t("admin.teams.expand_members")}
                     </button>
@@ -221,7 +221,7 @@ function TeamsPanel() {
             </div>
           ))}
           {teams.length === 0 && (
-            <p className="text-xs text-muted" style={{ padding: "8px 0" }}>{t("admin.teams.no_teams")}</p>
+            <p className="text-xs text-muted py-2">{t("admin.teams.no_teams")}</p>
           )}
         </div>
       )}
@@ -253,16 +253,15 @@ function TeamMembersList({ team_id }: { team_id: string }) {
     });
   };
 
-  if (isLoading) return <div className="skeleton skeleton--row" style={{ margin: "4px 0" }} />;
+  if (isLoading) return <div className="skeleton skeleton--row my-1" />;
 
   return (
-    <div style={{ padding: "4px 16px 8px" }}>
+    <div className="admin-members-body">
       {members.map((m) => (
-        <div key={m.user_id} className="li-flex" style={{ gap: "8px", padding: "3px 0", fontSize: "12px" }}>
-          <span style={{ fontWeight: 500, minWidth: "80px" }}>{m.username ?? m.user_id}</span>
+        <div key={m.user_id} className="admin-member-row li-flex">
+          <span className="admin-member-name">{m.username ?? m.user_id}</span>
           <select
-            className="form-input"
-            style={{ fontSize: "11px", padding: "2px 4px", height: "24px", flex: "0 0 auto" }}
+            className="form-input admin-member-role-select flex-none"
             value={m.role}
             disabled={update_role.isPending}
             onChange={(e) => update_role.mutate({ user_id: m.user_id, role: e.target.value as TeamRole }, {
@@ -274,8 +273,7 @@ function TeamMembersList({ team_id }: { team_id: string }) {
           </select>
           {m.system_role === "superadmin" && <Badge status="superadmin" variant="warn" />}
           <button
-            className="btn btn--xs"
-            style={{ color: "var(--err)", borderColor: "color-mix(in srgb, var(--err) 30%, transparent)", marginLeft: "auto" }}
+            className="btn btn--xs btn--danger ml-auto"
             disabled={remove.isPending}
             onClick={() => remove.mutate(m.user_id, {
               onSuccess: () => toast(t("admin.members.removed"), "ok"),
@@ -289,13 +287,13 @@ function TeamMembersList({ team_id }: { team_id: string }) {
       {members.length === 0 && <p className="text-xs text-muted">{t("admin.members.no_members")}</p>}
 
       {addForm.open ? (
-        <div className="li-flex" style={{ gap: "6px", marginTop: "6px", flexWrap: "wrap" }}>
+        <div className="li-flex li-flex--wrap mt-1">
           <select className="form-input" style={{ flex: "1 1 140px" }} value={addForm.user_id}
             onChange={(e) => setAddForm((f) => ({ ...f, user_id: e.target.value }))}>
             <option value="">{t("admin.members.select_user")}</option>
             {available.map((u) => <option key={u.id} value={u.id}>{u.username}</option>)}
           </select>
-          <select className="form-input" style={{ flex: "0 0 auto" }} value={addForm.role}
+          <select className="form-input flex-none" value={addForm.role}
             onChange={(e) => setAddForm((f) => ({ ...f, role: e.target.value as TeamRole }))}>
             {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{t(ROLE_KEYS[r])}</option>)}
           </select>
@@ -303,7 +301,7 @@ function TeamMembersList({ team_id }: { team_id: string }) {
           <button className="btn btn--xs" onClick={() => setAddForm((f) => ({ ...f, open: false }))}>{t("common.cancel")}</button>
         </div>
       ) : (
-        <button className="btn btn--xs" style={{ marginTop: "6px" }}
+        <button className="btn btn--xs mt-1"
           onClick={() => setAddForm((f) => ({ ...f, open: true }))}>
           {t("admin.members.add_member")}
         </button>
@@ -377,8 +375,8 @@ function UsersPanel() {
 
   return (
     <section className="panel mb-3">
-      <div className="li-flex" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-        <h2 style={{ margin: 0 }}>{t("admin.users.title")}</h2>
+      <div className="net-row mb-3">
+        <h2 className="m-0">{t("admin.users.title")}</h2>
         <button className="btn btn--sm btn--primary" onClick={() => setForm((f) => ({ ...f, open: !f.open }))}>
           {form.open ? t("common.cancel") : t("admin.users.add")}
         </button>
@@ -386,7 +384,7 @@ function UsersPanel() {
 
       {form.open && (
         <div className="panel panel--inset mb-2">
-          <div className="li-flex" style={{ gap: "8px", flexWrap: "wrap" }}>
+          <div className="li-flex li-flex--wrap">
             <input
               className="form-input" style={{ flex: "1 1 120px" }}
               placeholder={t("admin.users.username_placeholder")} value={form.username}
@@ -426,10 +424,10 @@ function UsersPanel() {
 
       {pw_target && (
         <div className="panel panel--inset mb-2">
-          <div className="li-flex" style={{ gap: "8px", alignItems: "center" }}>
+          <div className="li-flex li-flex--g8">
             <span className="text-xs text-muted">{t("admin.users.pw_change_label", { username: pw_target.username })}</span>
             <input
-              className="form-input" style={{ flex: "1" }}
+              className="form-input flex-1"
               type="password" placeholder={t("admin.users.new_pw_placeholder")} value={new_pw}
               onChange={(e) => setNewPw(e.target.value)}
             />
@@ -445,10 +443,10 @@ function UsersPanel() {
 
       {tm_target && (
         <div className="panel panel--inset mb-2">
-          <div className="li-flex" style={{ gap: "8px", alignItems: "center" }}>
+          <div className="li-flex li-flex--g8">
             <span className="text-xs text-muted">{t("admin.users.team_change_label", { username: tm_target.username })}</span>
             <select
-              className="form-input" style={{ flex: "1" }}
+              className="form-input flex-1"
               value={new_team} onChange={(e) => setNewTeam(e.target.value)}
             >
               <option value="">{t("admin.users.select_team")}</option>
@@ -483,7 +481,7 @@ function UsersPanel() {
                   <span className="text-xs text-muted">{t("admin.users.last_login")} {new Date(u.last_login_at).toLocaleDateString()}</span>
                 )}
               </div>
-              <div className="li-flex" style={{ gap: "6px" }}>
+              <div className="li-flex">
                 {teams.length > 0 && (
                   <button className="btn btn--xs" onClick={() => { setTmTarget(u); setNewTeam(u.default_team_id ?? ""); }}>
                     {t("admin.users.team_btn")}
@@ -515,9 +513,9 @@ function GlobalProvidersPanel() {
   const t = useT();
   return (
     <section className="panel mb-3">
-      <div style={{ marginBottom: "12px" }}>
-        <h2 style={{ margin: 0 }}>{t("admin.providers.title")}</h2>
-        <p className="text-xs text-muted" style={{ marginTop: "4px" }}>{t("admin.providers.description")}</p>
+      <div className="mb-3">
+        <h2 className="m-0">{t("admin.providers.title")}</h2>
+        <p className="text-xs text-muted mt-1">{t("admin.providers.description")}</p>
       </div>
       <NavLink to="/providers" className="btn btn--sm btn--primary">
         {t("admin.providers.link")}
@@ -556,11 +554,9 @@ function ChannelsPanel() {
 
   return (
     <section className="panel mb-3">
-      <div className="li-flex" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-        <div>
-          <h2 style={{ margin: 0 }}>{t("admin.channels.title")}</h2>
-          <p className="text-xs text-muted" style={{ marginTop: "4px" }}>{t("admin.channels.description")}</p>
-        </div>
+      <div className="mb-3">
+        <h2 className="m-0">{t("admin.channels.title")}</h2>
+        <p className="text-xs text-muted mt-1">{t("admin.channels.description")}</p>
       </div>
 
       {isLoading ? (
@@ -578,7 +574,7 @@ function ChannelsPanel() {
                   <Badge status={t("admin.channels.inactive")} variant="warn" />
                 )}
               </div>
-              <div className="li-flex" style={{ gap: "6px" }}>
+              <div className="li-flex">
                 <button
                   className="btn btn--xs"
                   disabled={toggle_enabled.isPending}
@@ -590,7 +586,7 @@ function ChannelsPanel() {
             </div>
           ))}
           {instances.length === 0 && (
-            <p className="text-xs text-muted" style={{ padding: "8px 0" }}>{t("admin.channels.no_channels")}</p>
+            <p className="text-xs text-muted py-2">{t("admin.channels.no_channels")}</p>
           )}
         </div>
       )}

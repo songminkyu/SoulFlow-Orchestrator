@@ -778,3 +778,19 @@
   right: 2px;
   pointer-events: none;
 }
+
+/* ── PCH-F11: Admin page component styles ──────────────────── */
+.admin-members-body { padding: 4px 16px 8px; }
+.admin-member-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 3px 0;
+  font-size: 12px;
+}
+.admin-member-name { font-weight: 500; min-width: 80px; }
+.admin-member-role-select {
+  font-size: 11px;
+  padding: 2px 4px;
+  height: 24px;
+}
