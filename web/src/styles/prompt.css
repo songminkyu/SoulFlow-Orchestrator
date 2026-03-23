@@ -409,7 +409,7 @@
   transition: border-color 0.15s, background 0.15s;
 }
 .ps-prov-trigger:hover { border-color: var(--muted); background: var(--hover); }
-.ps-prov-trigger--open { border-color: var(--accent) !important; }
+.ps-prov-trigger.ps-prov-trigger--open { border-color: var(--accent); }
 
 .ps-prov-trigger__icon { font-size: var(--fs-base); flex-shrink: 0; }
 .ps-prov-trigger__label { font-size: var(--fs-xs); font-weight: 600; color: var(--text); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1055,10 +1055,7 @@
   50%       { opacity: 1; }
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
+/* @keyframes spin — global.css에 단일 정의 (PCH-F9) */
 
 /* 칩 (메타 배지) */
 .ps-chip {

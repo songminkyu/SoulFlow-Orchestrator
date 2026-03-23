@@ -2716,7 +2716,7 @@ g:hover > .graph-add-handle circle {
 .tab-badge--ok { color: var(--ok, #a6e3a1); }
 .tab-badge--err { color: var(--err, #f38ba8); }
 .tab-badge--run { color: var(--accent); animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+/* @keyframes spin — global.css에 단일 정의 (PCH-F9) */
 
 .inspector-body {
   flex: 1;

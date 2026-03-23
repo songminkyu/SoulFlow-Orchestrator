@@ -800,9 +800,7 @@
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+/* @keyframes spin — global.css에 단일 정의 (PCH-F9) */
 
 .kanban-empty {
   display: flex;

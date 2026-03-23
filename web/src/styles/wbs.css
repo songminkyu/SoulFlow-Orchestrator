@@ -306,7 +306,7 @@
   min-height: 28px;
 }
 .wbs-col-btn:hover { border-color: var(--accent); color: var(--accent); }
-.wbs-col-btn--active { border-color: var(--accent) !important; color: var(--accent) !important; font-weight: 600; }
+.wbs-col-btn.wbs-col-btn--active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 
 .wbs-link {
   font-size: var(--fs-xs);

@@ -188,6 +188,10 @@ textarea.input {
 @keyframes spinner {
   to { transform: rotate(360deg); }
 }
+/* PCH-F9: 공유 spin keyframe — kanban/prompt/workflow 중복 제거 후 여기서 단일 정의 */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 /* ===== Label 공통 ===== */
 .label {
