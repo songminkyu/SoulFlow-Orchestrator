@@ -6,10 +6,11 @@
 
 import type { ChatChannel } from "./types.js";
 import type { ChannelInstanceConfig } from "./instance-store.js";
-import type { DiscordChannelSettings } from "./settings.types.js";
+import type { DiscordChannelSettings, MattermostChannelSettings } from "./settings.types.js";
 import { SlackChannel } from "./slack.channel.js";
 import { DiscordChannel } from "./discord.channel.js";
 import { TelegramChannel } from "./telegram.channel.js";
+import { MattermostChannel } from "./mattermost.channel.js";
 
 export type ChannelFactoryFn = (config: ChannelInstanceConfig, token: string, workspace_dir?: string) => ChatChannel;
 
@@ -66,6 +67,18 @@ register_channel_factory("telegram", (config, token, workspace_dir) => {
     bot_token: token,
     default_chat_id: String(settings.default_chat_id || ""),
     api_base: String(settings.api_base || "https://api.telegram.org"),
+    workspace_dir,
+    settings,
+  });
+});
+
+register_channel_factory("mattermost", (config, token, workspace_dir) => {
+  const settings = config.settings as MattermostChannelSettings;
+  return new MattermostChannel({
+    instance_id: config.instance_id,
+    bot_token: token,
+    default_channel: String(settings.default_channel || ""),
+    api_base: String(settings.api_base || ""),
     workspace_dir,
     settings,
   });
