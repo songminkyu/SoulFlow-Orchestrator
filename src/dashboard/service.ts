@@ -254,6 +254,7 @@ export class DashboardService implements ServiceLike {
     this.route_map.set("/api/config", handle_config);
     this.route_map.set("/api/locale", handle_config);
     this.route_map.set("/api/skills", handle_skill);
+    this.route_map.set("/api/protocols", handle_skill);
     this.route_map.set("/api/tools", handle_health);
     this.route_map.set("/api/templates", handle_template);
     this.route_map.set("/api/channels", handle_channel);
