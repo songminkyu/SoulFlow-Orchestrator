@@ -43,7 +43,9 @@ export type ConfigSection =
   | "logging"
   | "orchestratorLlm"
   | "embedding"
-  | "ops";
+  | "ops"
+  | "bus"
+  | "bus.redis";
 
 export const SECTION_LABELS: Record<ConfigSection, string> = {
   general: "General",
@@ -61,6 +63,8 @@ export const SECTION_LABELS: Record<ConfigSection, string> = {
   orchestratorLlm: "Orchestrator LLM",
   embedding: "Embedding",
   ops: "Operations",
+  bus: "Message Bus",
+  "bus.redis": "Redis Bus",
 };
 
 export const SECTION_ORDER: ConfigSection[] = [
@@ -79,6 +83,8 @@ export const SECTION_ORDER: ConfigSection[] = [
   "embedding",
   "logging",
   "ops",
+  "bus",
+  "bus.redis",
 ];
 
 /** 전체 설정 필드 메타데이터 목록 */
@@ -112,6 +118,7 @@ export const CONFIG_FIELDS: ConfigFieldMeta[] = [
   { path: "channel.reactionActionTtlMs", label: "Reaction Action TTL (ms)", section: "channel", type: "number", env_key: "REACTION_ACTION_TTL_MS", default_value: 86_400_000, sensitive: false, restart_required: false, description: "How long reaction-based actions remain valid" },
 
   // ── Streaming ──
+  { path: "channel.streaming.toolDisplay", label: "Tool Display", section: "channel.streaming", type: "select", env_key: "", default_value: "count", sensitive: false, restart_required: false, options: ["count", "inline", "separate"], description: "How tool calls are shown in streamed responses: count = badge only, inline = compact name, separate = full block" },
   { path: "channel.streaming.enabled", label: "Enabled", section: "channel.streaming", type: "boolean", env_key: "CHANNEL_STREAMING_ENABLED", default_value: true, sensitive: false, restart_required: false, description: "Stream partial responses while agent is thinking" },
   { path: "channel.streaming.mode", label: "Mode", section: "channel.streaming", type: "string", env_key: "CHANNEL_STREAMING_MODE", default_value: "status", sensitive: false, restart_required: false, description: "live: stream partial text, status: show status indicator cycling then final response as new message" },
   { path: "channel.streaming.intervalMs", label: "Interval (ms)", section: "channel.streaming", type: "number", env_key: "CHANNEL_STREAMING_INTERVAL_MS", default_value: 1400, sensitive: false, restart_required: false, description: "How often to flush buffered text to the channel" },
@@ -166,6 +173,8 @@ export const CONFIG_FIELDS: ConfigFieldMeta[] = [
   { path: "dashboard.host", label: "Host", section: "dashboard", type: "string", env_key: "DASHBOARD_HOST", default_value: "0.0.0.0", sensitive: false, restart_required: true, description: "Bind address (0.0.0.0 for all interfaces, 127.0.0.1 for local only)" },
   { path: "dashboard.portFallback", label: "Port Fallback", section: "dashboard", type: "boolean", env_key: "", default_value: false, sensitive: false, restart_required: true, description: "Fallback to an ephemeral port if the configured port is in use" },
   { path: "dashboard.publicUrl", label: "Public URL", section: "dashboard", type: "string", env_key: "DASHBOARD_PUBLIC_URL", default_value: "", sensitive: false, restart_required: true, description: "Publicly accessible base URL (e.g. https://dashboard.example.com). Used as OAuth redirect_uri base. Required when running behind a reverse proxy or with a custom domain." },
+  { path: "dashboard.webhookSecret", label: "Webhook Secret", section: "dashboard", type: "string", env_key: "DASHBOARD_WEBHOOK_SECRET", default_value: "", sensitive: true, restart_required: false, description: "Bearer token required for /hooks/* endpoints. Leave empty to disable hook authentication." },
+  { path: "dashboard.corsOrigins", label: "CORS Origins", section: "dashboard", type: "string", env_key: "DASHBOARD_CORS_ORIGINS", default_value: "", sensitive: false, restart_required: true, description: "Comma-separated allowed CORS origins (e.g. https://app.example.com). Empty = same-origin only. '*' = all (dev only)." },
 
   // ── CLI Providers ──
   { path: "cli.maxCaptureChars", label: "Max Capture Chars", section: "cli", type: "number", env_key: "", default_value: 500_000, sensitive: false, restart_required: false, description: "Maximum stdout/stderr capture size for CLI providers" },
@@ -177,6 +186,7 @@ export const CONFIG_FIELDS: ConfigFieldMeta[] = [
   { path: "mcp.serversFile", label: "Servers File", section: "mcp", type: "string", env_key: "", default_value: "", sensitive: false, restart_required: false, description: "Path to additional MCP servers JSON config file" },
   { path: "mcp.serversJson", label: "Servers JSON", section: "mcp", type: "string", env_key: "", default_value: "", sensitive: false, restart_required: false, description: "Inline JSON MCP servers configuration" },
   { path: "mcp.serverNames", label: "Server Names", section: "mcp", type: "string", env_key: "", default_value: "", sensitive: false, restart_required: false, description: "Comma-separated allowlist of MCP server names" },
+  { path: "mcp.enableAllProject", label: "Enable All Project Servers", section: "mcp", type: "boolean", env_key: "", default_value: false, sensitive: false, restart_required: false, description: "Auto-enable all MCP servers found in project config files" },
 
   // ── Orchestrator LLM ──
   { path: "orchestratorLlm.enabled", label: "Enabled", section: "orchestratorLlm", type: "boolean", env_key: "ORCHESTRATOR_LLM_ENABLED", default_value: false, sensitive: false, restart_required: true, description: "Enable local orchestrator LLM runtime (Ollama)" },
@@ -204,6 +214,18 @@ export const CONFIG_FIELDS: ConfigFieldMeta[] = [
   { path: "ops.healthLogOnChange", label: "Health Log On Change", section: "ops", type: "boolean", env_key: "", default_value: true, sensitive: false, restart_required: false, description: "Only log health when state changes" },
   { path: "ops.bridgePumpEnabled", label: "Bridge Pump Enabled", section: "ops", type: "boolean", env_key: "", default_value: false, sensitive: false, restart_required: false, description: "Enable background inbound message polling bridge" },
   { path: "ops.sessionMaxEntries", label: "Session Max Entries", section: "ops", type: "number", env_key: "OPS_SESSION_MAX_ENTRIES", default_value: 0, sensitive: false, restart_required: false, description: "Max session store entries. Oldest sessions are pruned when exceeded (0 = disabled)." },
+
+  // ── Bus (PCH-L24: orphan 필드 UI 노출) ──
+  { path: "bus.backend", label: "Backend", section: "bus", type: "select", env_key: "BUS_BACKEND", default_value: "memory", sensitive: false, restart_required: true, options: ["memory", "redis"], description: "Message bus backend. memory = in-process (single instance); redis = distributed (multi-instance)" },
+
+  // ── Bus › Redis ──
+  { path: "bus.redis.url", label: "Redis URL", section: "bus.redis", type: "string", env_key: "BUS_REDIS_URL", default_value: "redis://redis:6379", sensitive: false, restart_required: true, description: "Redis connection URL for the message bus (only used when backend = redis)" },
+  { path: "bus.redis.keyPrefix", label: "Key Prefix", section: "bus.redis", type: "string", env_key: "BUS_REDIS_KEY_PREFIX", default_value: "sf:bus:", sensitive: false, restart_required: true, description: "Redis key namespace prefix for bus streams" },
+  { path: "bus.redis.blockMs", label: "Block Timeout (ms)", section: "bus.redis", type: "number", env_key: "BUS_REDIS_BLOCK_MS", default_value: 5000, sensitive: false, restart_required: false, description: "XREADGROUP BLOCK duration in ms (consumer idle wait)" },
+  { path: "bus.redis.claimIdleMs", label: "Claim Idle Threshold (ms)", section: "bus.redis", type: "number", env_key: "BUS_REDIS_CLAIM_IDLE_MS", default_value: 300_000, sensitive: false, restart_required: false, description: "Minimum idle time before a pending message is reclaimed after a crash (default: 5 min)" },
+  { path: "bus.redis.streamMaxlen.inbound", label: "Inbound Stream Max Length", section: "bus.redis", type: "number", env_key: "BUS_REDIS_MAXLEN_INBOUND", default_value: 10_000, sensitive: false, restart_required: false, description: "Maximum entries in the inbound Redis stream (MAXLEN ~)" },
+  { path: "bus.redis.streamMaxlen.outbound", label: "Outbound Stream Max Length", section: "bus.redis", type: "number", env_key: "BUS_REDIS_MAXLEN_OUTBOUND", default_value: 10_000, sensitive: false, restart_required: false, description: "Maximum entries in the outbound Redis stream" },
+  { path: "bus.redis.streamMaxlen.progress", label: "Progress Stream Max Length", section: "bus.redis", type: "number", env_key: "BUS_REDIS_MAXLEN_PROGRESS", default_value: 2_000, sensitive: false, restart_required: false, description: "Maximum entries in the progress events Redis stream" },
 ];
 
 /** 섹션별 필드 그룹핑 */
