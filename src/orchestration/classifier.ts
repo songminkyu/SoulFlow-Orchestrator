@@ -53,6 +53,22 @@ const IDENTITY_TOKEN_SETS = DEFAULT_CLASSIFIER_LOCALE.identity_phrases.map(token
 
 const INQUIRY_TOKEN_SETS = DEFAULT_CLASSIFIER_LOCALE.inquiry_phrases.map(tokenize);
 
+/** 에이전트/동료 목록 조회 패턴. */
+const AGENT_LIST_PATTERNS = [
+  /에이전트.{0,6}(목록|보여|누구|뭐|있|알려)/,
+  /동료.{0,6}(목록|보여|누구|뭐|있|알려)/,
+  /서브에이전트.{0,6}(목록|보여|누구|뭐|있|알려)/,
+  /활성.{0,6}(에이전트|동료|작업자)/,
+  /(누가|뭐가).{0,6}(돌아가|실행|작동)/,
+  /agent.{0,4}(list|who|show|status)/i,
+  /who.{0,6}(agent|colleague|worker)/i,
+  /list.{0,6}(agent|subagent|worker)/i,
+];
+
+function is_agent_list_question(text: string): boolean {
+  return AGENT_LIST_PATTERNS.some((p) => p.test(text));
+}
+
 /**
  * 단일 토큰 다단계 연결어 집합.
  * 주의: "하고", "그리고"는 한국어 일반 조사로 오매칭 위험 (예: "파이썬 하고 자바 차이")
@@ -251,10 +267,15 @@ export function fast_classify(task: string, ctx: ClassifierContext): Classificat
     return { mode: "identity" };
   }
 
-  // 3. inquiry: 활성 태스크 있을 때 상태 조회 or 태스크 언급 후 짧은 후속 질문
+  // 3a. agent_list inquiry: 에이전트/동료 목록 질문 (활성 태스크 유무 무관)
+  if (is_agent_list_question(text)) {
+    return { mode: "inquiry", inquiry_kind: "agent_list" };
+  }
+
+  // 3b. inquiry: 활성 태스크 있을 때 상태 조회 or 태스크 언급 후 짧은 후속 질문
   const has_active = (ctx.active_tasks?.length ?? 0) > 0;
   if (has_active && (is_inquiry_question(tokens) || is_followup_inquiry(tokens, ctx.recent_history))) {
-    return { mode: "inquiry" };
+    return { mode: "inquiry", inquiry_kind: "task_status" };
   }
 
   // 4. once / agent / task + 히스토리 기반 tool hints

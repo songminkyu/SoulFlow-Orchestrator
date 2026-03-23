@@ -7,7 +7,7 @@
 import type { ExecutionMode } from "./types.js";
 import type { ClassifierContext } from "./classifier.js";
 import { classify_execution_mode } from "./classifier.js";
-import { format_active_task_summary } from "./prompts.js";
+import { format_active_task_summary, format_agent_list_summary } from "./prompts.js";
 import { resolve_executor_provider, type ExecutorProvider, type ProviderCapabilities } from "../providers/executor.js";
 import type { ProviderRegistryLike } from "../providers/index.js";
 import type { Logger } from "../logger.js";
@@ -51,7 +51,15 @@ export async function resolve_gateway(
     return { action: "builtin", command: classification.command, args: classification.args };
   }
 
-  // inquiry: 활성 태스크가 있으면 요약 응답, 없으면 once로 폴백
+  // inquiry — agent_list: 에이전트/동료 목록 질문
+  if (classification.mode === "inquiry" && "inquiry_kind" in classification && classification.inquiry_kind === "agent_list") {
+    deps.logger.info("agent_list_inquiry");
+    const agents = ctx.available_skills?.map((s) => s.name) ?? [];
+    const summary = format_agent_list_summary(active_tasks, agents, deps.session_lookup);
+    return { action: "inquiry", summary };
+  }
+
+  // inquiry — task_status: 활성 태스크가 있으면 요약 응답, 없으면 once로 폴백
   if (classification.mode === "inquiry" && active_tasks.length > 0) {
     deps.logger.info("inquiry_shortcircuit", { count: active_tasks.length });
     return { action: "inquiry", summary: format_active_task_summary(active_tasks, deps.session_lookup) };

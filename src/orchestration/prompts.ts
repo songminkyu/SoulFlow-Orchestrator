@@ -444,6 +444,38 @@ export function format_active_task_summary(
   return lines.join("\n");
 }
 
+/** 에이전트/동료 목록 요약 포맷. 활성 작업 + 최근 작업. */
+export function format_agent_list_summary(
+  tasks: import("../contracts.js").TaskState[],
+  _available_skills: string[],
+  find_session?: (task_id: string) => import("../agent/agent.types.js").AgentSession | null,
+): string {
+  const lines: string[] = [];
+  const agent_tasks = tasks.filter((t) => t.status === "running" || t.status === "waiting_approval" || t.status === "waiting_user_input");
+  if (agent_tasks.length > 0) {
+    lines.push(`🤖 **활성 에이전트 ${agent_tasks.length}건**`);
+    for (const t of agent_tasks) {
+      const icon = STATUS_EMOJI[t.status] || "❓";
+      const session = find_session?.(t.taskId);
+      const backend = session ? ` (${session.backend})` : "";
+      lines.push(`${icon} \`${t.taskId}\`  ${t.title || "(제목 없음)"}${backend}`);
+      lines.push(`  [${t.status}] turn ${t.currentTurn}/${t.maxTurns}`);
+    }
+  } else {
+    lines.push("🤖 현재 활성 에이전트가 없습니다.");
+  }
+  const recent = tasks.filter((t) => t.status === "completed" || t.status === "failed").slice(-3);
+  if (recent.length > 0) {
+    lines.push("", "📝 **최근 작업**");
+    for (const t of recent) {
+      const icon = STATUS_EMOJI[t.status] || "❓";
+      lines.push(`${icon} \`${t.taskId}\`  ${t.title || "(제목 없음)"} [${t.status}]`);
+    }
+  }
+  lines.push("", "상세: `/task status <id>` · 새 에이전트: `/spawn`");
+  return lines.join("\n");
+}
+
 export function build_active_task_context(tasks: import("../contracts.js").TaskState[]): string {
   const lines = ["", "# Active Tasks in this chat"];
   for (const t of tasks) {
