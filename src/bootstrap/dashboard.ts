@@ -231,13 +231,24 @@ export function create_dashboard_bundle(deps: DashboardBundleDeps): DashboardBun
         const lang_instruction = has_korean
           ? "IMPORTANT: All string values in the JSON MUST be written in Korean (한국어). Field names remain in English."
           : "";
+        // 등록된 도구/스킬 목록을 프롬프트에 주입 — 존재하지 않는 이름 방지
+        const available_tools = agent.tools.tool_names();
+        const available_skills = agent.context.skills_loader
+          .list_skills(false).map((s) => s.name).filter(Boolean);
+        const tools_constraint = available_tools.length > 0
+          ? `\nAvailable tools (ONLY pick from this list): [${available_tools.join(", ")}]`
+          : "";
+        const skills_constraint = available_skills.length > 0
+          ? `\nAvailable skills (ONLY pick from this list): [${available_skills.join(", ")}]`
+          : "";
         const gen_messages = [
           {
             role: "user" as const,
             content: `IMPORTANT: Do NOT use any tools. Respond with plain text only.
 
 You are an AI agent designer. Given a description, output a JSON object with these exact fields:
-{"name":"string","description":"string (one-line summary)","icon":"single emoji","role_skill":"string|null (e.g. role:pm, role:implementer, or null if custom)","soul":"string (persona/character)","heart":"string (behavior/manner)","tools":["string array"],"shared_protocols":["string array from: clarification-protocol,phase-gates,error-escalation,session-metrics,difficulty-guide"],"skills":[],"use_when":"string","not_use_for":"string","extra_instructions":"","preferred_providers":[],"model":null}
+{"name":"string","description":"string (one-line summary)","icon":"single emoji","role_skill":"string|null (e.g. role:pm, role:implementer, or null if custom)","soul":"string (persona/character)","heart":"string (behavior/manner)","tools":["string array"],"shared_protocols":["string array from: clarification-protocol,phase-gates,error-escalation,session-metrics,difficulty-guide"],"skills":["string array"],"use_when":"string","not_use_for":"string","extra_instructions":"","preferred_providers":[],"model":null}
+${tools_constraint}${skills_constraint}
 
 ${lang_instruction}
 Output ONLY the JSON object, no markdown, no explanation.
