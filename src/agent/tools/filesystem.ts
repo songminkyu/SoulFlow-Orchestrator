@@ -3,6 +3,9 @@ import { dirname, isAbsolute, join, resolve, relative } from "node:path";
 import { Tool } from "./base.js";
 import type { JsonSchema, ToolCategory, ToolExecutionContext, ToolPolicyFlags } from "./types.js";
 
+/** 10 MB — ReadFile size guard to prevent OOM on large files (CWE-400). */
+const MAX_READ_BYTES = 10 * 1024 * 1024;
+
 type FsToolOptions = {
   workspace: string;
   allowed_dir?: string | null;
@@ -109,6 +112,9 @@ export class ReadFileTool extends Tool {
     try {
       const file_stat = await stat(file_path);
       if (!file_stat.isFile()) return `Error: Not a file: ${file_path}`;
+      if (file_stat.size > MAX_READ_BYTES) {
+        return `Error: file too large (${file_stat.size} bytes > 10MB limit). Use offset/limit parameters if available.`;
+      }
       return readFile(file_path, "utf-8");
     } catch (err) {
       const e = err as NodeJS.ErrnoException;
