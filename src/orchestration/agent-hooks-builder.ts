@@ -58,6 +58,10 @@ type AgentHooksOptions = {
    * web 채널처럼 on_agent_event(NDJSON rich event)로 이미 전달되는 경우에 사용.
    */
   skip_critical_text_inject?: boolean;
+  /** FE-BE: 도구 선택 정책. "auto"|"manual"|"none". native 경로 pre_tool_use에 반영. */
+  tool_choice?: import("../contracts.js").ToolChoiceMode;
+  /** FE-BE: 허용 도구 allowlist. 설정 시 목록 외 도구는 native 경로에서도 deny. */
+  pinned_tools?: string[];
 };
 
 export function build_agent_hooks(
@@ -261,11 +265,21 @@ export function build_agent_hooks(
   }
 
   {
-    // pre_tool_use: policy hook + 사용자 정의 hook_runner 합성
+    // pre_tool_use: tool_choice/pinned_tools 게이트 + policy hook + 사용자 정의 hook_runner 합성
     const policy_hook = runtime_policy ? create_policy_pre_hook(runtime_policy) : null;
     const user_pre_hook = hook_runner ? hook_runner_to_pre_tool_hook(hook_runner) : null;
-    if (policy_hook || user_pre_hook) {
+    const tc = opts.tool_choice ?? "auto";
+    const pinned = opts.pinned_tools?.length ? new Set(opts.pinned_tools) : null;
+    const needs_gate = tc !== "auto" || pinned;
+    if (policy_hook || user_pre_hook || needs_gate) {
       hooks.pre_tool_use = async (tool_name, params, context) => {
+        // FE-BE: "none" 모드 — 모든 도구 deny
+        if (tc === "none") return { permission: "deny" as const, reason: "tool_choice=none" };
+        // FE-BE: pinned_tools allowlist
+        if (pinned && !pinned.has(tool_name)) return { permission: "deny" as const, reason: "not_in_pinned_tools" };
+        // FE-BE: "manual" 모드 — approval bridge로 위임 (on_approval 훅이 처리)
+        // manual은 on_approval이 이미 설정되어 있으면 그쪽에서 처리됨.
+        // native 백엔드의 approval 프로토콜과 통합.
         if (policy_hook) {
           const decision = await policy_hook(tool_name, params, context);
           if (decision.permission === "deny") return decision;

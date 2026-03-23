@@ -544,7 +544,9 @@ export class ToolIndex {
 
     const { embeddings } = await this.embed_fn([truncated], { dimensions: VEC_DIMENSIONS });
     if (!embeddings.length) return null;
-    const buf = new Float32Array(normalize_vec(embeddings[0]));
+    const qvec = normalize_vec(embeddings[0]);
+    if (!qvec) return null;
+    const buf = new Float32Array(qvec);
 
     if (this.query_cache.size >= QUERY_CACHE_MAX) {
       this.query_cache.delete(this.query_cache.keys().next().value!);
@@ -591,6 +593,7 @@ export class ToolIndex {
         for (let i = 0; i < stale_rows.length; i++) {
           const rid = BigInt(stale_rows[i].rowid);
           const vec = normalize_vec(embeddings[i]);
+          if (!vec) continue;
           const buf = new Float32Array(vec);
           del_vec.run(rid);
           ins_vec.run(rid, buf);

@@ -13,7 +13,6 @@ export type ContextBudgetOptions = {
 
 export class ContextBudget {
   private readonly max_tokens: number;
-  private _total_tokens = 0;
 
   constructor(opts: ContextBudgetOptions) {
     this.max_tokens = opts.max_tokens;
@@ -25,29 +24,30 @@ export class ContextBudget {
     return Math.ceil(text.length / 4);
   }
 
-  /** 예산 내에서 우선순위 순으로 섹션 선택. priority 0은 항상 포함. */
+  /** 예산 내에서 우선순위 순으로 섹션 선택. priority 0은 항상 포함. 원래 선언 순서를 보존한다. */
   fit(sections: BudgetSection[]): BudgetSection[] {
-    const sorted = [...sections].sort((a, b) => a.priority - b.priority);
-    const selected: BudgetSection[] = [];
+    const indexed = sections.map((s, i) => ({ ...s, _order: i }));
+    const sorted = [...indexed].sort((a, b) => a.priority - b.priority);
+    const selected_idx: number[] = [];
     let budget_remaining = this.max_tokens;
 
     for (const section of sorted) {
       if (section.priority === 0) {
-        selected.push(section);
+        selected_idx.push(section._order);
         budget_remaining -= section.estimated_tokens;
         continue;
       }
       if (budget_remaining > 0 && section.estimated_tokens <= budget_remaining) {
-        selected.push(section);
+        selected_idx.push(section._order);
         budget_remaining -= section.estimated_tokens;
       }
     }
 
-    this._total_tokens = this.max_tokens - budget_remaining;
-    return selected;
-  }
+    if (budget_remaining < 0) {
+      process.stderr.write(`[ContextBudget] priority-0 sections exceed budget by ${-budget_remaining} tokens\n`);
+    }
 
-  get total_tokens(): number {
-    return this._total_tokens;
+    // 캐시 친화적 순서 유지를 위해 원래 선언 순서로 복원. _order 필드 누출 방지.
+    return selected_idx.sort((a, b) => a - b).map((i) => sections[i]!);
   }
 }

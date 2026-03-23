@@ -15,6 +15,10 @@ import {
   type UsageAccumulator,
 } from "./tool-loop-helpers.js";
 import { create_tool_output_reducer } from "../../orchestration/tool-output-reducer.js";
+import { parse_tool_calls_from_text } from "../tool-call-parser.js";
+
+/** 응답 잘림 시 자동 연장 최대 횟수. */
+const MAX_CONTINUATIONS = 3;
 
 export type OpenAiCompatibleConfig = {
   api_base: string;
@@ -75,16 +79,60 @@ export class OpenAiCompatibleAgent implements AgentBackend {
     const on_stream = options.hooks?.on_stream;
     const model_override = options.model || undefined;
 
+    // finish_reason "length" 시 자동 연장 — 잘린 응답을 이어서 생성
+    const call_and_continue = async (
+      conv: ChatMessage[],
+      call_tools: Record<string, unknown>[],
+      call_opts: { abort_signal?: AbortSignal; max_tokens?: number; temperature?: number; on_stream?: typeof on_stream; model_override?: string },
+    ) => {
+      let raw = await this._call_api(conv, call_tools, call_opts);
+      let parsed = parse_openai_response(raw);
+      accum_usage(usage, parsed.usage);
+
+      // OSS 모델이 tool_calls를 텍스트로 출력하는 경우 fallback 추출
+      if (parsed.tool_calls.length === 0 && parsed.content && call_tools.length > 0) {
+        const extracted = parse_tool_calls_from_text(parsed.content);
+        if (extracted.length > 0) {
+          parsed = { ...parsed, content: null, tool_calls: extracted };
+        }
+      }
+
+      // 텍스트 응답이 잘렸으면 자동 연장 (도구 호출이 있으면 연장하지 않음)
+      let continuations = 0;
+      let last_segment = parsed.content; // 최신 세그먼트만 conv에 push (O(n) 토큰 유지)
+      while (
+        parsed.finish_reason === "length" &&
+        parsed.tool_calls.length === 0 &&
+        parsed.content &&
+        continuations < MAX_CONTINUATIONS &&
+        !call_opts.abort_signal?.aborted
+      ) {
+        continuations++;
+        conv.push({ role: "assistant", content: last_segment });
+        conv.push({ role: "user", content: "Continue from where you left off." });
+        try {
+          raw = await this._call_api(conv, call_tools, call_opts);
+          const continued = parse_openai_response(raw);
+          accum_usage(usage, continued.usage);
+          last_segment = continued.content || "";
+          parsed = { ...continued, content: parsed.content + last_segment };
+        } finally {
+          // API 성공/실패 무관하게 continuation turn 항상 제거
+          conv.pop(); // remove "Continue" user message
+          conv.pop(); // remove partial assistant message
+        }
+      }
+      return parsed;
+    };
+
     try {
-      let raw = await this._call_api(conversation, tools, {
+      let parsed = await call_and_continue(conversation, tools, {
         abort_signal: options.abort_signal,
         max_tokens: options.max_tokens,
         temperature: options.temperature,
         on_stream,
         model_override,
       });
-      let parsed = parse_openai_response(raw);
-      accum_usage(usage, parsed.usage);
 
       for (let turn = 1; turn < max_turns; turn++) {
         if (options.abort_signal?.aborted) break;
@@ -119,16 +167,14 @@ export class OpenAiCompatibleAgent implements AgentBackend {
           });
         }
 
-        // 도구 사용 후 후속 턴 — on_stream 연속 전달
-        raw = await this._call_api(conversation, tools, {
+        // 도구 사용 후 후속 턴 — on_stream 연속 전달 + 자동 연장
+        parsed = await call_and_continue(conversation, tools, {
           abort_signal: options.abort_signal,
           max_tokens: options.max_tokens,
           temperature: options.temperature,
           on_stream,
           model_override,
         });
-        parsed = parse_openai_response(raw);
-        accum_usage(usage, parsed.usage);
       }
 
       // 최종 응답에 tool_calls가 남아있으면 카운트

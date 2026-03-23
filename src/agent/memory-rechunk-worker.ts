@@ -97,7 +97,9 @@ async function embed_new_chunks(
     const ins_vec = db.prepare("INSERT OR REPLACE INTO memory_chunks_vec (rowid, embedding) VALUES (?, ?)");
     const tx = db.transaction(() => {
       for (let i = 0; i < rows.length; i++) {
-        ins_vec.run(BigInt(rows[i].rowid), normalize_vec_f32(embeddings[i]));
+        const vec = normalize_vec_f32(embeddings[i]);
+        if (!vec) continue;
+        ins_vec.run(BigInt(rows[i].rowid), vec);
       }
     });
     tx();

@@ -75,8 +75,10 @@ export async function run_request_preflight(
 ): Promise<RequestPreflightResult> {
   // 1. seal inputs — 항상 처음
   const raw_message = String(req.message.content || "").trim();
-  const task = await seal_text(deps.vault, req.provider, req.message.chat_id, raw_message);
-  const media = await seal_list(deps.vault, req.provider, req.message.chat_id, req.media_inputs);
+  const [task, media] = await Promise.all([
+    seal_text(deps.vault, req.provider, req.message.chat_id, raw_message),
+    seal_list(deps.vault, req.provider, req.message.chat_id, req.media_inputs),
+  ]);
   const task_with_media = compose_task_with_media(task, media);
 
   // 2. resumed_task 조기 반환 (seal 후, heavy 연산 전 — semantic 보존)
