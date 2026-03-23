@@ -169,7 +169,7 @@ export default function WorkflowDetailPage() {
   const { data: wf, isLoading } = useQuery<PhaseLoopState>({
     queryKey: ["workflow", id],
     queryFn: () => api.get(`/api/workflow/runs/${id}`),
-    refetchInterval: 60_000, staleTime: 10_000,
+    staleTime: 10_000,
     enabled: !!id,
   });
 
@@ -569,7 +569,7 @@ function InteractivePhaseBody({ phase, workflowId, maxIterations }: {
       `/api/workflow/runs/${workflowId}/messages?phase_id=${phase.phase_id}&agent_id=${agent!.agent_id}`,
     ),
     enabled: !!agent,
-    refetchInterval: 60_000, staleTime: 10_000,
+    staleTime: 10_000,
   });
 
   useEffect(() => {
@@ -828,7 +828,7 @@ function AgentChatPanel({ workflow_id, phase_id, agent_id, label, model, status,
   const { data: messages } = useQuery<PhaseMessage[]>({
     queryKey: msg_query_key,
     queryFn: () => api.get(`/api/workflow/runs/${workflow_id}/messages?phase_id=${phase_id}&agent_id=${agent_id}`),
-    refetchInterval: 60_000, staleTime: 10_000,
+    staleTime: 10_000,
   });
 
   const { pending: pending_approvals, resolve: resolve_approval } = useApprovals({

@@ -103,30 +103,35 @@ export function RootLayout() {
   }, [connection]);
 
   useEffect(() => {
-    let msg_timer: ReturnType<typeof setTimeout> | null = null;
     const mark_event = () => { last_event_at.current = Date.now(); set_sse_stale(false); };
-    const debounced_message = () => {
-      mark_event();
-      if (msg_timer) clearTimeout(msg_timer);
-      msg_timer = setTimeout(() => {
-        void qc.invalidateQueries({ queryKey: ["state"] });
-        void qc.invalidateQueries({ queryKey: ["chat-session"] });
-        void qc.invalidateQueries({ queryKey: ["chat-sessions"] });
-      }, 300);
+
+    // SSE 이벤트를 세트에 모아 300ms 디바운스로 한 번에 플러시.
+    const pending_keys = new Set<string>();
+    let batch_timer: ReturnType<typeof setTimeout> | null = null;
+    const flush_batch = () => {
+      const keys = [...pending_keys];
+      pending_keys.clear();
+      batch_timer = null;
+      for (const k of keys) void qc.invalidateQueries({ queryKey: [k] });
     };
+    const batch_invalidate = (...keys: string[]) => {
+      for (const k of keys) pending_keys.add(k);
+      if (batch_timer) clearTimeout(batch_timer);
+      batch_timer = setTimeout(flush_batch, 300);
+    };
+
     const sse = create_sse("/api/events", {
       ready: () => { mark_event(); set_connection("connected"); },
       reload: () => { mark_event(); void qc.invalidateQueries(); },
-      process: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); void qc.invalidateQueries({ queryKey: ["processes"] }); },
-      cron: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); void qc.invalidateQueries({ queryKey: ["cron-status"] }); void qc.invalidateQueries({ queryKey: ["cron-jobs"] }); },
-      message: debounced_message,
+      process: () => { mark_event(); batch_invalidate("state", "processes"); },
+      cron: () => { mark_event(); batch_invalidate("state", "cron-status", "cron-jobs"); },
+      message: () => { mark_event(); batch_invalidate("state", "chat-session", "chat-sessions"); },
       web_stream: (data: unknown) => {
         mark_event();
         const d = data as { chat_id?: string; content?: string; done?: boolean };
         if (d.done) {
           const prev = useDashboardStore.getState().web_stream;
           if (prev) set_web_stream({ ...prev, done: true });
-          // web_message 이벤트가 메시지 저장 후 정확한 시점에 invalidate하므로 여기선 생략
           return;
         }
         if (d.chat_id) set_web_stream({ chat_id: d.chat_id, content: d.content ?? "" });
@@ -149,13 +154,13 @@ export function RootLayout() {
           push_canvas(d.chat_id, d.spec as import("../../../src/dashboard/canvas.types").CanvasSpec);
         }
       },
-      task: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); void qc.invalidateQueries({ queryKey: ["tasks"] }); void qc.invalidateQueries({ queryKey: ["loops"] }); void qc.invalidateQueries({ queryKey: ["kanban"] }); },
-      agent: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); void qc.invalidateQueries({ queryKey: ["agents"] }); },
-      progress: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); void qc.invalidateQueries({ queryKey: ["processes"] }); },
-      workflow: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["workflows"] }); void qc.invalidateQueries({ queryKey: ["workflow"] }); void qc.invalidateQueries({ queryKey: ["workflow-messages"] }); },
+      task: () => { mark_event(); batch_invalidate("state", "tasks", "loops", "kanban-boards", "kanban-board"); },
+      agent: () => { mark_event(); batch_invalidate("state", "agents"); },
+      progress: () => { mark_event(); batch_invalidate("state", "processes"); },
+      workflow: () => { mark_event(); batch_invalidate("workflows", "workflow", "workflow-messages"); },
     });
     set_connection("reconnecting");
-    return () => { if (msg_timer) clearTimeout(msg_timer); sse.close(); set_connection("disconnected"); };
+    return () => { if (batch_timer) clearTimeout(batch_timer); sse.close(); set_connection("disconnected"); };
   }, [set_connection, set_web_stream, set_mirror_event, qc]);
 
   return (
