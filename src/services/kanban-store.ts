@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { with_sqlite, with_sqlite_strict, type DatabaseSync } from "../utils/sqlite-helper.js";
-import { now_iso } from "../utils/common.js";
+import { now_iso, parse_json_safe } from "../utils/common.js";
 
 export * from "./kanban-store.types.js";
 import type {
@@ -124,9 +124,6 @@ function derive_prefix(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 3) || "KB";
 }
 
-function parse_json_safe<T>(raw: string, fallback: T): T {
-  try { return JSON.parse(raw) as T; } catch { return fallback; }
-}
 
 function row_to_board(r: BoardRow): KanbanBoard {
   return {

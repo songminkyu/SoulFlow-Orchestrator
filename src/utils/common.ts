@@ -169,4 +169,9 @@ export function make_run_id(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** PCH-Q5: JSON.parse 실패 시 fallback 반환. 단일 진입점으로 중복 try/catch 제거. */
+export function parse_json_safe<T>(raw: string, fallback: T): T {
+  try { return JSON.parse(raw) as T; } catch { return fallback; }
+}
+
 

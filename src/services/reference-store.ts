@@ -9,12 +9,11 @@
 import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, extname } from "node:path";
-import * as sqliteVec from "sqlite-vec";
 import type { EmbedFn } from "../agent/memory.service.js";
 import type { ImageEmbedFn } from "./embed.service.js";
 import { extract_doc_text, BINARY_DOC_EXTENSIONS } from "../utils/doc-extractor.js";
 import { now_iso } from "../utils/common.js";
-import { with_sqlite, with_sqlite_strict, with_sqlite_async, type DatabaseSync, type SqlitePool } from "../utils/sqlite-helper.js";
+import { with_sqlite, with_sqlite_strict, with_sqlite_async, load_vec, type DatabaseSync, type SqlitePool } from "../utils/sqlite-helper.js";
 import { sha256_short } from "../utils/crypto.js";
 import { normalize_vec, VEC_DIMENSIONS } from "../utils/vec.js";
 import { error_message } from "../utils/common.js";
@@ -236,7 +235,7 @@ export class ReferenceStore implements ReferenceStoreLike {
     this.initialized = true;
     this._db_strict((db) => {
       db.exec(INIT_SQL);
-      sqliteVec.load(db);
+      load_vec(db);
       db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS ref_chunks_vec USING vec0(embedding float[${VEC_DIMENSIONS}])`);
     }, { pragmas: ["journal_mode=WAL", "foreign_keys=ON"] });
   }
@@ -268,7 +267,7 @@ export class ReferenceStore implements ReferenceStoreLike {
 
     return await this._db_async(async (db) => {
       let added = 0, updated = 0, removed = 0;
-      sqliteVec.load(db);
+      load_vec(db);
 
       // DB에 있는 문서 목록
       const db_docs = db.prepare("SELECT path, content_hash FROM ref_documents").all() as { path: string; content_hash: string }[];
@@ -367,7 +366,7 @@ export class ReferenceStore implements ReferenceStoreLike {
 
     const results = await this._db_async(async (db) => {
       const found = new Map<string, ReferenceSearchResult>();
-      sqliteVec.load(db);
+      load_vec(db);
 
       // FTS5 키워드 검색
       const terms = query

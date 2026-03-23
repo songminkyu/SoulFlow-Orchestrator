@@ -8,11 +8,10 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { join, extname, basename } from "node:path";
-import * as sqliteVec from "sqlite-vec";
 import type { EmbedFn } from "../agent/memory.service.js";
 import type { ReferenceStoreLike, ReferenceSearchResult } from "./reference-store.js";
 import { now_iso } from "../utils/common.js";
-import { with_sqlite, with_sqlite_strict, with_sqlite_async, type DatabaseSync, type SqlitePool } from "../utils/sqlite-helper.js";
+import { with_sqlite, with_sqlite_strict, with_sqlite_async, load_vec, type DatabaseSync, type SqlitePool } from "../utils/sqlite-helper.js";
 import { sha256_short } from "../utils/crypto.js";
 import { normalize_vec, VEC_DIMENSIONS } from "../utils/vec.js";
 
@@ -90,7 +89,7 @@ export class SkillRefStore implements ReferenceStoreLike {
     this.initialized = true;
     this._db_strict((db) => {
       db.exec(INIT_SQL);
-      sqliteVec.load(db);
+      load_vec(db);
       db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS skill_ref_chunks_vec USING vec0(embedding float[${VEC_DIMENSIONS}])`);
     }, { pragmas: ["journal_mode=WAL", "foreign_keys=ON"] });
   }
@@ -106,7 +105,7 @@ export class SkillRefStore implements ReferenceStoreLike {
 
     return await this._db_async(async (db) => {
       let added = 0, updated = 0, removed = 0;
-      sqliteVec.load(db);
+      load_vec(db);
 
       const db_docs = db.prepare("SELECT path, content_hash FROM skill_ref_documents").all() as { path: string; content_hash: string }[];
       const db_map = new Map(db_docs.map((d) => [d.path, d.content_hash]));
@@ -170,7 +169,7 @@ export class SkillRefStore implements ReferenceStoreLike {
 
     const results = await this._db_async(async (db) => {
       const found = new Map<string, ReferenceSearchResult>();
-      sqliteVec.load(db);
+      load_vec(db);
 
       // FTS5
       const terms = query.toLowerCase().replace(/[^a-z0-9가-힣_\s]/g, " ").split(/\s+/).filter((w) => w.length >= 2);

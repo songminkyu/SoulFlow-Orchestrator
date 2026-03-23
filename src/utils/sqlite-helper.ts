@@ -100,6 +100,11 @@ export async function with_sqlite_async<T>(
 
 /* ─── AP-2: sqlite-vec 확장 포함 헬퍼 ───────────────────────────────────── */
 
+/** PCH-Q6: sqlite-vec 확장을 기존 DB 연결에 로드. 스토어가 직접 sqlite-vec를 import할 필요 없게 함. */
+export function load_vec(db: DatabaseSync): void {
+  sqliteVec.load(db);
+}
+
 /** DB를 열고 sqlite-vec 확장 로드 후 콜백 실행, 닫는다. WAL 기본 적용. 에러 시 stderr 로깅 후 null. */
 export function with_vec_db<T>(
   db_path: string,

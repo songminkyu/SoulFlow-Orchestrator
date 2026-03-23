@@ -3,8 +3,7 @@ import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import type { RechunkJob } from "./memory-rechunk-worker.js";
-import * as sqliteVec from "sqlite-vec";
-import { with_sqlite, with_sqlite_strict, with_vec_db, with_vec_db_async, type SqlitePool, type SqliteRunOptions } from "../utils/sqlite-helper.js";
+import { with_sqlite, with_sqlite_strict, with_vec_db, with_vec_db_async, load_vec, type SqlitePool, type SqliteRunOptions } from "../utils/sqlite-helper.js";
 import type {
   ConsolidationMessage,
   ConsolidationSession,
@@ -190,7 +189,7 @@ export class MemoryStore implements MemoryStoreLike {
         END;
       `);
 
-      sqliteVec.load(db);
+      load_vec(db);
       db.exec(`
         CREATE VIRTUAL TABLE IF NOT EXISTS memory_vec
         USING vec0(embedding float[${VEC_DIMENSIONS}])
@@ -378,7 +377,7 @@ export class MemoryStore implements MemoryStoreLike {
 
         // 벡터 저장
         if (result.embeddings?.length && upserted_rowids.length > 0) {
-          sqliteVec.load(db);
+          load_vec(db);
           const ins_vec = db.prepare("INSERT OR REPLACE INTO memory_chunks_vec (rowid, embedding) VALUES (?, ?)");
           const embed_map = new Map(result.embeddings.map((e) => [e.chunk_id, e.vector_b64]));
           const tx = db.transaction(() => {
