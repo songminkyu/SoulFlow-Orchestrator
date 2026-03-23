@@ -57,7 +57,11 @@ describe("PhaseWorkflowStore — recover_if_dir inner DB 있음 (L73-75)", () =>
       // 복구 과정이 오류 없이 진행됨
       expect(true).toBe(true);
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      // Windows: SQLite WAL 파일이 briefly locked → 재시도
+      for (let i = 0; i < 5; i++) {
+        try { await rm(ws, { recursive: true, force: true }); break; }
+        catch { await new Promise((r) => setTimeout(r, 50)); }
+      }
     }
   });
 });

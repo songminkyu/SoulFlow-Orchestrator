@@ -57,9 +57,10 @@ describe("ArchiveTool — tar.gz 조작", () => {
   });
 
   it("extract 성공", async () => {
-    mock_argv.mockReturnValueOnce(ok("", ""));
+    mock_argv.mockReturnValueOnce(ok(""));  // scan_entries_for_traversal: tar list (safe)
+    mock_argv.mockReturnValueOnce(ok("", ""));  // 실제 extract
     const r = await new ArchiveTool({ workspace: WS }).execute({
-      operation: "extract", archive_path: "test.tar.gz", output_dir: "/tmp/out",
+      operation: "extract", archive_path: "test.tar.gz", output_dir: "out",
     });
     expect(String(r)).toContain("extract");
   });
@@ -90,7 +91,8 @@ describe("ArchiveTool — zip 조작", () => {
   });
 
   it("extract zip 성공", async () => {
-    mock_argv.mockReturnValueOnce(ok("inflating: file.txt"));
+    mock_argv.mockReturnValueOnce(ok(""));  // scan_entries_for_traversal: unzip -l (safe)
+    mock_argv.mockReturnValueOnce(ok("inflating: file.txt"));  // 실제 extract
     const r = await new ArchiveTool({ workspace: WS }).execute({
       operation: "extract", format: "zip", archive_path: "test.zip",
     });

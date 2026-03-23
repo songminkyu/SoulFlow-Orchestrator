@@ -194,15 +194,15 @@ describe("ToolIndex.ensure_embeddings_fresh — 분기 커버", () => {
 
 // ── normalize_vec: zero norm ──
 
-describe("ToolIndex — normalize_vec zero norm → v 그대로 반환", () => {
-  it("올-제로 벡터 → norm=0 → 그대로 반환", async () => {
+describe("ToolIndex — normalize_vec zero norm → null 반환 (벡터 인덱스 오염 방지)", () => {
+  it("올-제로 벡터 → norm=0 → null 반환", async () => {
     const index = new ToolIndex();
     const zeros = new Array(256).fill(0);
     (index as any).embed_fn = async (_texts: string[]) => ({ embeddings: [zeros] });
 
     const result = await (index as any)._get_or_embed_query("zero_embedding_test");
-    expect(result).toBeInstanceOf(Float32Array);
-    expect(result[0]).toBe(0);
+    // normalize_vec: 제로 벡터는 정규화 불가 → null (벡터 인덱스에 오염 벡터 방지)
+    expect(result).toBeNull();
   });
 });
 

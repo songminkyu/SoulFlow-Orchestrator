@@ -49,12 +49,14 @@ describe("SH-4: archive argv injection 방어", () => {
   });
 
   it("extract zip → argv 배열로 실행", async () => {
-    await make_tool().execute({ operation: "extract", format: "zip", archive_path: "data.zip", output_dir: "/out" });
-    expect(mock_run_argv).toHaveBeenCalledOnce();
-    const [cmd, args] = mock_run_argv.mock.calls[0] as [string, string[]];
+    // output_dir은 workspace-상대 경로여야 함 (PCH-S8: zip-slip 방어 경계 검증)
+    await make_tool().execute({ operation: "extract", format: "zip", archive_path: "data.zip", output_dir: "out" });
+    // PCH-S8: scan_entries_for_traversal(list) 1회 + 실제 extract 1회 = 총 2회 호출
+    expect(mock_run_argv).toHaveBeenCalledTimes(2);
+    const [cmd, args] = mock_run_argv.mock.calls[1] as [string, string[]];
     expect(cmd).toBe("unzip");
     expect(args).toContain("-d");
-    expect(args).toContain("/out");
+    expect(args).toContain("out");
   });
 
   it("shell injection 문자가 포함된 파일명 → argv에 그대로 전달 (해석 안 됨)", async () => {

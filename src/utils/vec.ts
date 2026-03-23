@@ -3,21 +3,22 @@
 /** sqlite-vec 스토어들이 공유하는 임베딩 차원 수. 모델 변경 시 스키마 마이그레이션 필요. */
 export const VEC_DIMENSIONS = 256;
 
-/** L2 정규화 후 number[] 반환. 임베딩 점수 계산용. */
-export function normalize_vec(v: number[]): number[] {
+/** L2 정규화 후 number[] 반환. 임베딩 점수 계산용. 제로 벡터 시 null (벡터 인덱스 오염 방지). */
+export function normalize_vec(v: number[]): number[] | null {
   let norm = 0;
   for (const x of v) norm += x * x;
   norm = Math.sqrt(norm);
-  if (norm === 0) return v;
+  if (norm === 0) return null;
   return v.map((x) => x / norm);
 }
 
-/** L2 정규화 후 Float32Array 반환. sqlite-vec 직접 삽입용. */
-export function normalize_vec_f32(v: number[]): Float32Array {
+/** L2 정규화 후 Float32Array 반환. sqlite-vec 직접 삽입용. 제로 벡터 시 null. */
+export function normalize_vec_f32(v: number[]): Float32Array | null {
   let norm = 0;
   for (let i = 0; i < v.length; i++) norm += v[i] * v[i];
   norm = Math.sqrt(norm);
+  if (norm === 0) return null;
   const out = new Float32Array(v.length);
-  if (norm > 0) for (let i = 0; i < v.length; i++) out[i] = v[i] / norm;
+  for (let i = 0; i < v.length; i++) out[i] = v[i] / norm;
   return out;
 }
