@@ -9,6 +9,50 @@ const DEFAULT_MODEL = "openai/text-embedding-3-small";
 const DEFAULT_TIMEOUT_MS = HTTP_FETCH_TIMEOUT_MS;
 const MAX_BATCH_SIZE = 96;
 
+// ── LRU 캐시 설정 ──────────────────────────────────────────────────────────
+const MAX_CACHE_ENTRIES = 256;
+const CACHE_TTL_MS = 60_000;
+
+interface CacheEntry {
+  embedding: number[];
+  expires_at: number;
+}
+
+/** 삽입 순서 기반 LRU 캐시. Map의 순서 보장을 활용. */
+function create_lru_cache() {
+  const store = new Map<string, CacheEntry>();
+
+  function make_key(model: string, dimensions: number | undefined, text: string): string {
+    return `${model}::${dimensions ?? ""}::${text}`;
+  }
+
+  function get(key: string): number[] | undefined {
+    const entry = store.get(key);
+    if (!entry) return undefined;
+    if (Date.now() > entry.expires_at) {
+      store.delete(key);
+      return undefined;
+    }
+    // LRU: 접근 시 삭제 후 재삽입 → 맨 뒤로 이동
+    store.delete(key);
+    store.set(key, entry);
+    return entry.embedding;
+  }
+
+  function set(key: string, embedding: number[]): void {
+    // 이미 존재하면 삭제 (순서 갱신)
+    if (store.has(key)) store.delete(key);
+    // 용량 초과 시 가장 오래된(맨 앞) 항목 제거
+    while (store.size >= MAX_CACHE_ENTRIES) {
+      const oldest_key = store.keys().next().value;
+      if (oldest_key !== undefined) store.delete(oldest_key);
+    }
+    store.set(key, { embedding, expires_at: Date.now() + CACHE_TTL_MS });
+  }
+
+  return { get, set, make_key, get size() { return store.size; } };
+}
+
 export interface EmbedServiceDeps {
   get_api_key: () => Promise<string | null>;
   api_base?: string;
@@ -22,6 +66,7 @@ export interface EmbedServiceDeps {
 export function create_embed_service(deps: EmbedServiceDeps) {
   const api_base = deps.api_base || "https://openrouter.ai/api/v1";
   const default_model = deps.default_model || DEFAULT_MODEL;
+  const cache = create_lru_cache();
 
   return async (
     texts: string[],
@@ -31,47 +76,73 @@ export function create_embed_service(deps: EmbedServiceDeps) {
     if (!api_key && !deps.skip_auth) throw new Error("embedding API key not configured");
 
     const model = opts.model || default_model;
-    const all_embeddings: number[][] = [];
-    let total_tokens = 0;
 
-    // 배치 분할
-    for (let i = 0; i < texts.length; i += MAX_BATCH_SIZE) {
-      const batch = texts.slice(i, i + MAX_BATCH_SIZE);
+    // ── 캐시 조회: 히트/미스 분리 ──
+    const results: (number[] | null)[] = texts.map((text) => {
+      const key = cache.make_key(model, opts.dimensions, text);
+      return cache.get(key) ?? null;
+    });
 
-      const body: Record<string, unknown> = { model, input: batch };
-      if (opts.dimensions) body.dimensions = opts.dimensions;
-
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (api_key) headers.Authorization = `Bearer ${api_key}`;
-
-      const res = await fetch(`${api_base}/embeddings`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
-      });
-
-      if (!res.ok) {
-        const err = await res.text().catch(() => "");
-        log.warn("embedding API error", { status: res.status, model, api_base });
-        throw new Error(`Embedding API error (${res.status}): ${err.slice(0, 200)}`);
-      }
-
-      const json = await res.json() as {
-        data: Array<{ embedding: number[]; index: number }>;
-        usage?: { total_tokens?: number };
-      };
-
-      // index 순으로 정렬
-      const sorted = json.data.sort((a, b) => a.index - b.index);
-      for (const item of sorted) {
-        all_embeddings.push(item.embedding);
-      }
-      total_tokens += json.usage?.total_tokens ?? 0;
+    const miss_indices: number[] = [];
+    for (let i = 0; i < results.length; i++) {
+      if (results[i] === null) miss_indices.push(i);
     }
 
-    log.info("embed", { model, count: texts.length, tokens: total_tokens, api_base });
-    return { embeddings: all_embeddings, token_usage: total_tokens || undefined };
+    const hit_count = texts.length - miss_indices.length;
+    if (hit_count > 0) {
+      log.debug("embedding cache hit", { model, count: hit_count });
+    }
+
+    // ── 캐시 미스만 API 호출 ──
+    let total_tokens = 0;
+    if (miss_indices.length > 0) {
+      const miss_texts = miss_indices.map((i) => texts[i]);
+
+      for (let i = 0; i < miss_texts.length; i += MAX_BATCH_SIZE) {
+        const batch = miss_texts.slice(i, i + MAX_BATCH_SIZE);
+        const batch_miss_indices = miss_indices.slice(i, i + MAX_BATCH_SIZE);
+
+        const body: Record<string, unknown> = { model, input: batch };
+        if (opts.dimensions) body.dimensions = opts.dimensions;
+
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (api_key) headers.Authorization = `Bearer ${api_key}`;
+
+        const res = await fetch(`${api_base}/embeddings`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+        });
+
+        if (!res.ok) {
+          const err = await res.text().catch(() => "");
+          log.warn("embedding API error", { status: res.status, model, api_base });
+          throw new Error(`Embedding API error (${res.status}): ${err.slice(0, 200)}`);
+        }
+
+        const json = await res.json() as {
+          data: Array<{ embedding: number[]; index: number }>;
+          usage?: { total_tokens?: number };
+        };
+
+        // index 순으로 정렬
+        const sorted = json.data.sort((a, b) => a.index - b.index);
+        for (let j = 0; j < sorted.length; j++) {
+          const embedding = sorted[j].embedding;
+          const original_idx = batch_miss_indices[j];
+          results[original_idx] = embedding;
+
+          // 캐시에 저장
+          const key = cache.make_key(model, opts.dimensions, texts[original_idx]);
+          cache.set(key, embedding);
+        }
+        total_tokens += json.usage?.total_tokens ?? 0;
+      }
+    }
+
+    log.info("embed", { model, count: texts.length, hits: hit_count, misses: miss_indices.length, tokens: total_tokens, api_base });
+    return { embeddings: results as number[][], token_usage: total_tokens || undefined };
   };
 }
 
