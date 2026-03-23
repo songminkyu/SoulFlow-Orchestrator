@@ -178,16 +178,22 @@ export default function ChatPage() {
     void qc.invalidateQueries({ queryKey: ["chat-sessions"] });
   };
 
+  const MAX_FILE_SIZE = 7 * 1024 * 1024; // 7MB (base64 인코딩 후 ~10MB)
+
   const handle_file = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
     for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        toast(t("chat.file_too_large", { name: file.name, max: "7MB" }), "err");
+        continue;
+      }
       const reader = new FileReader();
       reader.onload = (ev) => {
         const url = ev.target?.result as string;
         if (!url) return;
         const type = file.type.startsWith("image/") ? "image" : "file";
-        setPendingMedia((prev) => [...prev, { type, url, mime: file.type, name: file.name }]);
+        setPendingMedia((prev) => [...prev, { type, url, mime: file.type, name: file.name, size: file.size }]);
       };
       reader.onerror = () => toast(t("chat.file_read_failed"), "err");
       reader.readAsDataURL(file);
