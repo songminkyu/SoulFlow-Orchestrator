@@ -334,10 +334,9 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
         {/* 기본 정보: 아이콘 + 이름 + 설명 */}
         <div className="ps-pane-sec">
           <span className="ps-pane-sec__label">{t("agents.section_basic")}</span>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="ps-icon-name-row">
             <input
-              className="input input--center"
-              style={{ width: 48, flexShrink: 0 }}
+              className="input input--center ps-icon-input"
               value={form.icon}
               onChange={(e) => set("icon", e.target.value)}
               maxLength={4}
@@ -345,8 +344,7 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
               aria-label={t("agents.icon")}
             />
             <input
-              className="input"
-              style={{ flex: 1 }}
+              className="input flex-1"
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
               placeholder={t("agents.name_placeholder")}
@@ -366,8 +364,8 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
         <div className="ps-pane-sec">
           <span className="ps-pane-sec__label">{t("agents.section_role")}</span>
           <select
-            className="ps-select-sm"
-            style={{ height: 32, fontSize: 13, width: "100%" }}
+            className="ps-select-sm ps-select-full"
+            style={{ height: 32, fontSize: 13 }}
             value={form.role_skill}
             onChange={(e) => set("role_skill", e.target.value)}
             aria-label={t("agents.section_role")}
@@ -388,19 +386,17 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
         <div className="ps-pane-sec">
           <span className="ps-pane-sec__label">
             {t("prompting.ai_generate")}
-            <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>{t("prompting.ai_generate_hint")}</span>
+            <span className="ps-label-hint">{t("prompting.ai_generate_hint")}</span>
           </span>
-          <div className="ps-upload-row" style={{ gap: 6 }}>
+          <div className="ps-upload-row">
             <textarea
-              className="ps-upload-input"
-              style={{ resize: "none", height: 52, lineHeight: 1.4 }}
+              className="ps-upload-input ps-generate-input"
               value={ai_prompt}
               onChange={(e) => setAiPrompt(e.target.value)}
               placeholder={t("prompting.ai_generate_ph")}
             />
             <button
-              className="ps-upload-btn"
-              style={{ alignSelf: "stretch", height: "auto" }}
+              className="ps-upload-btn ps-generate-btn"
               disabled={generating || !ai_prompt.trim()}
               onClick={() => void handle_generate()}
             >
@@ -412,7 +408,7 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
         {/* Soul */}
         <div className="ps-pane-sec">
           <span className="ps-pane-sec__label">
-            {t("prompting.soul")} <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>{t("prompting.soul_hint")}</span>
+            {t("prompting.soul")} <span className="ps-label-hint">{t("prompting.soul_hint")}</span>
           </span>
           <textarea
             className="ps-prompt-area"
@@ -427,7 +423,7 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
         {/* Heart */}
         <div className="ps-pane-sec">
           <span className="ps-pane-sec__label">
-            {t("prompting.heart")} <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>{t("prompting.heart_hint")}</span>
+            {t("prompting.heart")} <span className="ps-label-hint">{t("prompting.heart_hint")}</span>
           </span>
           <textarea
             className="ps-prompt-area"
@@ -503,10 +499,9 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
         </div>
 
         {/* 저장 바 */}
-        <div style={{ padding: "10px 16px", display: "flex", gap: 6, borderTop: "1px solid var(--line)" }}>
+        <div className="ps-save-bar">
           <button
-            className={`ps-run-btn-main${saving ? " ps-run-btn-main--running" : ""}`}
-            style={{ flex: 1, height: 36, borderRadius: 8, fontSize: 13 }}
+            className={`ps-run-btn-main ps-save-btn-agent${saving ? " ps-run-btn-main--running" : ""}`}
             disabled={saving || !form.name.trim()}
             onClick={() => void handle_save()}
           >
@@ -542,7 +537,7 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
       </aside>
 
       {/* ── 오른쪽: 채팅 테스트 ── */}
-      <main className="ps-preview" style={{ display: "flex", flexDirection: "column" }}>
+      <main className="ps-preview">
         {/* 헤더 */}
         <div className="ps-preview-head">
           <div className="ps-preview-head__top">
@@ -557,7 +552,7 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
         </div>
 
         {/* 채팅 메시지 영역 */}
-        <div className="ps-output-area" style={{ flex: 1 }}>
+        <div className="ps-output-area">
           {chat.length === 0 && (
             <div className="ps-preview-empty">
               <div className="ps-preview-empty__icon">
@@ -569,32 +564,17 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
             </div>
           )}
           {chat.map((msg, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-                padding: "10px 0",
-                borderBottom: "1px solid var(--line)",
-              }}
-            >
-              <span style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: msg.role === "user" ? "var(--accent)" : "var(--muted)",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-              }}>
+            <div key={i} className="ps-chat-msg">
+              <span className={`ps-chat-role ps-chat-role--${msg.role === "user" ? "user" : "agent"}`}>
                 {msg.role === "user" ? t("prompting.role_user") : t("prompting.role_agent")}
               </span>
-              <pre style={{ margin: 0, fontFamily: "inherit", fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+              <pre className="ps-chat-body">
                 {msg.content}
               </pre>
             </div>
           ))}
           {running && (
-            <div style={{ padding: "10px 0", display: "flex", gap: 8, alignItems: "center", color: "var(--muted)", fontSize: 13 }}>
+            <div className="ps-streaming-status">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}>
                 <path d="M21 12a9 9 0 11-18 0"/><path d="M21 12a9 9 0 00-9-9"/>
               </svg>
@@ -602,7 +582,7 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
             </div>
           )}
           {last_result && !running && (
-            <div style={{ paddingTop: 6 }}>
+            <div className="ps-thinking-wrap">
               <RunResult value={last_result} />
             </div>
           )}

@@ -1564,3 +1564,63 @@
   .ps-tab:hover { color: var(--muted); }
   .ps-tab--active:hover { color: var(--text); }
 }
+
+/* ── PCH-F11: agent-panel inline style 추출 ─────────────────── */
+/** 아이콘 + 이름 입력 행 */
+.ps-icon-name-row { display: flex; gap: var(--sp-2); }
+.ps-icon-input { width: 48px; flex-shrink: 0; }
+/** 섹션 라벨 내 힌트 텍스트 — 가중치/변환 초기화 */
+.ps-label-hint { font-weight: 400; text-transform: none; letter-spacing: 0; }
+/** AI 생성 textarea — 고정 높이 + 줄간격 */
+.ps-generate-input { resize: none; height: 52px; line-height: 1.4; }
+/** AI 생성 버튼 — 세로 stretch */
+.ps-generate-btn { align-self: stretch; height: auto; }
+/** 역할 선택 드롭다운 — full width */
+.ps-select-full { width: 100%; }
+/** 저장 바 */
+.ps-save-bar {
+  padding: 10px 16px;
+  display: flex;
+  gap: 6px;
+  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+}
+/** 저장 버튼 — 에이전트 편집 전용 크기 */
+.ps-save-btn-agent { flex: 1; height: 36px; border-radius: 8px; font-size: 13px; }
+/** 채팅 메시지 항목 */
+.ps-chat-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+/** 채팅 롤 레이블 */
+.ps-chat-role {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.ps-chat-role--user { color: var(--accent); }
+.ps-chat-role--agent { color: var(--muted); }
+/** 채팅 메시지 본문 */
+.ps-chat-body {
+  margin: 0;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+/** thinking 섹션 */
+.ps-thinking-wrap { padding-top: 6px; }
+/** 응답 중 상태 표시 */
+.ps-streaming-status {
+  padding: 10px 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 13px;
+}
