@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import type { ApiProtocolList } from "../../api/contracts";
 import { useT } from "../../i18n";
+import { useToast } from "../../components/toast";
 import { StudioModelPicker, type StudioModelValue } from "../../components/studio-model-picker";
 import { ChatPromptBar } from "../../components/chat-prompt-bar";
 import { RunResult, type RunResultValue } from "./run-result";
@@ -123,6 +124,7 @@ function AgentListItem({
 
 export function AgentPanel({ initial_id }: AgentPanelProps) {
   const t = useT();
+  const { toast } = useToast();
   const qc = useQueryClient();
   const chat_end_ref = useRef<HTMLDivElement>(null);
 
@@ -207,7 +209,13 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
     if (!ai_prompt.trim()) return;
     setGenerating(true);
     try {
-      const data = await api.post<GeneratedAgentFields>("/api/agent-definitions/generate", { prompt: ai_prompt, provider_id: model.provider_id || undefined });
+      const res = await api.post<{ ok: boolean; data?: GeneratedAgentFields; error?: string }>("/api/agent-definitions/generate", { prompt: ai_prompt, provider_id: model.provider_id || undefined });
+      console.debug("[agent-generate] response:", JSON.stringify(res).slice(0, 500));
+      const data = res.data;
+      if (!res.ok || !data) {
+        toast(res.error || "generate_failed", "err");
+        return;
+      }
       setForm((f) => ({
         ...f,
         name: data.name || f.name,
