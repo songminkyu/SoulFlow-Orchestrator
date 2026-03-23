@@ -35,35 +35,71 @@ function is_available(executor: ExecutorProvider, caps: ProviderCapabilities): b
   return !!caps[key];
 }
 
-/** primary를 제외하고 사용 가능한 executor를 fallback 우선순위로 반환. */
+/** 프로바이더 priority 정보. provider store에서 주입. */
+export type ProviderPriority = { provider_type: string; priority: number };
+
+const DEFAULT_ORDER: ExecutorProvider[] = ["chatgpt", "claude_code", "openrouter", "orchestrator_llm"];
+
+/** priority 기반 정렬. priority가 없으면 DEFAULT_ORDER 순서 사용. */
+function sort_by_priority(
+  executors: ExecutorProvider[],
+  priorities?: ProviderPriority[],
+): ExecutorProvider[] {
+  if (!priorities || priorities.length === 0) return executors;
+  const pmap = new Map(priorities.map((p) => [p.provider_type, p.priority]));
+  return [...executors].sort((a, b) => {
+    const pa = pmap.get(a) ?? pmap.get(EXECUTOR_TO_PROVIDER_TYPE[a] ?? "") ?? 999;
+    const pb = pmap.get(b) ?? pmap.get(EXECUTOR_TO_PROVIDER_TYPE[b] ?? "") ?? 999;
+    return pa - pb;
+  });
+}
+
+/** executor 이름 → provider_type 매핑 (store의 provider_type과 일치시키기 위함). */
+const EXECUTOR_TO_PROVIDER_TYPE: Record<string, string> = {
+  chatgpt: "codex_appserver",
+  claude_code: "claude_sdk",
+  openrouter: "openrouter",
+  orchestrator_llm: "orchestrator_llm",
+  gemini: "gemini_cli",
+};
+
+/** primary를 제외하고 사용 가능한 executor를 priority 순으로 반환. */
 export function build_fallback_chain(
   primary: ExecutorProvider,
   caps: ProviderCapabilities,
+  priorities?: ProviderPriority[],
 ): ExecutorProvider[] {
-  const order: ExecutorProvider[] = ["chatgpt", "claude_code", "openrouter", "orchestrator_llm"];
+  const ordered = sort_by_priority(DEFAULT_ORDER, priorities);
   const chain: ExecutorProvider[] = [];
-  for (const candidate of order) {
+  for (const candidate of ordered) {
     if (candidate === primary) continue;
     if (is_available(candidate, caps)) chain.push(candidate);
   }
   return chain;
 }
 
-/** ExecutionGateway 팩토리. */
-export function create_execution_gateway(): ExecutionGatewayLike {
+/** ExecutionGateway 팩토리. priorities: provider store에서 읽은 priority 목록. */
+export function create_execution_gateway(priorities?: ProviderPriority[]): ExecutionGatewayLike {
   return {
     resolve(plan, caps, preference) {
       // no_token (identity/builtin/inquiry/direct_tool) → LLM executor 불필요.
-      // preference를 primary로 두지만 fallback 없음 — 외부 provider 호출 안 함.
       if (plan.route === "no_token") {
         return { primary: preference, fallbacks: [] };
       }
 
-      // model_direct/agent_required → plan에 executor가 있으면 사용, 없으면 preference 해결.
-      const primary = "executor" in plan
-        ? plan.executor
-        : resolve_executor_provider(preference, caps);
-      const fallbacks = build_fallback_chain(primary, caps);
+      // priority 기반 primary 결정: preference가 명시적이면 그대로 사용,
+      // 아니면 priority가 가장 높은(숫자 낮은) 사용 가능한 executor 선택.
+      let primary: ExecutorProvider;
+      if ("executor" in plan) {
+        primary = plan.executor;
+      } else if (priorities && priorities.length > 0) {
+        const ordered = sort_by_priority(DEFAULT_ORDER, priorities);
+        primary = ordered.find((e) => is_available(e, caps)) ?? resolve_executor_provider(preference, caps);
+      } else {
+        primary = resolve_executor_provider(preference, caps);
+      }
+
+      const fallbacks = build_fallback_chain(primary, caps, priorities);
       return { primary, fallbacks };
     },
   };
