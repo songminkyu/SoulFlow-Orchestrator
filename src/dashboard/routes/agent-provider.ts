@@ -32,15 +32,26 @@ export async function handle_agent_provider(ctx: RouteContext): Promise<boolean>
     return true;
   }
 
-  // GET /api/agents/providers/models/:provider_type — TN-6d: team_manager + SSRF 방지 (api_base 무시)
+  // GET /api/agents/providers/models/:provider_type — TN-6d: team_manager + SSRF 방지
   const type_models_match = path.match(/^\/api\/agents\/providers\/models\/([^/]+)$/);
   if (type_models_match && req.method === "GET") {
     if (!require_team_manager(ctx)) return true;
     const ops = agent_provider_ops_or_503(ctx);
     if (!ops) return true;
     const provider_type = decodeURIComponent(type_models_match[1]);
-    // TN-6d: api_base를 사용자 입력으로 받지 않음 — SSRF(A10) 방지
-    const api_base = undefined;
+    // TN-6d: 사용자 입력 api_base 거부 → connection의 api_base만 허용 (SSRF 방지)
+    let api_base: string | undefined;
+    const connection_id = url.searchParams.get("connection_id");
+    if (connection_id) {
+      const conn = await ops.get_connection(connection_id);
+      if (conn?.api_base) api_base = conn.api_base;
+    }
+    // connection 없으면 해당 타입의 첫 번째 enabled connection에서 api_base 탐색
+    if (!api_base) {
+      const conns = await ops.list_connections();
+      const matched = conns.find((c) => c.provider_type === provider_type && c.enabled && c.api_base);
+      if (matched) api_base = matched.api_base;
+    }
     try {
       const models = await ops.list_models(provider_type, { api_base });
       json(res, 200, models);
