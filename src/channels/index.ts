@@ -11,7 +11,7 @@ export type {
   ChannelTypingState,
   ChatChannel,
 } from "./types.js";
-export { BaseChannel } from "./base.js";
+export { BaseChannel, MAX_INBOUND_MESSAGE_CHARS } from "./base.js";
 export { SlackChannel } from "./slack.channel.js";
 export { DiscordChannel } from "./discord.channel.js";
 export { TelegramChannel } from "./telegram.channel.js";
@@ -58,15 +58,21 @@ export class ChannelRegistry implements ChannelRegistryLike {
   }
 
   async start_all(): Promise<void> {
-    for (const channel of this.channels.values()) {
-      await channel.start();
+    const channels = [...this.channels.values()];
+    const results = await Promise.allSettled(channels.map((ch) => ch.start()));
+    const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (failed.length) {
+      // 성공한 채널을 정리한 후 에러 전파
+      const started = channels.filter((_, i) => results[i]!.status === "fulfilled");
+      await Promise.allSettled(started.map((ch) => ch.stop()));
+      throw new AggregateError(failed.map((f) => f.reason), `${failed.length} channel(s) failed to start`);
     }
   }
 
   async stop_all(): Promise<void> {
-    for (const channel of this.channels.values()) {
-      await channel.stop();
-    }
+    const results = await Promise.allSettled([...this.channels.values()].map((ch) => ch.stop()));
+    const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (failed.length) console.error(`[ChannelManager] ${failed.length} channel(s) failed to stop:`, failed.map((f) => f.reason));
   }
 
   async send(message: OutboundMessage): Promise<{ ok: boolean; message_id?: string; error?: string }> {

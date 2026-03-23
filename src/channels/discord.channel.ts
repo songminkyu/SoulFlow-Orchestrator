@@ -4,8 +4,11 @@ import { tmpdir } from "node:os";
 import { validate_file_path } from "../utils/path-validation.js";
 import type { InboundMessage, MediaItem, OutboundMessage, RichAction, RichEmbed } from "../bus/types.js";
 import { now_iso, error_message, short_id} from "../utils/common.js";
-import { BaseChannel } from "./base.js";
+import { create_logger } from "../logger.js";
+import { BaseChannel, truncate_inbound_content } from "./base.js";
 import { channel_fetch, parse_json_response } from "./http-utils.js";
+
+const _inbound_log = create_logger("channel:discord:inbound");
 import type { DiscordChannelSettings } from "./settings.types.js";
 
 type DiscordChannelOptions = {
@@ -20,7 +23,7 @@ type DiscordChannelOptions = {
 function to_inbound_message(channel: DiscordChannel, raw: Record<string, unknown>, chat_id: string): InboundMessage {
   const author = (raw.author && typeof raw.author === "object") ? (raw.author as Record<string, unknown>) : {};
   const from_is_bot = author.bot === true;
-  const content = String(raw.content || "");
+  const content = truncate_inbound_content(String(raw.content || ""), _inbound_log, { provider: "discord", chat_id });
   const command = channel.parse_command(content);
   const mentions = channel.parse_agent_mentions(content);
   const attachments = Array.isArray(raw.attachments) ? (raw.attachments as Array<Record<string, unknown>>) : [];

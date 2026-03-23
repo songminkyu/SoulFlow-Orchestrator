@@ -169,7 +169,11 @@ COPY scripts/ scripts/
 ENV WORKSPACE=/data
 ENV NODE_ENV=production
 
+RUN mkdir -p /data && chown node:node /data
+
 EXPOSE 4200
+
+USER node
 
 ENTRYPOINT ["tini", "--"]
 CMD ["node", "dist/main.js"]
@@ -187,7 +191,11 @@ COPY scripts/ scripts/
 ENV WORKSPACE=/data
 ENV NODE_ENV=production
 
+RUN mkdir -p /data && chown node:node /data
+
 EXPOSE 4200
+
+USER node
 
 ENTRYPOINT ["tini", "--"]
 CMD ["node", "dist/main.js"]

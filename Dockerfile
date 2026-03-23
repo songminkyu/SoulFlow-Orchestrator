@@ -60,13 +60,19 @@ COPY scripts/ scripts/
 ENV WORKSPACE=/data
 ENV NODE_ENV=production
 
+RUN mkdir -p /data && chown node:node /data
+
 EXPOSE 4200
+
+USER node
 
 ENTRYPOINT ["tini", "--"]
 CMD ["node", "dist/main.js"]
 
 # ── Stage 4: Full (+ CLI agents) ─────────────────────────────────────────────
 FROM production AS full
+
+USER root
 
 # CLI 에이전트의 Rust HTTP 클라이언트가 시스템 CA 번들 필요
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -76,6 +82,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN npm install -g @anthropic-ai/claude-code@latest || true
 RUN npm install -g @openai/codex@latest || true
 RUN npm install -g @google/gemini-cli@latest || true
+
+USER node
 
 # ── Stage 5: Dev (deps + CLI agents + devDependencies) ──────────────────────
 FROM deps AS dev

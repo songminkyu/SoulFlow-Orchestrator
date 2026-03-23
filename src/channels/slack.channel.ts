@@ -5,7 +5,10 @@ import { validate_file_path } from "../utils/path-validation.js";
 import { WebClient } from "@slack/web-api";
 import type { InboundMessage, MediaItem, OutboundMessage, RichAction, RichEmbed } from "../bus/types.js";
 import { now_iso, error_message, short_id} from "../utils/common.js";
-import { BaseChannel } from "./base.js";
+import { create_logger } from "../logger.js";
+import { BaseChannel, truncate_inbound_content } from "./base.js";
+
+const _inbound_log = create_logger("channel:slack:inbound");
 
 type SlackChannelOptions = {
   instance_id?: string;
@@ -16,7 +19,7 @@ type SlackChannelOptions = {
 };
 
 function to_inbound_message(channel: SlackChannel, raw: Record<string, unknown>, chat_id: string): InboundMessage {
-  const content = String((raw.text as string) || "");
+  const content = truncate_inbound_content(String((raw.text as string) || ""), _inbound_log, { provider: "slack", chat_id });
   const command = channel.parse_command(content);
   const mentions = channel.parse_agent_mentions(content);
   const subtype = String(raw.subtype || "").toLowerCase();

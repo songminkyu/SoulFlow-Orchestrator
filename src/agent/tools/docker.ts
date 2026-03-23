@@ -6,13 +6,6 @@ import { has_shell_metacharacters } from "./shell-deny.js";
 import { error_message } from "../../utils/common.js";
 import type { JsonSchema, ToolExecutionContext } from "./types.js";
 
-/** 개별 인자(args 배열 내부 요소)에서 차단할 패턴 — 문자열 수준 검사. */
-const BLOCKED_ARG_PATTERNS = [
-  /^--privileged$/i,
-  /^--pid$/i,
-  /^--net$/i,
-];
-
 /** 인자 시퀀스에서 차단할 조합 (연속 2토큰). */
 function is_blocked_arg_pair(a: string, b: string): boolean {
   const la = a.toLowerCase();

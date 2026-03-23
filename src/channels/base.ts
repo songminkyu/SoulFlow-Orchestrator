@@ -6,6 +6,26 @@ import type { CommandDescriptor } from "./commands/registry.js";
 import type { AgentMention, ChannelCommand, ChannelHealth, ChannelTypingState, ChatChannel, FileRequestResult, SendPollRequest, SendPollResult } from "./types.js";
 import { parse_slash_command } from "./slash-command.js";
 
+/** 전 채널 공통 인바운드 메시지 최대 문자 수. 초과 시 절단 + 경고 로그. */
+export const MAX_INBOUND_MESSAGE_CHARS = 32_000;
+
+/**
+ * 인바운드 메시지 content를 MAX_INBOUND_MESSAGE_CHARS 이하로 절단.
+ * 초과 시 절단 마커를 붙이고 logger로 경고.
+ */
+export function truncate_inbound_content(content: string, logger: Logger, context: { provider: string; chat_id: string }): string {
+  if (content.length <= MAX_INBOUND_MESSAGE_CHARS) return content;
+  const original_length = content.length;
+  const truncated = content.slice(0, MAX_INBOUND_MESSAGE_CHARS);
+  logger.warn("inbound message truncated", {
+    provider: context.provider,
+    chat_id: context.chat_id,
+    original_length,
+    max: MAX_INBOUND_MESSAGE_CHARS,
+  });
+  return `${truncated}\n\n[...truncated: ${original_length} → ${MAX_INBOUND_MESSAGE_CHARS} chars]`;
+}
+
 export abstract class BaseChannel implements ChatChannel {
   readonly provider: string;
   readonly instance_id: string;

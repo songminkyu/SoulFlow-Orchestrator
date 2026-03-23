@@ -4,8 +4,11 @@ import { tmpdir } from "node:os";
 import { validate_file_path } from "../utils/path-validation.js";
 import type { InboundMessage, MediaItem, OutboundMessage, RichAction, RichEmbed } from "../bus/types.js";
 import { now_iso, error_message, short_id} from "../utils/common.js";
-import { BaseChannel } from "./base.js";
+import { create_logger } from "../logger.js";
+import { BaseChannel, truncate_inbound_content } from "./base.js";
 import { channel_fetch, parse_json_response } from "./http-utils.js";
+
+const _inbound_log = create_logger("channel:telegram:inbound");
 import type { CommandDescriptor } from "./commands/registry.js";
 
 type TelegramChannelOptions = {
@@ -30,7 +33,7 @@ function to_inbound_message(
 ): InboundMessage {
   const from = (raw.from && typeof raw.from === "object") ? (raw.from as Record<string, unknown>) : {};
   const from_is_bot = from.is_bot === true;
-  const content = as_string(raw.text || raw.caption || "");
+  const content = truncate_inbound_content(as_string(raw.text || raw.caption || ""), _inbound_log, { provider: "telegram", chat_id });
   const command = channel.parse_command(content);
   const mentions = channel.parse_agent_mentions(content);
   const media: MediaItem[] = [];
