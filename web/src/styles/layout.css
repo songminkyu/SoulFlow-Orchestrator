@@ -1926,6 +1926,19 @@ a:focus-visible > .stat-card {
 }
 .toast__icon { font-weight: bold; margin-right: 8px; flex-shrink: 0; font-size: 16px; }
 .toast__msg { flex: 1; }
+.toast__action {
+  background: none;
+  border: 1px solid currentColor;
+  color: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.toast__action:hover { background: color-mix(in srgb, currentColor 15%, transparent); }
 .toast__close {
   background: none;
   border: none;

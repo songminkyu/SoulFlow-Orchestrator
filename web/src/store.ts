@@ -8,6 +8,7 @@ interface WebStream {
   chat_id: string;
   content: string;
   done?: boolean;
+  error?: string;
 }
 
 export interface MirrorMessageEvent {

@@ -57,6 +57,17 @@
   padding: var(--sp-4);
 }
 
+/* U1: 스트림 오류 배너 — 부분 콘텐츠 아래 표시 */
+.chat-stream-error {
+  margin: var(--sp-2) var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
+  background: color-mix(in srgb, var(--c-err, #e74c3c) 15%, transparent);
+  border: 1px solid var(--c-err, #e74c3c);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--c-err, #e74c3c);
+  font-size: var(--fs-sm);
+}
+
 /* ===== Bottom Dock ===== */
 .chat-bottom-dock {
   flex-shrink: 0;

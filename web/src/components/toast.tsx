@@ -2,10 +2,11 @@ import { useState, useRef, createContext, useContext, type ReactNode } from "rea
 import { useT } from "../i18n";
 
 type ToastVariant = "ok" | "err" | "warn" | "info";
-interface Toast { id: number; message: string; variant: ToastVariant; exiting?: boolean }
+type ToastAction = { label: string; onClick: () => void };
+interface Toast { id: number; message: string; variant: ToastVariant; action?: ToastAction; exiting?: boolean }
 
 interface ToastCtx {
-  toast: (message: string, variant?: ToastVariant) => void;
+  toast: (message: string, variant?: ToastVariant, action?: ToastAction) => void;
 }
 
 const Ctx = createContext<ToastCtx>({ toast: () => {} });
@@ -30,11 +31,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     timers.current.set(id, [tid]);
   };
 
-  const toast = (message: string, variant: ToastVariant = "info") => {
+  const toast = (message: string, variant: ToastVariant = "info", action?: ToastAction) => {
     const id = ++next_id.current;
-    // 스크린 리더가 읽을 시간 확보: 에러 8초, 일반 5초
-    const duration = variant === "err" ? 8000 : 5000;
-    setToasts((prev) => [...prev, { id, message, variant }]);
+    // 스크린 리더가 읽을 시간 확보: 에러 8초, 액션 있으면 7초, 일반 5초
+    const duration = variant === "err" ? 8000 : action ? 7000 : 5000;
+    setToasts((prev) => [...prev, { id, message, variant, action }]);
     const t1 = setTimeout(() => setToasts((prev) => prev.map((t) => t.id === id ? { ...t, exiting: true } : t)), duration - 300);
     const t2 = setTimeout(() => { setToasts((prev) => prev.filter((t) => t.id !== id)); timers.current.delete(id); }, duration);
     timers.current.set(id, [t1, t2]);
@@ -57,6 +58,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div key={t.id} className={`toast toast--${t.variant}${t.exiting ? " toast--exit" : ""}`} role="alert">
               <span className="toast__icon" aria-hidden="true">{icons[t.variant]}</span>
               <span className="toast__msg">{t.message}</span>
+              {t.action && (
+                <button
+                  className="toast__action"
+                  onClick={() => { t.action!.onClick(); dismiss(t.id); }}
+                >
+                  {t.action.label}
+                </button>
+              )}
               <button className="toast__close" onClick={() => dismiss(t.id)} aria-label={close_label}>✕</button>
             </div>
           );

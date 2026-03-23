@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useReducer, useMemo, useCallback } from "r
 import { useLocation } from "react-router-dom";
 import { api } from "../api/client";
 import { Badge } from "../components/badge";
-import { DeleteConfirmModal } from "../components/modal";
+// DeleteConfirmModal: U3에서 soft-delete + undo toast로 대체됨
 import { useToast } from "../components/toast";
 import { useAsyncState } from "../hooks/use-async-state";
 import { useApprovals } from "../hooks/use-approvals";
@@ -42,12 +42,12 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [waiting_response, setWaitingResponse] = useState(false);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  /** U3: soft-delete — pending_delete_id + 타이머로 undo 창 구현 */
+  const pending_delete_timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** 내부 패널: sessions(세션 브라우저) | memory(메모리 관리) | null(닫힘) */
   const [panel, setPanel] = useState<"sessions" | "memory" | null>(null);
   const sessions_open = panel === "sessions";
   const { pending: creating, run: run_create } = useAsyncState();
-  const { run: run_delete } = useAsyncState();
   const [pending_media, setPendingMedia] = useState<ChatMediaItem[]>([]);
   const stream_inflight = useRef(false);
   /** 에이전트 정의 (갤러리 진입 시 or @mention 선택) */
@@ -167,11 +167,28 @@ export default function ChatPage() {
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const delete_session = (id: string) => run_delete(async () => {
-    await api.del(`/api/chat/sessions/${encodeURIComponent(id)}`);
+  /** U3: soft-delete — 즉시 FE에서 세션 제거 + undo 토스트(5초). 타임아웃 후 실제 API 삭제. */
+  const delete_session = (id: string) => {
     if (activeId === id) setActiveId(null);
-    void qc.invalidateQueries({ queryKey: ["chat-sessions"] });
-  }, t("chat.session_deleted"), t("chat.delete_failed"));
+    // 낙관적 업데이트: 캐시에서 즉시 제거
+    qc.setQueryData<ChatSessionSummary[]>(["chat-sessions"], (prev) => prev?.filter((s) => s.id !== id) ?? []);
+    // undo 창 동안 이전 타이머 취소
+    if (pending_delete_timer.current) clearTimeout(pending_delete_timer.current);
+    toast(t("chat.session_deleted"), "info", {
+      label: t("common.undo"),
+      onClick: () => {
+        if (pending_delete_timer.current) { clearTimeout(pending_delete_timer.current); pending_delete_timer.current = null; }
+        void qc.invalidateQueries({ queryKey: ["chat-sessions"] }); // 복구
+      },
+    });
+    pending_delete_timer.current = setTimeout(() => {
+      pending_delete_timer.current = null;
+      api.del(`/api/chat/sessions/${encodeURIComponent(id)}`).then(
+        () => void qc.invalidateQueries({ queryKey: ["chat-sessions"] }),
+        () => { toast(t("chat.delete_failed"), "err"); void qc.invalidateQueries({ queryKey: ["chat-sessions"] }); },
+      );
+    }, 5000);
+  };
 
   const rename_session = async (id: string, name: string) => {
     await api.patch(`/api/chat/sessions/${encodeURIComponent(id)}`, { name });
@@ -484,7 +501,7 @@ export default function ChatPage() {
               activeId={is_mirror ? null : activeId}
               creating={creating}
               onSelect={select_and_close}
-              onClose={(id) => setDeleteConfirmId(id)}
+              onClose={(id) => delete_session(id)}
               onNew={() => void create_session()}
               onRename={(id, name) => void rename_session(id, name)}
             />
@@ -514,7 +531,7 @@ export default function ChatPage() {
           onSelectMirror={mirror_and_close}
           onNew={() => void create_session()}
           onRename={(id, name) => void rename_session(id, name)}
-          onDelete={(id) => setDeleteConfirmId(id)}
+          onDelete={(id) => delete_session(id)}
         />
       ) : panel === "memory" ? (
         <MemoryPanel sessionId={activeId ?? undefined} mode="inline" className="chat-memory-panel" />
@@ -547,6 +564,12 @@ export default function ChatPage() {
             pending_approvals={is_mirror ? [] : pending_approvals}
             onResolveApproval={(id, text) => void resolve_approval(id, text)}
           />
+          {/* U1: 스트림 에러 시 부분 콘텐츠 아래 에러 배너 표시 */}
+          {active_stream?.error && (
+            <div className="chat-stream-error" role="alert">
+              {t("chat.stream_error")}: {active_stream.error}
+            </div>
+          )}
           {!is_mirror && activeId && (canvas_specs.get(activeId)?.length ?? 0) > 0 && (
             <CanvasPanel
               specs={canvas_specs.get(activeId)!}
@@ -583,14 +606,7 @@ export default function ChatPage() {
           )}
         </>
       )}
-      <DeleteConfirmModal
-        open={!!deleteConfirmId}
-        title={t("chat.delete_session_title")}
-        message={t("chat.delete_session_confirm")}
-        onClose={() => setDeleteConfirmId(null)}
-        onConfirm={() => { if (deleteConfirmId) void delete_session(deleteConfirmId); setDeleteConfirmId(null); }}
-        confirmLabel={t("common.delete")}
-      />
+      {/* U3: DeleteConfirmModal 제거 — soft-delete + undo toast로 대체 */}
     </div>
   );
 }

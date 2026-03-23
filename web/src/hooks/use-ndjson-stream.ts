@@ -32,7 +32,7 @@ export type ThinkingEntry = {
   preview: string;
 };
 
-export type NdjsonStream = { chat_id: string; content: string; done: boolean };
+export type NdjsonStream = { chat_id: string; content: string; done: boolean; error?: string };
 
 export type UsageEntry = {
   input: number;
@@ -174,7 +174,9 @@ export function useNdjsonStream() {
               flush();
               setStream((prev) => prev ? { ...prev, done: true } : null);
             } else if (msg.type === "error") {
-              setStream(null);
+              // U1: 부분 콘텐츠 보존 — error 필드 추가, 콘텐츠 유지
+              flush();
+              setStream((prev) => prev ? { ...prev, done: true, error: msg.error } : null);
               throw new Error(msg.error);
             }
           } catch (parse_err) {
@@ -184,7 +186,10 @@ export function useNdjsonStream() {
       }
     } catch (e) {
       if ((e as { name?: string }).name === "AbortError") return;
-      setStream(null);
+      // U1: 네트워크/HTTP 오류 시에도 부분 콘텐츠 보존
+      flush();
+      const err_msg = (e as Error).message ?? "Stream error";
+      setStream((prev) => prev ? { ...prev, done: true, error: err_msg } : null);
       throw e;
     }
   }, [flush, schedule_flush]);
