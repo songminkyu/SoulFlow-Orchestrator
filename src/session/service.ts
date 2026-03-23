@@ -73,6 +73,8 @@ export class Session {
 }
 
 const MAX_CACHE_SIZE = 200;
+/** PCH-L15: 세션당 최대 메시지 수. 초과 시 가장 오래된 메시지 삭제 (슬라이딩 윈도우). */
+const MAX_MESSAGES_PER_SESSION = 10_000;
 
 export class SessionStore implements SessionStoreLike {
   private readonly workspace: string;
@@ -242,9 +244,17 @@ export class SessionStore implements SessionStoreLike {
 
         // 현재 최대 idx 조회 후 +1
         const row = db.prepare(
-          "SELECT COALESCE(MAX(idx), -1) AS max_idx FROM session_messages WHERE session_key = ?",
-        ).get(key) as { max_idx: number };
+          "SELECT COALESCE(MAX(idx), -1) AS max_idx, COUNT(*) AS cnt FROM session_messages WHERE session_key = ?",
+        ).get(key) as { max_idx: number; cnt: number };
         const next_idx = row.max_idx + 1;
+
+        // PCH-L15: 세션 메시지 상한 — 초과 시 가장 오래된 (10%) 삭제 (슬라이딩 윈도우)
+        if (row.cnt >= MAX_MESSAGES_PER_SESSION) {
+          const trim_count = Math.ceil(MAX_MESSAGES_PER_SESSION * 0.1);
+          db.prepare(
+            "DELETE FROM session_messages WHERE session_key = ? AND idx IN (SELECT idx FROM session_messages WHERE session_key = ? ORDER BY idx ASC LIMIT ?)",
+          ).run(key, key, trim_count);
+        }
 
         db.prepare(`
           INSERT INTO session_messages (session_key, idx, role, content, timestamp, message_json)

@@ -17,6 +17,11 @@ import type {
   KanbanEvent, KanbanEventListener, KanbanStoreLike, BoardSummary, BoardMetrics,
 } from "./kanban-store.types.js";
 
+/* ─── 리소스 상한 ─── */
+
+/** PCH-L14: 보드당 최대 카드 수. 초과 시 create_card 에러. */
+const MAX_CARDS_PER_BOARD = 5_000;
+
 /* ─── DB row 타입 ─── */
 
 interface BoardRow {
@@ -417,6 +422,10 @@ export class KanbanStore implements KanbanStoreLike {
       try {
         const board = db.prepare("SELECT * FROM kanban_boards WHERE board_id = ?").get(input.board_id) as BoardRow | undefined;
         if (!board) throw new Error(`board_not_found: ${input.board_id}`);
+
+        // PCH-L14: 보드당 카드 수 상한 — 무제한 증가 방지
+        const { cnt } = db.prepare("SELECT COUNT(*) AS cnt FROM kanban_cards WHERE board_id = ?").get(input.board_id) as { cnt: number };
+        if (cnt >= MAX_CARDS_PER_BOARD) throw new Error(`board_card_limit_exceeded:${MAX_CARDS_PER_BOARD}`);
 
         const seq = board.next_seq;
         const card_id = `${board.prefix}-${seq}`;

@@ -339,6 +339,8 @@ export interface PhaseLoopRunOptions {
   team_id?: string;
   /** RPF-4F: 워크플로우 시작 시 주입할 ArtifactBundle 요약. 저장 state에 기록되어 /api/workflow/runs/:id로 공급됨. */
   artifact_bundle?: PhaseLoopState["artifact_bundle"];
+  /** PCH-L23: 서브워크플로우 재귀 깊이 — run_phase_loop 내부에서 자동 증가. 외부에서 직접 설정 불필요. */
+  _sub_workflow_depth?: number;
 }
 
 export interface PhaseLoopRunResult {

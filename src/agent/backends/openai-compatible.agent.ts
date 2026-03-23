@@ -210,6 +210,14 @@ export class OpenAiCompatibleAgent implements AgentBackend {
       };
     } catch (error) {
       const msg = error_message(error);
+      // PCH-L17: OpenAI 429 → rate_limit 이벤트 + Retry-After 정보 전파
+      const err_extra = error as Record<string, unknown>;
+      if (err_extra?.is_rate_limit) {
+        const raw = String(err_extra.retry_after_raw ?? "");
+        const seconds = Number(raw);
+        const resets_at = !isNaN(seconds) && seconds > 0 ? Date.now() + seconds * 1000 : undefined;
+        fire(emit, { type: "rate_limit", source, at: now_iso(), status: "rejected", resets_at });
+      }
       fire(emit, { type: "error", source, at: now_iso(), error: msg });
       return {
         content: `Error: ${msg}`,
@@ -272,7 +280,17 @@ export class OpenAiCompatibleAgent implements AgentBackend {
       body: JSON.stringify(body),
       signal,
     });
-    if (!res.ok) throw new Error(`OpenAI API ${res.status}: ${await res.text()}`);
+    if (!res.ok) {
+      const body_text = await res.text();
+      if (res.status === 429) {
+        // PCH-L17: 429 → retry_after 정보 포함 에러 (run() catch에서 rate_limit 이벤트 발행)
+        const retry_after_raw = res.headers.get("Retry-After") ?? res.headers.get("x-ratelimit-reset-requests");
+        const err = new Error(`OpenAI API 429: ${body_text}`);
+        Object.assign(err, { is_rate_limit: true, retry_after_raw });
+        throw err;
+      }
+      throw new Error(`OpenAI API ${res.status}: ${body_text}`);
+    }
 
     if (!use_stream) {
       return await res.json() as Record<string, unknown>;

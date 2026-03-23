@@ -82,10 +82,19 @@ export type PhaseLoopRunnerDeps = {
 };
 
 /** 페이즈 루프 메인 실행 함수. */
+/** PCH-L23: 서브워크플로우 최대 재귀 깊이. */
+const MAX_SUB_WORKFLOW_DEPTH = 5;
+
 export async function run_phase_loop(
   options: PhaseLoopRunOptions,
   deps: PhaseLoopRunnerDeps,
 ): Promise<PhaseLoopRunResult> {
+  // PCH-L23: 재귀 깊이 초과 시 즉시 오류
+  const sub_depth = options._sub_workflow_depth ?? 0;
+  if (sub_depth > MAX_SUB_WORKFLOW_DEPTH) {
+    throw new Error(`sub_workflow_depth_exceeded: max depth is ${MAX_SUB_WORKFLOW_DEPTH}`);
+  }
+
   const { subagents, store, logger, on_event } = deps;
 
   // 통합 노드 배열 정규화 (nodes[] 또는 phases[] → WorkflowNodeDefinition[])
@@ -242,6 +251,8 @@ export async function run_phase_loop(
                     send_message: options.send_message,
                     ask_channel: options.ask_channel,
                     invoke_tool: options.invoke_tool,
+                    // PCH-L23: 재귀 깊이 전파
+                    _sub_workflow_depth: sub_depth + 1,
                   }, deps);
                   return { result: sub_result.memory, phases: sub_result.phases };
                 }
