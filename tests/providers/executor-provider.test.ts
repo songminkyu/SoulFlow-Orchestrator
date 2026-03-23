@@ -30,8 +30,15 @@ describe("resolve_executor_provider", () => {
     openrouter_available: false,
   };
 
-  it("orchestrator_llm → 항상 orchestrator_llm (caps 무관)", () => {
-    expect(resolve_executor_provider("orchestrator_llm", ALL_AVAILABLE)).toBe("orchestrator_llm");
+  it("orchestrator_llm → orchestrator_llm_available 시 반환", () => {
+    expect(resolve_executor_provider("orchestrator_llm", { ...ALL_AVAILABLE, orchestrator_llm_available: true })).toBe("orchestrator_llm");
+  });
+
+  it("orchestrator_llm → orchestrator_llm_available 미설정 시 chatgpt로 폴백", () => {
+    expect(resolve_executor_provider("orchestrator_llm", ALL_AVAILABLE)).toBe("chatgpt");
+  });
+
+  it("orchestrator_llm → 모두 불가 시 최종 폴백 orchestrator_llm", () => {
     expect(resolve_executor_provider("orchestrator_llm", NONE_AVAILABLE)).toBe("orchestrator_llm");
   });
 

@@ -95,13 +95,13 @@
     {
       "id": "gw-route-once-has-fallback",
       "input": "{\"type\":\"route\",\"plan_kind\":\"once\",\"executor\":\"chatgpt\"}",
-      "expected": "chatgpt:2",
+      "expected": "chatgpt:1",
       "tags": ["smoke", "route"]
     },
     {
       "id": "gw-route-agent-claude-fallback",
       "input": "{\"type\":\"route\",\"plan_kind\":\"agent\",\"executor\":\"claude_code\"}",
-      "expected": "claude_code:2",
+      "expected": "claude_code:1",
       "tags": ["smoke", "route"]
     },
     {
