@@ -31,16 +31,20 @@ function redact_url(url: string): string {
 
 export async function create_message_bus(config: BusFactoryConfig): Promise<MessageBusRuntime> {
   if (config.backend === "redis" && config.redis?.url) {
-    const { RedisMessageBus } = await import("./redis-bus.js");
-    const bus = new RedisMessageBus({
-      url: config.redis.url,
-      key_prefix: config.redis.keyPrefix,
-      block_ms: config.redis.blockMs,
-      claim_idle_ms: config.redis.claimIdleMs,
-      stream_maxlen: config.redis.streamMaxlen,
-    });
-    log.info("message bus: redis", { url: redact_url(config.redis.url) });
-    return bus;
+    try {
+      const { RedisMessageBus } = await import("./redis-bus.js");
+      const bus = new RedisMessageBus({
+        url: config.redis.url,
+        key_prefix: config.redis.keyPrefix,
+        block_ms: config.redis.blockMs,
+        claim_idle_ms: config.redis.claimIdleMs,
+        stream_maxlen: config.redis.streamMaxlen,
+      });
+      log.info("message bus: redis", { url: redact_url(config.redis.url) });
+      return bus;
+    } catch (e) {
+      log.warn("redis bus creation failed, falling back to memory bus", { error: String(e), url: redact_url(config.redis.url) });
+    }
   }
 
   log.info("message bus: memory");

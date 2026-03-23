@@ -1,0 +1,39 @@
+# 외부 Redis 사용 오버라이드: 내장 Redis 비활성화 + 외부 연결
+#
+# 사용법:
+#   docker compose -f docker-compose.yml -f docker-compose.external-redis.override.yml up
+#
+# 또는 .env에:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.external-redis.override.yml
+#   REDIS_URL=redis://host.docker.internal:6379
+#   BUS_REDIS_URL=redis://host.docker.internal:6379
+#
+# 호스트 Redis 연결 예시:
+#   Linux:   redis://host.docker.internal:6379 또는 redis://172.17.0.1:6379
+#   macOS:   redis://host.docker.internal:6379
+#   Windows: redis://host.docker.internal:6379
+services:
+  redis:
+    profiles: ["disabled"]
+
+  orchestrator:
+    depends_on:
+      redis:
+        condition: service_healthy
+        required: false
+    environment:
+      BUS_REDIS_URL: ${BUS_REDIS_URL:-redis://host.docker.internal:6379}
+      REDIS_URL: ${REDIS_URL:-redis://host.docker.internal:6379}
+    # Linux에서 host.docker.internal 해석을 위해 필요
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  chunker:
+    depends_on:
+      redis:
+        condition: service_healthy
+        required: false
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://host.docker.internal:6379}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

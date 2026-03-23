@@ -64,6 +64,7 @@ services:
         condition: service_started
       redis:
         condition: service_healthy
+        required: false
     container_name: ${PROJECT_NAME:-soulflow}-chunker
     restart: unless-stopped
     command: ["node", "dist/chunker/main.js"]
