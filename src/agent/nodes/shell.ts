@@ -1,4 +1,4 @@
-/** Shell 노드 핸들러 — 워크플로우에서 쉘 명령 실행. */
+/** Shell 노드 핸들러 — 워크플로우에서 쉘 명령 실행. deny 패턴은 ExecTool과 공유. */
 
 import { resolve as path_resolve } from "node:path";
 import type { NodeHandler } from "../node-registry.js";
@@ -6,14 +6,8 @@ import type { ShellNodeDefinition, OrcheNodeDefinition } from "../workflow-node.
 import type { OrcheNodeExecutorContext, OrcheNodeExecuteResult, OrcheNodeTestResult } from "../orche-node-executor.js";
 import { resolve_templates } from "../orche-node-executor.js";
 import { run_shell_command } from "../tools/shell-runtime.js";
+import { SHARED_DENY_REGEXPS } from "../tools/shell-deny.js";
 import { error_message } from "../../utils/common.js";
-
-const BLOCKED_PATTERNS = [
-  /\brm\s+-[rf]{1,2}\b/i,
-  /\b(mkfs|diskpart|dd\s+if=)/i,
-  /\b(shutdown|reboot|poweroff)\b/i,
-  /:\(\)\s*\{.*\};\s*:/,
-];
 
 export const shell_handler: NodeHandler = {
   node_type: "shell",
@@ -37,7 +31,7 @@ export const shell_handler: NodeHandler = {
 
     if (!command) return { output: { stdout: "", stderr: "", exit_code: 1, error: "command is empty" } };
 
-    for (const pat of BLOCKED_PATTERNS) {
+    for (const pat of SHARED_DENY_REGEXPS) {
       if (pat.test(command)) return { output: { stdout: "", stderr: "", exit_code: 1, error: "blocked by safety policy" } };
     }
 
@@ -78,7 +72,7 @@ export const shell_handler: NodeHandler = {
     const n = node as ShellNodeDefinition;
     const warnings: string[] = [];
     if (!n.command?.trim()) warnings.push("command is empty");
-    for (const pat of BLOCKED_PATTERNS) {
+    for (const pat of SHARED_DENY_REGEXPS) {
       if (pat.test(n.command || "")) warnings.push("command contains blocked pattern");
     }
     return { preview: { command: n.command, timeout_ms: n.timeout_ms }, warnings };

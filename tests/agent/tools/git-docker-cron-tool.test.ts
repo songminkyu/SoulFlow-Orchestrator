@@ -8,10 +8,12 @@ import { CronShellTool } from "@src/agent/tools/cron-shell.js";
 
 vi.mock("@src/agent/tools/shell-runtime.js", () => ({
   run_shell_command: vi.fn(),
+  run_command_argv: vi.fn(),
 }));
 
 import * as shell_runtime from "@src/agent/tools/shell-runtime.js";
 const mock_shell = shell_runtime.run_shell_command as ReturnType<typeof vi.fn>;
+const mock_argv = (shell_runtime as any).run_command_argv as ReturnType<typeof vi.fn>;
 
 afterEach(() => { vi.clearAllMocks(); vi.restoreAllMocks(); });
 
@@ -184,90 +186,121 @@ describe("DockerTool — AbortSignal", () => {
   });
 });
 
-describe("DockerTool — 각 operation", () => {
-  beforeEach(() => make_shell_ok("container_id", ""));
+describe("DockerTool — 각 operation (argv)", () => {
+  function docker_argv_ok(stdout = "container_id", stderr = "") {
+    mock_argv.mockResolvedValueOnce({ stdout, stderr });
+  }
 
-  it("ps → docker ps -a 실행", async () => {
+  it("ps → docker argv ['ps', '-a'] 실행", async () => {
+    docker_argv_ok();
     await make_docker().execute({ operation: "ps" });
-    expect(mock_shell.mock.calls[0][0]).toContain("docker ps -a");
+    expect(mock_argv.mock.calls[0][0]).toBe("docker");
+    expect(mock_argv.mock.calls[0][1]).toEqual(expect.arrayContaining(["ps", "-a"]));
   });
 
-  it("images → docker images 실행", async () => {
+  it("images → docker argv ['images'] 실행", async () => {
+    docker_argv_ok();
     await make_docker().execute({ operation: "images" });
-    expect(mock_shell.mock.calls[0][0]).toContain("docker images");
+    expect(mock_argv.mock.calls[0][0]).toBe("docker");
+    expect(mock_argv.mock.calls[0][1]).toContain("images");
   });
 
-  it("run + image → docker run 실행", async () => {
+  it("run + image → docker argv ['run', image] 실행", async () => {
+    docker_argv_ok();
     await make_docker().execute({ operation: "run", image: "nginx:latest" });
-    expect(mock_shell.mock.calls[0][0]).toContain("docker run");
-    expect(mock_shell.mock.calls[0][0]).toContain("nginx:latest");
+    expect(mock_argv.mock.calls[0][0]).toBe("docker");
+    const args = mock_argv.mock.calls[0][1] as string[];
+    expect(args[0]).toBe("run");
+    expect(args).toContain("nginx:latest");
   });
 
   it("run 이미지 없음 → Error 반환", async () => {
     const r = await make_docker().execute({ operation: "run" });
     expect(r).toContain("Error");
-    expect(mock_shell).not.toHaveBeenCalled();
   });
 
-  it("stop + container → docker stop 실행", async () => {
+  it("stop + container → docker argv ['stop', container]", async () => {
+    docker_argv_ok();
     await make_docker().execute({ operation: "stop", container: "myapp" });
-    expect(mock_shell.mock.calls[0][0]).toContain("docker stop myapp");
+    expect(mock_argv.mock.calls[0][0]).toBe("docker");
+    expect(mock_argv.mock.calls[0][1]).toEqual(["stop", "myapp"]);
   });
 
   it("stop 컨테이너 없음 → Error 반환", async () => {
     const r = await make_docker().execute({ operation: "stop" });
     expect(r).toContain("Error");
-    expect(mock_shell).not.toHaveBeenCalled();
   });
 
-  it("rm + container → docker rm 실행", async () => {
+  it("rm + container → docker argv ['rm', container]", async () => {
+    docker_argv_ok();
     await make_docker().execute({ operation: "rm", container: "old_ctr" });
-    expect(mock_shell.mock.calls[0][0]).toContain("docker rm old_ctr");
+    expect(mock_argv.mock.calls[0][0]).toBe("docker");
+    expect(mock_argv.mock.calls[0][1]).toEqual(["rm", "old_ctr"]);
   });
 
-  it("logs + container → docker logs 실행", async () => {
+  it("logs + container → docker argv ['logs', '--tail', '100', container]", async () => {
+    docker_argv_ok();
     await make_docker().execute({ operation: "logs", container: "api", tail: 100 });
-    const cmd = mock_shell.mock.calls[0][0] as string;
-    expect(cmd).toContain("docker logs");
-    expect(cmd).toContain("api");
-    expect(cmd).toContain("100");
+    expect(mock_argv.mock.calls[0][0]).toBe("docker");
+    const args = mock_argv.mock.calls[0][1] as string[];
+    expect(args).toContain("logs");
+    expect(args).toContain("api");
+    expect(args).toContain("100");
   });
 
-  it("exec + container + command → docker exec 실행", async () => {
+  it("exec + container + command → docker argv ['exec', container, ...cmd]", async () => {
+    docker_argv_ok();
     await make_docker().execute({ operation: "exec", container: "api", command: "ls /app" });
-    expect(mock_shell.mock.calls[0][0]).toContain("docker exec");
-    expect(mock_shell.mock.calls[0][0]).toContain("ls /app");
+    expect(mock_argv.mock.calls[0][0]).toBe("docker");
+    const args = mock_argv.mock.calls[0][1] as string[];
+    expect(args[0]).toBe("exec");
+    expect(args).toContain("api");
+    expect(args).toContain("ls");
   });
 
   it("exec 컨테이너 없음 → Error 반환", async () => {
     const r = await make_docker().execute({ operation: "exec", command: "ls" });
     expect(r).toContain("Error");
-    expect(mock_shell).not.toHaveBeenCalled();
   });
 
-  it("inspect + container → docker inspect 실행", async () => {
+  it("inspect + container → docker argv ['inspect', container]", async () => {
+    docker_argv_ok();
     await make_docker().execute({ operation: "inspect", container: "api" });
-    expect(mock_shell.mock.calls[0][0]).toContain("docker inspect api");
+    expect(mock_argv.mock.calls[0][0]).toBe("docker");
+    expect(mock_argv.mock.calls[0][1]).toEqual(["inspect", "api"]);
   });
 
   it("unsupported operation → Error 반환", async () => {
     const r = await make_docker().execute({ operation: "unknown_op" });
     expect(r).toContain("Error");
-    expect(mock_shell).not.toHaveBeenCalled();
   });
 });
 
 describe("DockerTool — 보안 정책", () => {
   it("--privileged 포함 → blocked 반환", async () => {
-    make_shell_ok("", "");
+    mock_argv.mockResolvedValue({ stdout: "", stderr: "" });
     const r = await make_docker().execute({ operation: "run", image: "ubuntu", args: "--privileged" });
     expect(r).toContain("Error");
     expect(r).toContain("safety policy");
   });
 
-  it("-v /: 포함 → blocked 반환", async () => {
-    make_shell_ok("", "");
+  it("-v /:/host 포함 → blocked 반환", async () => {
+    mock_argv.mockResolvedValue({ stdout: "", stderr: "" });
     const r = await make_docker().execute({ operation: "run", image: "ubuntu", args: "-v /:/host" });
+    expect(r).toContain("Error");
+    expect(r).toContain("safety policy");
+  });
+
+  it("셸 메타문자 포함 container → blocked 반환", async () => {
+    mock_argv.mockResolvedValue({ stdout: "", stderr: "" });
+    const r = await make_docker().execute({ operation: "stop", container: "myapp; rm -rf /" });
+    expect(r).toContain("Error");
+    expect(r).toContain("safety policy");
+  });
+
+  it("셸 메타문자 포함 image → blocked 반환", async () => {
+    mock_argv.mockResolvedValue({ stdout: "", stderr: "" });
+    const r = await make_docker().execute({ operation: "run", image: "ubuntu$(whoami)" });
     expect(r).toContain("Error");
     expect(r).toContain("safety policy");
   });
@@ -275,14 +308,14 @@ describe("DockerTool — 보안 정책", () => {
 
 describe("DockerTool — 출력 처리", () => {
   it("셸 실행 오류 → Error 반환", async () => {
-    mock_shell.mockRejectedValue(new Error("docker not found"));
+    mock_argv.mockRejectedValue(new Error("docker not found"));
     const r = await make_docker().execute({ operation: "ps" });
     expect(r).toContain("Error");
     expect(r).toContain("docker not found");
   });
 
   it("빈 출력 → (no output)", async () => {
-    make_shell_ok("", "");
+    mock_argv.mockResolvedValue({ stdout: "", stderr: "" });
     const r = await make_docker().execute({ operation: "ps" });
     expect(r).toBe("(no output)");
   });

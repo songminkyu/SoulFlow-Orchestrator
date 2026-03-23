@@ -2,6 +2,7 @@ import { error_message } from "../../utils/common.js";
 import { resolve } from "node:path";
 import { Tool } from "./base.js";
 import { run_shell_command } from "./shell-runtime.js";
+import { SHARED_DENY_PATTERNS } from "./shell-deny.js";
 import type { JsonSchema, ToolExecutionContext } from "./types.js";
 import { get_shared_secret_vault } from "../../security/secret-vault-factory.js";
 import type { SecretVaultLike } from "../../security/secret-vault.js";
@@ -14,20 +15,6 @@ type ShellToolOptions = {
   allow_patterns?: string[];
   restrict_to_working_dir?: boolean;
 };
-
-const DEFAULT_DENY_PATTERNS = [
-  "\\brm\\s+-[rf]{1,2}\\b",
-  "\\bdel\\s+/[fq]\\b",
-  "\\brmdir\\s+/s\\b",
-  "(?:^|[;&|]\\s*)format\\b",
-  "\\b(mkfs|diskpart)\\b",
-  "\\bdd\\s+if=",
-  ">\\s*/dev/sd",
-  "\\b(shutdown|reboot|poweroff)\\b",
-  ":\\(\\)\\s*\\{.*\\};\\s*:",
-  "\\b(base64|certutil|openssl)\\b[\\s\\S]{0,120}(?:--decode|-d|decode)[\\s\\S]{0,120}\\|\\s*(?:bash|sh|zsh|pwsh|powershell|cmd(?:\\.exe)?)\\b",
-  "\\b(?:iex|invoke-expression)\\b",
-];
 
 const WRITE_APPROVAL_PATTERNS = [
   "\\becho\\b.*>",
@@ -80,7 +67,7 @@ export class ExecTool extends Tool {
     super();
     this.default_working_dir = options.working_dir;
     this.timeout_seconds = Math.max(1, Number(options?.timeout_seconds || 60));
-    this.deny_patterns = (options?.deny_patterns || DEFAULT_DENY_PATTERNS).map((p) => new RegExp(p, "i"));
+    this.deny_patterns = (options?.deny_patterns || SHARED_DENY_PATTERNS as unknown as string[]).map((p) => new RegExp(p, "i"));
     this.write_approval_patterns = WRITE_APPROVAL_PATTERNS.map((p) => new RegExp(p, "i"));
     this.allow_patterns = (options?.allow_patterns || []).map((p) => new RegExp(p, "i"));
     this.restrict_to_working_dir = Boolean(options?.restrict_to_working_dir);

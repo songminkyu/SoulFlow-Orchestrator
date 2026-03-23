@@ -194,57 +194,97 @@ describe("ProcessManagerTool — 메타데이터", () => {
   it("to_schema type = function", () => expect(t.to_schema().type).toBe("function"));
 });
 
-describe("ProcessManagerTool — list", () => {
-  it("filter 없음 → ps aux 출력", async () => {
-    mock_run.mockReturnValueOnce(ok("USER  PID  CMD\nroot  1  init"));
+describe("ProcessManagerTool — list (argv)", () => {
+  it("filter 없음 → ps aux argv 실행", async () => {
+    mock_argv.mockReturnValueOnce(ok("USER  PID  CMD\nroot  1  init"));
     const r = await new ProcessManagerTool({ workspace: WS }).execute({ operation: "list" });
     expect(r).toContain("init");
+    expect(mock_argv.mock.calls[0][0]).toBe("ps");
   });
 
-  it("filter 있음 → grep 적용", async () => {
-    mock_run.mockReturnValueOnce(ok("USER  PID  CMD\nroot  42  node"));
+  it("filter 있음 → pgrep argv 실행", async () => {
+    // pgrep 호출 성공 + ps aux 헤더
+    mock_argv
+      .mockReturnValueOnce(ok("42 node"))
+      .mockReturnValueOnce(ok("USER  PID  CMD"));
+    const r = await new ProcessManagerTool({ workspace: WS }).execute({ operation: "list", filter: "node" });
+    expect(r).toContain("node");
+    expect(mock_argv.mock.calls[0][0]).toBe("pgrep");
+    expect(mock_argv.mock.calls[0][1]).toEqual(["-ail", "node"]);
+  });
+
+  it("filter + pgrep 결과 없음 → (no processes found)", async () => {
+    mock_argv.mockReturnValueOnce(ok(""));
+    const r = await new ProcessManagerTool({ workspace: WS }).execute({ operation: "list", filter: "ghost" });
+    expect(r).toContain("no processes found");
+  });
+
+  it("filter + pgrep 미설치 → ps aux fallback", async () => {
+    // pgrep 실패 → fallback ps aux
+    mock_argv
+      .mockRejectedValueOnce(new Error("pgrep not found"))
+      .mockReturnValueOnce(ok("USER  PID  CMD\nroot  42  node server.js"));
     const r = await new ProcessManagerTool({ workspace: WS }).execute({ operation: "list", filter: "node" });
     expect(r).toContain("node");
   });
 
-  it("결과 없음 → (no processes found)", async () => {
-    mock_run.mockReturnValueOnce(ok(""));
+  it("filter 없음 + 결과 없음 → (no processes found)", async () => {
+    mock_argv.mockReturnValueOnce(ok(""));
     const r = await new ProcessManagerTool({ workspace: WS }).execute({ operation: "list" });
     expect(r).toContain("no processes found");
   });
+
+  it("filter에 셸 메타문자 → blocked", async () => {
+    const r = await new ProcessManagerTool({ workspace: WS }).execute({ operation: "list", filter: "node; rm -rf /" });
+    expect(String(r)).toContain("Error");
+    expect(String(r)).toContain("safety policy");
+  });
 });
 
-describe("ProcessManagerTool — start", () => {
+describe("ProcessManagerTool — start (argv)", () => {
   it("command 없음 → Error", async () => {
     const r = await new ProcessManagerTool({ workspace: WS }).execute({ operation: "start" });
     expect(String(r)).toContain("Error");
     expect(String(r)).toContain("command");
   });
 
-  it("command 있음 → 성공", async () => {
-    mock_run.mockReturnValueOnce(ok("PID: 1234"));
+  it("command 있음 → argv 실행", async () => {
+    mock_argv.mockReturnValueOnce(ok("PID: 1234"));
     const r = await new ProcessManagerTool({ workspace: WS }).execute({
       operation: "start", command: "node server.js",
     });
     expect(r).toContain("1234");
+    expect(mock_argv.mock.calls[0][0]).toBe("node");
+    expect(mock_argv.mock.calls[0][1]).toEqual(["server.js"]);
+  });
+
+  it("command에 셸 메타문자 → blocked", async () => {
+    const r = await new ProcessManagerTool({ workspace: WS }).execute({
+      operation: "start", command: "echo hello && rm -rf /",
+    });
+    expect(String(r)).toContain("Error");
+    expect(String(r)).toContain("safety policy");
   });
 });
 
-describe("ProcessManagerTool — stop", () => {
+describe("ProcessManagerTool — stop (argv)", () => {
   it("pid 없음 → Error", async () => {
     const r = await new ProcessManagerTool({ workspace: WS }).execute({ operation: "stop" });
     expect(String(r)).toContain("Error");
     expect(String(r)).toContain("pid");
   });
 
-  it("pid 있음 → SIGTERM 전송", async () => {
-    mock_run.mockReturnValueOnce(ok("Signal SIGTERM sent to PID 42"));
+  it("pid 있음 → kill argv SIGTERM 전송", async () => {
+    mock_argv.mockReturnValueOnce(ok(""));
     const r = await new ProcessManagerTool({ workspace: WS }).execute({ operation: "stop", pid: 42 });
+    expect(r).toContain("SIGTERM");
     expect(r).toContain("42");
+    expect(mock_argv.mock.calls[0][0]).toBe("kill");
+    expect(mock_argv.mock.calls[0][1]).toEqual(["-s", "SIGTERM", "42"]);
   });
 
   it("허용되지 않은 signal → SIGTERM 폴백", async () => {
-    mock_run.mockReturnValueOnce(ok("Signal SIGTERM sent to PID 99"));
+    mock_argv.mockReturnValueOnce(ok(""));
     const r = await new ProcessManagerTool({ workspace: WS }).execute({
       operation: "stop", pid: 99, signal: "EVIL",
     });
@@ -252,28 +292,30 @@ describe("ProcessManagerTool — stop", () => {
   });
 
   it("허용된 signal=SIGKILL", async () => {
-    mock_run.mockReturnValueOnce(ok("Signal SIGKILL sent to PID 7"));
+    mock_argv.mockReturnValueOnce(ok(""));
     const r = await new ProcessManagerTool({ workspace: WS }).execute({
       operation: "stop", pid: 7, signal: "SIGKILL",
     });
     expect(r).toContain("SIGKILL");
+    expect(mock_argv.mock.calls[0][1]).toEqual(["-s", "SIGKILL", "7"]);
   });
 });
 
-describe("ProcessManagerTool — info", () => {
+describe("ProcessManagerTool — info (argv)", () => {
   it("pid 없음 → Error", async () => {
     const r = await new ProcessManagerTool({ workspace: WS }).execute({ operation: "info" });
     expect(String(r)).toContain("Error");
   });
 
-  it("pid 있음 → ps 출력", async () => {
-    mock_run.mockReturnValueOnce(ok("  PID PPID USER  %CPU %MEM\n  42   1   root  0.0  0.1  node"));
+  it("pid 있음 → ps argv 출력", async () => {
+    mock_argv.mockReturnValueOnce(ok("  PID PPID USER  %CPU %MEM\n  42   1   root  0.0  0.1  node"));
     const r = await new ProcessManagerTool({ workspace: WS }).execute({ operation: "info", pid: 42 });
     expect(r).toContain("node");
+    expect(mock_argv.mock.calls[0][0]).toBe("ps");
   });
 
   it("프로세스 없음 → 'not found' 포함", async () => {
-    mock_run.mockReturnValueOnce(ok(""));
+    mock_argv.mockReturnValueOnce(ok(""));
     const r = await new ProcessManagerTool({ workspace: WS }).execute({ operation: "info", pid: 9999 });
     expect(r).toContain("not found");
   });
