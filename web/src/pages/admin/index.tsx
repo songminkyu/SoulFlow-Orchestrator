@@ -9,6 +9,7 @@ import { SurfaceGuard } from "../../components/surface-guard";
 import { StatusView } from "../../components/status-contract";
 import { VisibilityBadge } from "../../components/visibility-badge";
 import { useToast } from "../../components/toast";
+import { useConfirm } from "../../components/modal";
 import {
   useAuthUser, useAdminUsers, useAdminTeams, useTeamMembers,
   useAddTeamMember, useRemoveTeamMember, useUpdateTeamMemberRole,
@@ -90,6 +91,7 @@ function TeamsPanel() {
   const t = useT();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { confirm: modal_confirm, dialog: confirm_dialog } = useConfirm();
   const { data: teams = [], isLoading } = useAdminTeams();
   const [form, setForm] = useState({ open: false, id: "", name: "" });
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -126,10 +128,12 @@ function TeamsPanel() {
   };
 
   const do_delete = (team: { id: string; name: string }) => {
-    if (!confirm(t("admin.teams.delete_confirm", { name: team.name }))) return;
-    delete_team.mutate(team.id, {
-      onSuccess: () => toast(t("admin.teams.deleted"), "ok"),
-      onError: () => toast(t("admin.teams.delete_failed"), "err"),
+    // PCH-U2: window.confirm → useConfirm 모달
+    modal_confirm(t("admin.teams.delete_confirm", { name: team.name }), () => {
+      delete_team.mutate(team.id, {
+        onSuccess: () => toast(t("admin.teams.deleted"), "ok"),
+        onError: () => toast(t("admin.teams.delete_failed"), "err"),
+      });
     });
   };
 
@@ -221,6 +225,7 @@ function TeamsPanel() {
           )}
         </div>
       )}
+      {confirm_dialog}
     </section>
   );
 }
@@ -313,6 +318,7 @@ function UsersPanel() {
   const t = useT();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { confirm: modal_confirm, dialog: confirm_dialog } = useConfirm();
   const { data: users = [], isLoading } = useAdminUsers();
   const { data: teams = [] } = useAdminTeams();
   const [form, setForm] = useState<{ open: boolean; username: string; password: string; role: "user" | "superadmin"; team_id: string }>({
@@ -489,7 +495,7 @@ function UsersPanel() {
                 <button
                   className="btn btn--xs btn--danger"
                   disabled={del.isPending}
-                  onClick={() => { if (confirm(t("admin.users.delete_confirm", { username: u.username }))) del.mutate(u.id); }}
+                  onClick={() => modal_confirm(t("admin.users.delete_confirm", { username: u.username }), () => del.mutate(u.id))}
                 >
                   {t("common.delete")}
                 </button>
@@ -498,6 +504,7 @@ function UsersPanel() {
           ))}
         </div>
       )}
+      {confirm_dialog}
     </section>
   );
 }
