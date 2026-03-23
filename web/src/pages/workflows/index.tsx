@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { Badge } from "../../components/badge";
 import { EmptyState } from "../../components/empty-state";
-import { DeleteConfirmModal, useModalEffects } from "../../components/modal";
+import { DeleteConfirmModal, useConfirm, useModalEffects } from "../../components/modal";
 import { SkeletonGrid } from "../../components/skeleton-grid";
 import { useToast } from "../../components/toast";
 import { useT } from "../../i18n";
@@ -100,7 +100,6 @@ export default function WorkflowsPage() {
   const { data: workflows, isLoading: wfLoading } = useQuery<PhaseLoopState[]>({
     queryKey: ["workflows"],
     queryFn: () => api.get("/api/workflow/runs"),
-    refetchInterval: 60_000,
     staleTime: 10_000,
   });
 
@@ -389,6 +388,7 @@ function TemplateDetailPanel({ template, initialObjective, onClose, onRun, onEdi
   running: boolean;
 }) {
   const t = useT();
+  const { confirm: confirm_dialog, dialog: confirm_el } = useConfirm();
   const [currentSlug, setCurrentSlug] = useState(template.slug);
   const [title, setTitle] = useState(template.title);
   const [objective, setObjective] = useState(initialObjective ?? template.objective);
@@ -415,7 +415,11 @@ function TemplateDetailPanel({ template, initialObjective, onClose, onRun, onEdi
   };
 
   const handleClose = () => {
-    if (hasChanges && !window.confirm(t("workflows.unsaved_changes_confirm") || "변경사항이 저장되지 않습니다. 계속하시겠습니까?")) {
+    if (hasChanges) {
+      confirm_dialog(
+        t("workflows.unsaved_changes_confirm") || "변경사항이 저장되지 않습니다. 계속하시겠습니까?",
+        onClose,
+      );
       return;
     }
     onClose();
@@ -511,6 +515,7 @@ function TemplateDetailPanel({ template, initialObjective, onClose, onRun, onEdi
           </button>
         </div>
       </form>
+      {confirm_el}
     </div>
   );
 }

@@ -308,16 +308,14 @@ export class ContextBuilder {
   private async _build_reference_context(user_message: string): Promise<string> {
     if (!this._reference_store) return "";
     try {
-      // 5초 TTL 캐시 — 모든 프롬프트 생성 시 매번 sync 방지
+      // PCH-P5: sync를 백그라운드로 분리 — 핫패스에서 sync 완료 대기 제거
       const now = Date.now();
       if (now - this._last_ref_sync_at >= ContextBuilder.SYNC_TTL_MS) {
-        try {
-          await this._reference_store.sync();
-          this._last_ref_sync_at = now; // sync 성공 시만 갱신
-        } catch (syncErr) {
-          process.stderr.write(`[context] reference sync failed (search continues with stale data): ${error_message(syncErr)}\n`);
-          // sync 실패해도 검색은 계속 — 기존 데이터로 결과 반환
-        }
+        this._last_ref_sync_at = now; // 즉시 갱신 (중복 트리거 방지)
+        void this._reference_store.sync().catch((syncErr) => {
+          this._last_ref_sync_at = 0; // 실패 시 다음 요청에서 재시도
+          process.stderr.write(`[context] reference sync failed: ${error_message(syncErr)}\n`);
+        });
       }
       const results = await this._reference_store.search(user_message, { limit: 5 });
       if (results.length === 0) return "";
@@ -337,12 +335,11 @@ export class ContextBuilder {
     try {
       const now = Date.now();
       if (now - this._last_skill_sync_at >= ContextBuilder.SYNC_TTL_MS) {
-        try {
-          await this._skill_ref_store.sync();
-          this._last_skill_sync_at = now;
-        } catch (syncErr) {
-          process.stderr.write(`[context] skill ref sync failed (search continues with stale data): ${error_message(syncErr)}\n`);
-        }
+        this._last_skill_sync_at = now;
+        void this._skill_ref_store.sync().catch((syncErr) => {
+          this._last_skill_sync_at = 0;
+          process.stderr.write(`[context] skill ref sync failed: ${error_message(syncErr)}\n`);
+        });
       }
       const filter = skill_names.length > 0 ? skill_names.join("|") : undefined;
       const results = await this._skill_ref_store.search(user_message, { limit: 4, doc_filter: filter });
