@@ -1,7 +1,7 @@
 import { SkillsLoader } from "./skills.js";
 import { MemoryStore, type MemoryStoreLike } from "./memory.js";
 import { error_message } from "../utils/common.js";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, join, resolve } from "node:path";
 import type { ContextMessage } from "./context.types.js";
@@ -55,6 +55,8 @@ export class ContextBuilder {
   private _last_ref_sync_at = 0;
   private _last_skill_sync_at = 0;
   static readonly SYNC_TTL_MS = 5_000;
+  /** 부트스트랩 파일 mtime 캐시 — 파일 변경 시에만 다시 읽음. */
+  private readonly _file_cache = new Map<string, { mtime: number; content: string }>();
 
   constructor(workspace: string, args?: { memory_store?: MemoryStoreLike; promises_dir?: string; app_root?: string }) {
     this.workspace = workspace;
@@ -74,20 +76,27 @@ export class ContextBuilder {
 
   /** SOUL.md에서 페르소나 이름을 추출. 미설정 시 "assistant". */
   get_persona_name(): string {
-    const soul = this._read_file_sync("SOUL.md");
+    const soul = this._read_file_cached("SOUL.md");
     return extract_persona_name(soul);
   }
 
   /** BOOTSTRAP.md 존재 여부 + 내용 반환. */
   get_bootstrap(): { exists: boolean; content: string } {
-    const content = this._read_file_sync("BOOTSTRAP.md");
+    const content = this._read_file_cached("BOOTSTRAP.md");
     return { exists: content.length > 0, content };
   }
 
-  private _read_file_sync(name: string): string {
+  /** mtime 캐시 기반 파일 읽기 — 변경 시에만 디스크 I/O. */
+  private _read_file_cached(name: string): string {
     for (const path of [join(this.workspace, "templates", name), join(this.workspace, name)]) {
       if (!existsSync(path)) continue;
-      try { const raw = readFileSync(path, "utf-8").trim(); if (raw) return raw; } catch { /* skip */ }
+      try {
+        const mtime = statSync(path).mtimeMs;
+        const cached = this._file_cache.get(path);
+        if (cached && cached.mtime === mtime) return cached.content;
+        const raw = readFileSync(path, "utf-8").trim();
+        if (raw) { this._file_cache.set(path, { mtime, content: raw }); return raw; }
+      } catch { /* skip */ }
     }
     return "";
   }
@@ -112,14 +121,18 @@ export class ContextBuilder {
     tool_categories?: ReadonlySet<string>,
   ): Promise<string> {
     const security_override = this._security_override_policy();
-    const bootstrap = await this._load_bootstrap_files(tool_categories);
-    const memory_context = await this._build_memory_context(session_context);
     const decision_ctx = { team_id: decision_context?.team_id || null, agent_id: decision_context?.agent_id || null };
-    const decisions = await this.decision_service.build_compact_injection(decision_ctx);
-    const promises = await this.promise_service.build_compact_injection(decision_ctx);
+    // 독립적인 비동기 작업 병렬 실행 — 순차 대비 ~3-5x 빠름
+    const [bootstrap, memory_context, decisions, promises, oauth_section] = await Promise.all([
+      this._load_bootstrap_files(tool_categories),
+      this._build_memory_context(session_context),
+      this.decision_service.build_compact_injection(decision_ctx),
+      this.promise_service.build_compact_injection(decision_ctx),
+      this._build_oauth_section(),
+    ]);
+    // 동기 작업은 병렬 불필요
     const skills_content = this.skills_loader.load_skills_for_context(skill_names);
     const skill_summary = this.skills_loader.build_skill_summary();
-    const oauth_section = await this._build_oauth_section();
     const current_session = this._build_current_session_section(session_context?.channel, session_context?.chat_id);
     // 안정적 내용을 앞에 → Gemini/OpenRouter implicit cache hit 최대화
     // 변동적 내용(memory, decisions, promises)을 뒤에 배치
@@ -183,10 +196,7 @@ export class ContextBuilder {
     const names = ["AGENTS.md", "SOUL.md", "HEART.md", "USER.md", "TOOLS.md"];
     const parts: string[] = [];
     for (const name of names) {
-      let raw = await try_read_first_file([
-        join(this.workspace, "templates", name),
-        join(this.workspace, name),
-      ]);
+      let raw = this._read_file_cached(name);
       if (!raw) continue;
       if (name === "TOOLS.md" && tool_categories && tool_categories.size > 0) {
         raw = filter_tool_sections(raw, tool_categories);
@@ -384,10 +394,13 @@ export class ContextBuilder {
     let total = 0;
     const chunks: string[] = [];
 
-    // 최근 날짜부터 역순으로 수집 (최신 우선)
-    for (let i = recent.length - 1; i >= 0; i--) {
-      const day = recent[i];
-      const raw = (await this.memory_store.read_daily(day)).trim();
+    // 병렬 읽기 후 역순 처리 (최신 우선)
+    const day_contents = await Promise.all(
+      recent.map(async (day) => ({ day, raw: (await this.memory_store.read_daily(day)).trim() })),
+    );
+
+    for (let i = day_contents.length - 1; i >= 0; i--) {
+      const { day, raw } = day_contents[i];
       if (!raw) continue;
 
       const lines = raw.split("\n");

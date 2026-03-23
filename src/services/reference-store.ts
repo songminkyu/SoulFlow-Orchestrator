@@ -381,8 +381,9 @@ export class ReferenceStore implements ReferenceStoreLike {
         } catch (e) { process.stderr.write(`[reference-store] FTS search failed, falling back to vector: ${error_message(e)}\n`); }
       }
 
-      // 벡터 시멘틱 검색
-      if (this.embed_fn) {
+      // FTS 결과가 충분하면 벡터 검색 스킵 — 임베딩 API 호출 절약
+      // FTS 결과가 부족할 때만 벡터 시멘틱 검색으로 보강
+      if (this.embed_fn && found.size < limit) {
         try {
           const { embeddings } = await this.embed_fn([query.slice(0, MAX_EMBED_CHARS)], { dimensions: VEC_DIMENSIONS });
           if (embeddings.length > 0) {
@@ -416,8 +417,8 @@ export class ReferenceStore implements ReferenceStoreLike {
         } catch (e) { process.stderr.write(`[reference-store] vector search failed, using FTS results only: ${error_message(e)}\n`); }
       }
 
-      // 이미지 KNN 검색 (멀티모달 embed가 있을 때만)
-      if (this.image_embed_fn) {
+      // 이미지 KNN 검색 — 텍스트 결과 부족 시에만 실행
+      if (this.image_embed_fn && found.size < limit) {
         try {
           const { embeddings } = await this.image_embed_fn([query.slice(0, MAX_EMBED_CHARS)], { dimensions: VEC_DIMENSIONS });
           if (embeddings.length > 0) {
