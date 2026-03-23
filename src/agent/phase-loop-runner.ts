@@ -4,6 +4,9 @@
  */
 
 import { now_iso, error_message } from "../utils/common.js";
+
+/** L6: max_turns=0 "무제한" 지정 시 하드캡. 999 난수 대신 명시적 상한. */
+const MAX_TURNS_UNLIMITED = 500;
 import type { Logger } from "../logger.js";
 import type { SubagentRegistry } from "./subagents.js";
 import type { PhaseWorkflowStoreLike } from "./phase-workflow-store.js";
@@ -680,7 +683,7 @@ async function run_phase_agents(
         label: agent_def.label,
         model: agent_def.model,
         provider_id: backend_to_provider(agent_def.backend),
-        max_iterations: agent_def.max_turns === 0 ? 999 : (agent_def.max_turns || 10),
+        max_iterations: agent_def.max_turns === 0 ? MAX_TURNS_UNLIMITED : Math.min(agent_def.max_turns || 10, MAX_TURNS_UNLIMITED),
         origin_channel: state.channel,
         origin_chat_id: state.chat_id,
         announce: false,
@@ -912,7 +915,7 @@ async function run_looping_phase(
       label: agent_def.label,
       model: agent_def.model,
       provider_id: backend_to_provider(agent_def.backend),
-      max_iterations: agent_def.max_turns === 0 ? 999 : (agent_def.max_turns || 10),
+      max_iterations: agent_def.max_turns === 0 ? MAX_TURNS_UNLIMITED : Math.min(agent_def.max_turns || 10, MAX_TURNS_UNLIMITED),
       origin_channel: state.channel,
       origin_chat_id: state.chat_id,
       announce: false,

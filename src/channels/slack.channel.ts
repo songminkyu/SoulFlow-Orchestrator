@@ -203,6 +203,8 @@ export class SlackChannel extends BaseChannel {
   async stop(): Promise<void> {
     this.running = false;
     this.thread_cache.clear();
+    // L7: 스트리밍 중 stop() 호출 시 stream_positions 잔여 항목 정리 (메모리 누수 방지)
+    this.stream_positions.clear();
   }
 
   private prune_thread_cache(): void {

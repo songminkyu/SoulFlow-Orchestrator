@@ -159,12 +159,17 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!init_def) return;
-    void (async () => {
+    // L20: mounted 가드 — unmount 후 setState 방지
+    let mounted = true;
+    (async () => {
       const res = await api.post<ApiChatSessionCreated>("/api/chat/sessions");
+      if (!mounted) return;
       await api.patch(`/api/chat/sessions/${encodeURIComponent(res.id)}`, { name: `${init_def.icon} ${init_def.name}` });
+      if (!mounted) return;
       setActiveId(res.id);
       void qc.invalidateQueries({ queryKey: ["chat-sessions"] });
-    })();
+    })().catch(() => {});
+    return () => { mounted = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** U3: soft-delete — 즉시 FE에서 세션 제거 + undo 토스트(5초). 타임아웃 후 실제 API 삭제. */

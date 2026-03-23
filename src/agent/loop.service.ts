@@ -226,7 +226,8 @@ export class AgentLoopStore {
   }
 
   async run_agent_loop(options: AgentLoopRunOptions): Promise<AgentLoopRunResult> {
-    const max_turns = Math.max(1, Number(options.max_turns || 30));
+    /** L6: 하드캡 500 — max_turns=0 "무제한" 지정 시에도 상한 보장 */
+    const max_turns = Math.min(Math.max(1, Number(options.max_turns || 20)), 500);
     const state: AgentLoopState = {
       loopId: options.loop_id,
       agentId: options.agent_id,
@@ -364,7 +365,7 @@ export class AgentLoopStore {
   }
 
   async run_task_loop(options: TaskLoopRunOptions): Promise<TaskLoopRunResult> {
-    const max_turns = Math.max(1, Number(options.max_turns || 40));
+    const max_turns = Math.min(Math.max(1, Number(options.max_turns || 20)), 500);
     const existing = this.tasks.get(options.task_id);
     const state: TaskState = existing || {
       taskId: options.task_id,

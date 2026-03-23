@@ -631,6 +631,22 @@ export class KanbanStore implements KanbanStoreLike {
     await this.initialized;
     const ts = now_iso();
     this.write_db((db) => {
+      // L5: 컬럼 삭제 시 해당 카드를 fallback 컬럼으로 이전 (고아화 방지)
+      if (updates.columns !== undefined) {
+        const prev_row = db.prepare("SELECT columns_json FROM kanban_boards WHERE board_id = ?").get(board_id) as { columns_json: string } | undefined;
+        if (prev_row) {
+          const prev_cols: KanbanColumnDef[] = parse_json_safe<KanbanColumnDef[]>(prev_row.columns_json, []);
+          const new_ids = new Set(updates.columns.map((c) => c.id));
+          const removed_ids = prev_cols.map((c) => c.id).filter((id) => !new_ids.has(id));
+          if (removed_ids.length > 0 && updates.columns.length > 0) {
+            const fallback = updates.columns[0].id;
+            const placeholders = removed_ids.map(() => "?").join(", ");
+            db.prepare(
+              `UPDATE kanban_cards SET column_id = ?, updated_at = ? WHERE board_id = ? AND column_id IN (${placeholders})`,
+            ).run(fallback, ts, board_id, ...removed_ids);
+          }
+        }
+      }
       const sets: string[] = ["updated_at = ?"];
       const params: unknown[] = [ts];
       if (updates.name !== undefined) { sets.push("name = ?"); params.push(updates.name); }
