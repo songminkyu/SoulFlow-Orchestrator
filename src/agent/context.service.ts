@@ -3,7 +3,8 @@ import { MemoryStore, type MemoryStoreLike } from "./memory.js";
 import { error_message } from "../utils/common.js";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { extname, isAbsolute, join, resolve, sep } from "node:path";
+import { extname, isAbsolute, join, resolve } from "node:path";
+import { validate_file_path } from "../utils/path-validation.js";
 import type { ContextMessage } from "./context.types.js";
 import { DecisionService, PromiseService } from "../decision/index.js";
 import { filter_tool_sections } from "../orchestration/tool-description-filter.js";
@@ -478,8 +479,8 @@ export class ContextBuilder {
     const mime = IMAGE_MIME[ext] || null;
     if (!mime) return null;
     const resolved_path = isAbsolute(raw) ? raw : resolve(this.workspace, raw);
-    // workspace 밖 파일 접근 차단 (path traversal 방어 — prefix collision 방지를 위해 sep 포함)
-    if (resolved_path !== this.workspace && !resolved_path.startsWith(this.workspace + sep)) return null;
+    // workspace 밖 파일 접근 차단 (path traversal 방어 — validate_file_path는 / \ 양쪽 구분자 처리)
+    if (!validate_file_path(resolved_path, [this.workspace])) return null;
     const candidate = existsSync(raw) ? raw : resolved_path;
     try {
       if (!existsSync(candidate)) return null;

@@ -42,7 +42,7 @@ export class DockerTool extends Tool {
       },
       container: { type: "string", description: "Container name or ID" },
       image: { type: "string", description: "Image name (for 'run')" },
-      command: { type: "string", description: "Command to run inside container (for 'run'/'exec')" },
+      command: { type: "string", description: "Command to run inside container (for 'run'/'exec'). Quoted arguments not supported — spaces are split as separate tokens." },
       args: { type: "string", description: "Additional docker arguments" },
       tail: { type: "integer", minimum: 1, maximum: 500, description: "Number of log lines (for 'logs')" },
     },
