@@ -1,10 +1,65 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStatus, useLogin, type AuthUser } from "../hooks/use-auth";
 import { useI18n } from "../i18n";
 import { api } from "../api/client";
 import type { ApiSetupResult } from "../api/contracts";
+
+/* ── 비밀번호 필드 + 토글 + Caps Lock 경고 ── */
+function PasswordInput({
+  id, value, onChange, autoComplete, disabled, label, placeholder,
+}: {
+  id: string; value: string; onChange: (v: string) => void;
+  autoComplete: string; disabled: boolean; label: string; placeholder?: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  const [capsLock, setCapsLock] = useState(false);
+  const ref = useRef<HTMLInputElement>(null);
+
+  const handleKey = useCallback((e: React.KeyboardEvent) => {
+    setCapsLock(e.getModifierState("CapsLock"));
+  }, []);
+
+  return (
+    <div className="form-group">
+      <label className="form-label" htmlFor={id}>{label}</label>
+      <div className="login-card__pw-wrap">
+        <input
+          ref={ref}
+          id={id}
+          className="form-input"
+          type={visible ? "text" : "password"}
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKey}
+          onKeyUp={handleKey}
+          onBlur={() => setCapsLock(false)}
+          autoComplete={autoComplete}
+          disabled={disabled}
+        />
+        <button
+          type="button"
+          className="login-card__pw-toggle"
+          onClick={() => { setVisible((v) => !v); ref.current?.focus(); }}
+          tabIndex={-1}
+          aria-label={visible ? "비밀번호 숨기기" : "비밀번호 보기"}
+        >
+          {visible ? "\u{1F441}" : "\u{2022}\u{2022}\u{2022}"}
+        </button>
+      </div>
+      {capsLock && (
+        <span className="login-card__caps-warn">Caps Lock이 켜져 있습니다</span>
+      )}
+    </div>
+  );
+}
+
+/* ── 로딩 스피너 ── */
+function Spinner() {
+  return <span className="login-card__spinner" aria-hidden="true" />;
+}
 
 /** 좌측 아트 패널: samples/better-chatbot-login.png 레퍼런스
  *  - 흰/밝은 배경 + 흑색 커브 라인 (하단부에서 올라오는 곡선)
@@ -25,16 +80,17 @@ function ArtPanel() {
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         preserveAspectRatio="xMidYMid slice"
+        style={{ color: "var(--muted)" }}
       >
         <defs>
           <linearGradient id="curve-dark" x1="0" y1="640" x2="480" y2="0" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#1a1a1a" stopOpacity="0.9" />
-            <stop offset="60%" stopColor="#333" stopOpacity="0.5" />
-            <stop offset="100%" stopColor="#666" stopOpacity="0.1" />
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.5" />
+            <stop offset="60%" stopColor="currentColor" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0.05" />
           </linearGradient>
           <linearGradient id="curve-mid" x1="0" y1="640" x2="480" y2="200" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#222" stopOpacity="0.7" />
-            <stop offset="100%" stopColor="#888" stopOpacity="0.05" />
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0.02" />
           </linearGradient>
         </defs>
 
@@ -156,38 +212,36 @@ function SetupForm() {
         />
       </div>
 
-      <div className="form-group">
-        <label className="form-label" htmlFor="setup-password">비밀번호 (6자 이상)</label>
-        <input
-          id="setup-password"
-          className="form-input"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="new-password"
-          disabled={setup.isPending}
-        />
-      </div>
+      <PasswordInput
+        id="setup-password"
+        label="비밀번호 (6자 이상)"
+        value={password}
+        onChange={setPassword}
+        autoComplete="new-password"
+        disabled={setup.isPending}
+      />
 
-      <div className="form-group">
-        <label className="form-label" htmlFor="setup-confirm">비밀번호 확인</label>
-        <input
-          id="setup-confirm"
-          className="form-input"
-          type="password"
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          autoComplete="new-password"
-          disabled={setup.isPending}
-        />
-      </div>
+      <PasswordInput
+        id="setup-confirm"
+        label="비밀번호 확인"
+        value={confirm}
+        onChange={setConfirm}
+        autoComplete="new-password"
+        disabled={setup.isPending}
+      />
+
+      {confirm && password !== confirm && (
+        <span className="login-card__field-hint login-card__field-hint--err">
+          비밀번호가 일치하지 않습니다
+        </span>
+      )}
 
       <button
         className="btn btn--primary btn--full"
         type="submit"
-        disabled={setup.isPending || !username || !password || !confirm}
+        disabled={setup.isPending || !username || !password || !confirm || password !== confirm}
       >
-        {setup.isPending ? "생성 중..." : "관리자 계정 생성"}
+        {setup.isPending ? <><Spinner /> 생성 중...</> : "관리자 계정 생성"}
       </button>
     </form>
   );
@@ -200,6 +254,8 @@ function LoginForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [shake, setShake] = useState(false);
+  const usernameRef = useRef<HTMLInputElement>(null);
 
   const login = useLogin();
 
@@ -211,55 +267,60 @@ function LoginForm() {
       navigate("/", { replace: true });
     } catch {
       setError("아이디 또는 비밀번호가 올바르지 않습니다.");
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+      usernameRef.current?.focus();
+      usernameRef.current?.select();
     }
   };
 
   return (
-    <form className="login-card" onSubmit={submit}>
+    <form
+      className={`login-card${shake ? " login-card--shake" : ""}`}
+      onSubmit={submit}
+    >
       <h1 className="login-card__title">{t("login.welcome")}</h1>
       <p className="login-card__subtitle">{t("login.subtitle")}</p>
 
       {error && (
-        <div className="login-card__error" role="alert">{error}</div>
+        <div className="login-card__error" role="alert">
+          <span className="login-card__error-icon">!</span>
+          {error}
+        </div>
       )}
 
       <div className="form-group">
         <label className="form-label" htmlFor="login-username">Email</label>
         <input
+          ref={usernameRef}
           id="login-username"
-          className="form-input"
+          className={`form-input${error ? " form-input--error" : ""}`}
           type="text"
           placeholder="user@example.com"
           value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          onChange={(e) => { setUsername(e.target.value); setError(null); }}
           autoComplete="username"
           autoFocus
           disabled={login.isPending}
         />
       </div>
 
-      <div className="form-group">
-        <label className="form-label" htmlFor="login-password">비밀번호</label>
-        <input
-          id="login-password"
-          className="form-input"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-          disabled={login.isPending}
-        />
-      </div>
+      <PasswordInput
+        id="login-password"
+        label="비밀번호"
+        value={password}
+        onChange={(v) => { setPassword(v); setError(null); }}
+        autoComplete="current-password"
+        disabled={login.isPending}
+      />
 
       <button
         className="btn btn--primary btn--full"
         type="submit"
         disabled={login.isPending || !username || !password}
       >
-        {login.isPending ? "로그인 중..." : t("login.submit")}
+        {login.isPending ? <><Spinner /> 로그인 중...</> : t("login.submit")}
       </button>
-
-      {/* 엔터프라이즈: 관리자가 계정 관리 — 회원가입 불필요 */}
     </form>
   );
 }
