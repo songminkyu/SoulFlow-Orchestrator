@@ -4,6 +4,15 @@ import { execFile } from "node:child_process";
 import { Tool } from "./base.js";
 import type { JsonSchema } from "./types.js";
 
+/** 내부망/루프백/APIPA/클라우드 메타데이터 IP 차단 (CWE-918 SSRF 방어). */
+const PRIVATE_HOST_RE = /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|::1$|fc[0-9a-f]{2}:|fd[0-9a-f]{2}:|fe80:)/i;
+
+function is_private_host(host: string): boolean {
+  // user@host 형식에서 호스트 부분만 추출
+  const h = (host.includes("@") ? host.split("@").at(-1) ?? host : host).trim().toLowerCase();
+  return PRIVATE_HOST_RE.test(h);
+}
+
 export class SshTool extends Tool {
   readonly name = "ssh";
   readonly category = "external" as const;
@@ -29,6 +38,7 @@ export class SshTool extends Tool {
     const action = String(params.action || "exec");
     const host = String(params.host || "");
     if (!host) return "Error: host is required";
+    if (is_private_host(host)) return "Error: blocked by safety policy (private/internal host)";
     const port = Number(params.port) || 22;
     const identity = params.identity_file ? String(params.identity_file) : null;
     const timeout = Math.min(Number(params.timeout_ms) || 30000, 120000);

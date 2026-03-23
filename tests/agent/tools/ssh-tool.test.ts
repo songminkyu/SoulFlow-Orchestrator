@@ -202,3 +202,39 @@ describe("SshTool — info action", () => {
     expect(r.success).toBe(false);
   });
 });
+
+// ══════════════════════════════════════════
+// 내부 호스트 차단 (PCH-S9)
+// ══════════════════════════════════════════
+
+describe("SshTool — 내부 호스트 차단", () => {
+  const blocked_hosts = [
+    "127.0.0.1",
+    "localhost",
+    "192.168.1.100",
+    "10.0.0.1",
+    "172.16.0.1",
+    "169.254.169.254",
+    "::1",
+    "fc00::1",
+    "fd12:3456::1",
+    "fe80::1",
+    "user@192.168.0.1",
+    "root@127.0.0.1",
+  ];
+
+  for (const host of blocked_hosts) {
+    it(`차단: ${host}`, async () => {
+      const r = await make_tool().execute({ action: "exec", host, command: "id" });
+      expect(r).toContain("blocked by safety policy");
+      expect(mock_exec_file).not.toHaveBeenCalled();
+    });
+  }
+
+  it("외부 호스트는 허용 (execFile 호출됨)", async () => {
+    set_exec_success("uid=1000");
+    const r = JSON.parse(await make_tool().execute({ action: "exec", host: "example.com", command: "id" }));
+    expect(r.success).toBe(true);
+    expect(mock_exec_file).toHaveBeenCalledOnce();
+  });
+});
