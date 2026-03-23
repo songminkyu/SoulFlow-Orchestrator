@@ -12,7 +12,7 @@ const CLAUDE_CODE_NATIVE_TOOLS = [
 ] as const;
 
 export async function handle_health(ctx: RouteContext): Promise<boolean> {
-  const { req, url, res, options, json } = ctx;
+  const { req, url, res, options, json, read_body } = ctx;
 
   // Stats API — TN-6d: team_manager 이상만
   if (url.pathname === "/api/stats/cdscore" && req.method === "GET") {
@@ -49,7 +49,7 @@ export async function handle_health(ctx: RouteContext): Promise<boolean> {
     if (!dlq) { json(res, 503, { error: "dlq_unavailable" }); return true; }
     if (!dispatch) { json(res, 503, { error: "dispatch_unavailable" }); return true; }
 
-    const body = (req as IncomingMessage & { body?: unknown }).body as Record<string, unknown> | undefined;
+    const body = await read_body(req);
     const ids = Array.isArray(body?.ids)
       ? (body.ids as unknown[]).map(Number).filter((n) => Number.isFinite(n) && n > 0)
       : [];
