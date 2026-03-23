@@ -291,7 +291,13 @@ export default function ChatPage() {
     setPendingMedia([]);
     setSending(false);
     start_stream(target_id, body).then(
-      () => { stream_inflight.current = false; void qc.invalidateQueries({ queryKey: ["chat-session", target_id] }); },
+      () => {
+        stream_inflight.current = false;
+        // 스트림 완료 → web_message SSE 이벤트가 chat-session을 invalidate하므로
+        // 여기서 즉시 invalidate하지 않음 (BE 저장 전에 가져오면 메시지 소실)
+        // SSE 미수신 대비 fallback: 1초 후 1회 refetch
+        setTimeout(() => void qc.invalidateQueries({ queryKey: ["chat-session", target_id] }), 1000);
+      },
       () => { stream_inflight.current = false; toast(t("chat.send_failed"), "err"); setWaitingResponse(false); },
     );
   };
