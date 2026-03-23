@@ -52,9 +52,11 @@ export const fanout_handler: NodeHandler = {
 
     for (let i = 0; i < n.branches.length; i += max_concurrency) {
       const batch = n.branches.slice(i, i + max_concurrency);
-      const batch_promises = batch.map((branch) =>
-        run_branch(branch.branch_id, branch.node_ids, ctx, timeout_ms),
-      );
+      const batch_promises = batch.map((branch) => {
+        // PCH-L8: 브랜치별 memory 격리 — shallow clone으로 브랜치 간 교차 오염 방지
+        const branch_ctx: OrcheNodeExecutorContext = { ...ctx, memory: { ...ctx.memory } };
+        return run_branch(branch.branch_id, branch.node_ids, branch_ctx, timeout_ms);
+      });
       const batch_results = await Promise.all(batch_promises);
       for (const r of batch_results) {
         results.push(r);
@@ -130,7 +132,7 @@ export const fanout_handler: NodeHandler = {
 async function run_branch(
   branch_id: string,
   node_ids: string[],
-  ctx: OrcheNodeExecutorContext,
+  ctx: OrcheNodeExecutorContext, // PCH-L8: 호출자가 이미 clone한 branch_ctx를 전달
   timeout_ms?: number,
 ): Promise<ParallelAgentResult> {
   if (!node_ids.length) {
