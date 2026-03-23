@@ -1,4 +1,4 @@
-import type { InboundMessage, MediaItem, MessageBusLike, ReliableMessageBus } from "../bus/types.js";
+import type { InboundMessage, MediaItem, MessageBusLike, MessageLease, ReliableMessageBus } from "../bus/types.js";
 import { resolve_provider, resolve_reply_to, type ChannelProvider, type ChannelRegistryLike } from "./types.js";
 import type { ProviderRegistryLike } from "../providers/index.js";
 import type { ServiceLike } from "../runtime/service.types.js";
@@ -172,6 +172,8 @@ export class ChannelManager implements ServiceLike {
   private readonly inbound_inflight = new Set<Promise<void>>();
   private readonly inbound_lanes: LaneQueue;
   private readonly inbound_debouncer: InboundDebouncer<InboundMessage>;
+  /** PCH-L9: debounce + reliable bus 경로 — flush 전까지 lease 보관 (즉시 ack 시 데이터 손실 위험). */
+  private readonly debounce_leases = new Map<string, MessageLease<InboundMessage>[]>();
   /** run_key → 시작 시각(ms). staleRunTimeoutMs 초과 감지용. */
   private readonly run_start_times = new Map<string, number>();
   private prune_timer: NodeJS.Timeout | null = null;
@@ -218,11 +220,17 @@ export class ChannelManager implements ServiceLike {
     });
     this.inbound_debouncer.set_handler((chat_key, items) => {
       const combined = InboundDebouncer.merge(items);
+      // PCH-L9: flush 시점에 보관된 lease를 ack — reliable bus debounce 경로 데이터 손실 방지
+      const leases = this.debounce_leases.get(chat_key) ?? [];
+      this.debounce_leases.delete(chat_key);
+      const ack_all = (): Promise<void> => Promise.all(leases.map((l) => l.ack())).then(() => undefined).catch(() => undefined);
       const task = this.inbound_lanes.execute(chat_key, (release) => this.handle_inbound_message(combined, release))
+        .then(ack_all)
         .catch((e) => {
           if (error_message(e) !== "queue_cap_exceeded") {
             this.logger.error("inbound debounced handler failed", { error: error_message(e) });
           }
+          return ack_all(); // 오류 시에도 ack — pending 영구 체류 방지
         })
         .finally(() => this.inbound_inflight.delete(task));
       this.inbound_inflight.add(task);
@@ -279,6 +287,7 @@ export class ChannelManager implements ServiceLike {
     if (this.lane_prune_timer) { clearInterval(this.lane_prune_timer); this.lane_prune_timer = null; }
     if (this.stale_run_timer) { clearInterval(this.stale_run_timer); this.stale_run_timer = null; }
     this.inbound_debouncer.clear();
+    this.debounce_leases.clear(); // PCH-L9: stop 시 lease 참조 해제
     this.thread_ownership?.dispose();
     this.primed_targets.clear();
     this.render_profile_ts.clear();
@@ -595,9 +604,11 @@ export class ChannelManager implements ServiceLike {
         const msg = lease.value;
         if (this.try_hitl_send_input(msg)) { await lease.ack(); continue; }
         const chat_key = `${msg.instance_id || resolve_provider(msg) || "unknown"}:${msg.chat_id}`;
-        // 디바운싱 활성 시: 즉시 ack + 디바운서에 위임 (debouncer handler가 lane 실행)
+        // 디바운싱 활성 시: lease 보관 후 debouncer에 위임 (PCH-L9: flush 후 ack으로 데이터 손실 방지)
         if (debounce) {
-          await lease.ack();
+          const pending = this.debounce_leases.get(chat_key) ?? [];
+          pending.push(lease);
+          this.debounce_leases.set(chat_key, pending);
           this.inbound_debouncer.push(chat_key, msg);
           continue;
         }
