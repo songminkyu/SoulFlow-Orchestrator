@@ -73,8 +73,7 @@ export function MemoryTab() {
   const { data: state } = useQuery<Record<string, unknown>>({
     queryKey: ["state"],
     queryFn: () => api.get("/api/state"),
-    refetchInterval: 10_000,
-    staleTime: 5_000,
+    staleTime: 10_000,
   });
 
   const is_text_view = view === "longterm" || typeof view === "object";

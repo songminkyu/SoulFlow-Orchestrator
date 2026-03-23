@@ -23,8 +23,8 @@ export function CronTab() {
   const t = useT();
   const qc = useQueryClient();
   const run_action = useAsyncAction();
-  const { data: status } = useQuery<CronStatus>({ queryKey: ["cron-status"], queryFn: () => api.get("/api/cron/status"), refetchInterval: 15_000, staleTime: 5_000 });
-  const { data: jobs = [] } = useQuery<CronJob[]>({ queryKey: ["cron-jobs"], queryFn: () => api.get("/api/cron/jobs?include_disabled=1"), refetchInterval: 15_000, staleTime: 5_000 });
+  const { data: status } = useQuery<CronStatus>({ queryKey: ["cron-status"], queryFn: () => api.get("/api/cron/status"), staleTime: 10_000 });
+  const { data: jobs = [] } = useQuery<CronJob[]>({ queryKey: ["cron-jobs"], queryFn: () => api.get("/api/cron/jobs?include_disabled=1"), staleTime: 10_000 });
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["cron-status"] });

@@ -26,8 +26,7 @@ export default function ChannelsPage() {
     deleteEndpoint: (id) => `/api/channels/instances/${encodeURIComponent(id)}`,
     onDeleteSuccess: () => toast(t("channels.removed"), "ok"),
     onDeleteError: (err) => toast(t("channels.remove_failed", { error: err.message }), "err"),
-    refetchInterval: 10_000,
-    staleTime: 5_000,
+    staleTime: 10_000,
   });
 
   const toggle_enabled = useToggleMutation<ChannelInstance>({

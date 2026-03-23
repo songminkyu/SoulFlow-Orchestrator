@@ -89,7 +89,6 @@ export default function ProvidersPage() {
       deleteEndpoint: (id) => `/api/agents/connections/${encodeURIComponent(id)}`,
       onDeleteSuccess: () => { toast(t("connections.removed"), "ok"); void qc.invalidateQueries({ queryKey: ["agent-providers"] }); },
       onDeleteError: (err) => toast(t("providers.remove_failed", { error: err.message }), "err"),
-      refetchInterval: 15_000,
       staleTime: 10_000,
     });
 
@@ -99,8 +98,7 @@ export default function ProvidersPage() {
     deleteEndpoint: (id) => `/api/agents/providers/${encodeURIComponent(id)}`,
     onDeleteSuccess: () => { toast(t("providers.removed"), "ok"); void queryClient.invalidateQueries({ queryKey: ["agent-connections"] }); },
     onDeleteError: (err) => toast(t("providers.remove_failed", { error: err.message }), "err"),
-    refetchInterval: 10_000,
-    staleTime: 5_000,
+    staleTime: 10_000,
   });
 
   const chatProviders = instances?.filter((i) => (i.model_purpose || "chat") === "chat") ?? [];

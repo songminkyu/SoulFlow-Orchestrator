@@ -76,11 +76,11 @@ export function AgentsTab() {
   const qc = useQueryClient();
   const run_action = useAsyncAction();
 
-  const { data: agents = [] } = useQuery<Agent[]>({ queryKey: ["agents"], queryFn: () => api.get("/api/agents"), refetchInterval: 15_000, staleTime: 5_000 });
-  const { data: agent_loops = [] } = useQuery<AgentLoop[]>({ queryKey: ["loops"], queryFn: () => api.get("/api/loops"), refetchInterval: 15_000, staleTime: 5_000 });
-  const { data: task_loops = [] } = useQuery<TaskLoop[]>({ queryKey: ["tasks"], queryFn: () => api.get("/api/tasks"), refetchInterval: 15_000, staleTime: 5_000 });
+  const { data: agents = [] } = useQuery<Agent[]>({ queryKey: ["agents"], queryFn: () => api.get("/api/agents"), staleTime: 10_000 });
+  const { data: agent_loops = [] } = useQuery<AgentLoop[]>({ queryKey: ["loops"], queryFn: () => api.get("/api/loops"), staleTime: 10_000 });
+  const { data: task_loops = [] } = useQuery<TaskLoop[]>({ queryKey: ["tasks"], queryFn: () => api.get("/api/tasks"), staleTime: 10_000 });
   const { data: raw_processes } = useQuery<ApiProcessList>(
-    { queryKey: ["processes"], queryFn: () => api.get("/api/processes"), refetchInterval: 15_000, staleTime: 5_000 }
+    { queryKey: ["processes"], queryFn: () => api.get("/api/processes"), staleTime: 10_000 }
   );
 
   const { data: auth_status } = useAuthStatus();

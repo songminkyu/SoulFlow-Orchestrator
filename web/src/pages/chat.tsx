@@ -81,8 +81,7 @@ export default function ChatPage() {
   const { data: sessions = [] } = useQuery<ChatSessionSummary[]>({
     queryKey: ["chat-sessions"],
     queryFn: () => api.get("/api/chat/sessions"),
-    refetchInterval: 15_000,
-    staleTime: 5_000,
+    staleTime: 10_000,
   });
 
   const { data: agentDefinitions = [] } = useQuery<AgentDefinition[]>({

@@ -22,8 +22,8 @@ export function MonitoringPanel() {
   const { data: metrics } = useQuery<SystemMetrics>({
     queryKey: ["system-metrics"],
     queryFn: () => api.get("/api/system/metrics"),
-    refetchInterval: 10_000,
-    staleTime: 5_000,
+    refetchInterval: 30_000,
+    staleTime: 10_000,
   });
 
   if (isLoading || !s) {

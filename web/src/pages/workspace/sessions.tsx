@@ -48,8 +48,7 @@ export function SessionsTab() {
   const { data: sessions = [] } = useQuery<SessionEntry[]>({
     queryKey: ["ws-sessions", provider_filter],
     queryFn: () => api.get(`/api/sessions${provider_filter ? `?provider=${encodeURIComponent(provider_filter)}` : ""}`),
-    refetchInterval: 15_000,
-    staleTime: 5_000,
+    staleTime: 10_000,
   });
 
   const { data: detail } = useQuery<SessionDetail>({

@@ -116,8 +116,8 @@ export function RootLayout() {
     const sse = create_sse("/api/events", {
       ready: () => { mark_event(); set_connection("connected"); },
       reload: () => { mark_event(); void qc.invalidateQueries(); },
-      process: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); },
-      cron: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); },
+      process: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); void qc.invalidateQueries({ queryKey: ["processes"] }); },
+      cron: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); void qc.invalidateQueries({ queryKey: ["cron-status"] }); void qc.invalidateQueries({ queryKey: ["cron-jobs"] }); },
       message: debounced_message,
       web_stream: (data: unknown) => {
         mark_event();
@@ -148,9 +148,9 @@ export function RootLayout() {
           push_canvas(d.chat_id, d.spec as import("../../../src/dashboard/canvas.types").CanvasSpec);
         }
       },
-      task: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); },
-      agent: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); },
-      progress: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); },
+      task: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); void qc.invalidateQueries({ queryKey: ["tasks"] }); void qc.invalidateQueries({ queryKey: ["loops"] }); },
+      agent: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); void qc.invalidateQueries({ queryKey: ["agents"] }); },
+      progress: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); void qc.invalidateQueries({ queryKey: ["processes"] }); },
     });
     set_connection("reconnecting");
     return () => { if (msg_timer) clearTimeout(msg_timer); sse.close(); set_connection("disconnected"); };
