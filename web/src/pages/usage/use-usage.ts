@@ -3,13 +3,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import type { DailySummary, ProviderSummary, ModelDailySummary, TokenPricing } from "./types";
+import { POLL_FAST_MS, POLL_SLOW_MS } from "../../utils/constants";
 
 export function useDailySummary(days: number) {
   return useQuery<DailySummary[]>({
     queryKey: ["usage", "daily", days],
     queryFn: () => api.get(`/api/usage/summary/daily?days=${days}`),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: POLL_SLOW_MS,
   });
 }
 
@@ -18,7 +19,7 @@ export function useProviderSummary(days: number) {
     queryKey: ["usage", "provider", days],
     queryFn: () => api.get(`/api/usage/summary/provider?days=${days}`),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: POLL_SLOW_MS,
   });
 }
 
@@ -27,7 +28,7 @@ export function useTodayByModel() {
     queryKey: ["usage", "today-model"],
     queryFn: () => api.get("/api/usage/today/model"),
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FAST_MS,
   });
 }
 

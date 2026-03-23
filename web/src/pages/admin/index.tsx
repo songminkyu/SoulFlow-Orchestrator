@@ -20,6 +20,7 @@ import { useToggleMutation } from "../../hooks/use-toggle-mutation";
 import type { ChannelInstance } from "../channels/types";
 import { MonitoringPanel } from "./monitoring-panel";
 import { useT } from "../../i18n";
+import { POLL_FAST_MS } from "../../utils/constants";
 
 type AdminTab = "teams" | "users" | "providers" | "channels" | "monitoring" | "security";
 
@@ -529,7 +530,7 @@ function ChannelsPanel() {
     deleteEndpoint: (id) => `/api/channels/instances/${encodeURIComponent(id)}`,
     onDeleteSuccess: () => toast(t("admin.channels.deleted"), "ok"),
     onDeleteError: (err) => toast(t("admin.channels.delete_failed_fmt", { error: err.message }), "err"),
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FAST_MS,
     staleTime: 10_000,
   });
 
@@ -598,7 +599,7 @@ function SecurityPanel() {
     queryKey: ["admin-security-summary"],
     queryFn: () => api.get("/api/admin/security/summary"),
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FAST_MS,
   });
 
   const viewStatus = isLoading ? "loading" as const

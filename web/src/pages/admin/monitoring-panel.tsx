@@ -5,7 +5,7 @@ import { Badge } from "../../components/badge";
 import { SectionHeader } from "../../components/section-header";
 import { api } from "../../api/client";
 import { useT } from "../../i18n";
-import { PROVIDER_COLORS } from "../../utils/constants";
+import { PROVIDER_COLORS, POLL_FAST_MS } from "../../utils/constants";
 import { fmt_time } from "../../utils/format";
 import { MetricBar, StatusDot, fmt_uptime, fmt_kbps } from "../overview/helpers";
 import { DistributionBar, DistributionLegend, LatencyBars, ProportionBar } from "../../components/chart-primitives";
@@ -22,7 +22,7 @@ export function MonitoringPanel() {
   const { data: metrics } = useQuery<SystemMetrics>({
     queryKey: ["system-metrics"],
     queryFn: () => api.get("/api/system/metrics"),
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FAST_MS,
     staleTime: 10_000,
   });
 

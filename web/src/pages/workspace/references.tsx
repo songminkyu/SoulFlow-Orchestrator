@@ -15,6 +15,7 @@ import { time_ago } from "../../utils/format";
 import { DataTable } from "../../components/data-table";
 import { RichResultRenderer } from "../../components/rich-result-renderer";
 import { StatusView } from "../../components/status-contract";
+import { POLL_FAST_MS } from "../../utils/constants";
 
 interface RefSearchResult {
   doc_path: string;
@@ -48,7 +49,7 @@ export function ReferencesTab() {
   const { data, isLoading } = useQuery<ApiRefDocumentList>({
     queryKey: ["references"],
     queryFn: () => api.get("/api/references"),
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FAST_MS,
     staleTime: 10_000,
   });
 

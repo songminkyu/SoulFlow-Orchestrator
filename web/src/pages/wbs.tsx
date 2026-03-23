@@ -10,6 +10,7 @@ import { useAsyncAction } from "../hooks/use-async-action";
 import { usePageAccess } from "../hooks/use-page-access";
 import { get_page_policy } from "./access-policy";
 import "../styles/wbs.css";
+import { POLL_SLOW_MS } from "../utils/constants";
 
 /* ─── 타입 ─── */
 
@@ -292,7 +293,7 @@ export default function WbsPage() {
   const { data: boards } = useQuery<Board[]>({
     queryKey: ["kanban-boards"],
     queryFn: () => api.get("/api/kanban/boards"),
-    refetchInterval: 60_000,
+    refetchInterval: POLL_SLOW_MS,
   });
 
   const board_id = board_id_param || boards?.[0]?.board_id || "";
@@ -302,7 +303,7 @@ export default function WbsPage() {
     queryKey: ["kanban-board", board_id],
     queryFn: () => api.get(`/api/kanban/boards/${encodeURIComponent(board_id)}`),
     enabled: !!board_id,
-    refetchInterval: 60_000,
+    refetchInterval: POLL_SLOW_MS,
   });
 
   const refresh = () => void qc.invalidateQueries({ queryKey: ["kanban-board", board_id] });

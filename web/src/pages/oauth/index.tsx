@@ -13,6 +13,7 @@ import { useT } from "../../i18n";
 import { useResourceCRUD } from "../../hooks/use-resource-crud";
 import { time_ago } from "../../utils/format";
 import type { OAuthIntegration, OAuthPreset, ModalMode } from "./types";
+import { POLL_FAST_MS } from "../../utils/constants";
 import { OAuthModal } from "./oauth-modal";
 import { PresetModal } from "./preset-modal";
 
@@ -30,7 +31,7 @@ export default function OAuthPage() {
     deleteEndpoint: (id) => `/api/oauth/integrations/${encodeURIComponent(id)}`,
     onDeleteSuccess: () => toast(t("oauth.removed"), "ok"),
     onDeleteError: (err) => toast(t("oauth.remove_failed", { error: err.message }), "err"),
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FAST_MS,
     staleTime: 10_000,
   });
 

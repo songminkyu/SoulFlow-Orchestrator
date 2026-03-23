@@ -20,6 +20,7 @@ import {
   useScopedProviders, useAddTeamProvider, useDeleteTeamProvider,
   useAddGlobalProvider, useDeleteGlobalProvider, type ScopedProvider, type ProviderInput,
 } from "../../hooks/use-team-providers";
+import { POLL_SLOW_MS } from "../../utils/constants";
 
 type Tab = "providers" | "chat" | "embedding" | "image" | "video" | "shared";
 
@@ -56,7 +57,7 @@ function TrustZoneBadge() {
     queryKey: ["admin-security-summary"],
     queryFn: () => api.get("/api/admin/security/summary"),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: POLL_SLOW_MS,
   });
 
   if (!data) return null;

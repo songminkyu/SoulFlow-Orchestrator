@@ -236,6 +236,9 @@ export class TelegramChannel extends BaseChannel {
 
   async stop(): Promise<void> {
     this.running = false;
+    // PCH-L16: 재시작 시 클린 상태 — 이전 오프셋/에러 카운터 초기화
+    this.last_update_id = 0;
+    this.consecutive_read_errors = 0;
   }
 
   async send(message: OutboundMessage): Promise<{ ok: boolean; message_id?: string; error?: string }> {

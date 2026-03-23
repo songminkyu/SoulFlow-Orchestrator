@@ -6,6 +6,7 @@ import { EmptyState } from "../../components/empty-state";
 import { useToast } from "../../components/toast";
 import { useT } from "../../i18n";
 import { time_ago } from "../../utils/format";
+import { POLL_FAST_MS } from "../../utils/constants";
 import { WsSkeletonCol } from "./ws-shared";
 import { DataTable } from "../../components/data-table";
 
@@ -65,21 +66,21 @@ export function ModelsTab() {
   const { data: runtime, isLoading: runtimeLoading } = useQuery<RuntimeStatus>({
     queryKey: ["models-runtime"],
     queryFn: () => api.get("/api/models/runtime"),
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FAST_MS,
     staleTime: 10_000,
   });
 
   const { data: models, isLoading: modelsLoading } = useQuery<ModelInfo[]>({
     queryKey: ["models"],
     queryFn: () => api.get("/api/models"),
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FAST_MS,
     staleTime: 10_000,
   });
 
   const { data: active } = useQuery<RunningModelInfo[]>({
     queryKey: ["models-active"],
     queryFn: () => api.get("/api/models/active"),
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FAST_MS,
     staleTime: 10_000,
   });
 
