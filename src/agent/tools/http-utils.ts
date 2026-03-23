@@ -3,7 +3,7 @@
 import { create_guard_from_integration_settings } from "../../security/outbound-guard.js";
 
 /** 사설망 호스트 차단 패턴 (SSRF 방지). */
-const PRIVATE_HOST_RE =
+export const PRIVATE_HOST_RE =
   /^(localhost|127\.\d+\.\d+\.\d+|::1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+|169\.254\.\d+\.\d+)$/i;
 
 /** URL 파싱 + 프로토콜/SSRF 검증. 실패 시 에러 문자열 반환. */

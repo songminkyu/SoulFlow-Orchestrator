@@ -3,6 +3,7 @@
 import { Tool } from "./base.js";
 import { error_message, make_abort_signal, now_iso } from "../../utils/common.js";
 import { HTTP_FETCH_QUICK_TIMEOUT_MS } from "../../utils/timeouts.js";
+import { validate_url } from "./http-utils.js";
 import type { JsonSchema, ToolExecutionContext } from "./types.js";
 
 type NotifyCallback = (payload: { level: string; title: string; body: string; metadata?: Record<string, unknown> }) => Promise<void>;
@@ -54,11 +55,10 @@ export class NotificationTool extends Tool {
 
     if (webhook_url) {
       try {
-        const url = new URL(webhook_url);
-        if (url.protocol !== "http:" && url.protocol !== "https:") {
-          return "Error: webhook_url must be http or https";
-        }
-        const res = await fetch(webhook_url, {
+        // PCH-S15: SSRF 방어 — private host + 허용 프로토콜 검증
+        const url_or_err = validate_url(webhook_url);
+        if (typeof url_or_err === "string") return `Error: ${url_or_err}`;
+        const res = await fetch(url_or_err.href, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ level, title, body, timestamp: now_iso() }),

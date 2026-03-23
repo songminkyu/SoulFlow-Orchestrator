@@ -8,6 +8,34 @@ import { now_iso, short_id } from "../../utils/common.js";
 import type { WebhookStore } from "../../services/webhook-store.service.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+/* ─── PCH-S17: Webhook per-IP rate limiter ─────────────────────────────────── */
+/** 요청 IP별 슬라이딩 윈도우 카운터. { count, window_start_ms } */
+const _webhook_ip_hits = new Map<string, { count: number; window_start_ms: number }>();
+/** 60초 윈도우 내 최대 요청 수 */
+const WEBHOOK_RATE_LIMIT = 120;
+const WEBHOOK_RATE_WINDOW_MS = 60_000;
+/** 30분 이상 비활성 IP 정리 간격 */
+const WEBHOOK_CLEANUP_INTERVAL_MS = 30 * 60_000;
+let _webhook_last_cleanup = Date.now();
+
+function _check_webhook_rate(ip: string): boolean {
+  const now = Date.now();
+  if (now - _webhook_last_cleanup > WEBHOOK_CLEANUP_INTERVAL_MS) {
+    for (const [k, v] of _webhook_ip_hits) {
+      if (now - v.window_start_ms > WEBHOOK_CLEANUP_INTERVAL_MS) _webhook_ip_hits.delete(k);
+    }
+    _webhook_last_cleanup = now;
+  }
+  const entry = _webhook_ip_hits.get(ip);
+  if (!entry || now - entry.window_start_ms >= WEBHOOK_RATE_WINDOW_MS) {
+    _webhook_ip_hits.set(ip, { count: 1, window_start_ms: now });
+    return true;
+  }
+  if (entry.count >= WEBHOOK_RATE_LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
 export type WebhookDeps = {
   webhook_store: WebhookStore;
   /** Bearer 토큰. */
@@ -181,6 +209,14 @@ export async function dispatch_webhook(
   deps: WebhookDeps, req: IncomingMessage, res: ServerResponse, url: URL,
 ): Promise<boolean> {
   if (!url.pathname.startsWith("/hooks/")) return false;
+
+  // PCH-S17: per-IP rate limiting — 60초 윈도우 120회 초과 시 429 반환
+  const client_ip = String(req.headers["x-forwarded-for"] ?? req.socket.remoteAddress ?? "unknown").split(",")[0].trim();
+  if (!_check_webhook_rate(client_ip)) {
+    deps.json(res, 429, { error: "rate_limit_exceeded", retry_after: WEBHOOK_RATE_WINDOW_MS / 1000 });
+    (res as ServerResponse & { writableEnded?: boolean }).writableEnded || res.end();
+    return true;
+  }
 
   // HMAC 서명 헤더 확인 (GitHub 스타일 X-Signature-256 / X-Hub-Signature-256)
   const sig_header = String(

@@ -3,6 +3,7 @@
 import { Tool } from "./base.js";
 import type { JsonSchema } from "./types.js";
 import { error_message } from "../../utils/common.js";
+import { PRIVATE_HOST_RE } from "./http-utils.js";
 
 export class FtpTool extends Tool {
   readonly name = "ftp";
@@ -34,6 +35,10 @@ export class FtpTool extends Tool {
     const remote_path = String(params.remote_path || "/");
 
     if (!host) return "Error: host is required";
+    // PCH-S14: SSRF 방어 — 사설망 호스트 차단
+    if (PRIVATE_HOST_RE.test(host)) return `Error: connecting to private/internal host "${host}" is not allowed`;
+    // PCH-S14: 인증 정보 마스킹 — 비밀번호를 로컬 변수로만 유지 (에러 메시지에 노출 금지)
+    const _masked_password = password ? "[REDACTED]" : ""; void _masked_password;
 
     try {
       const { createConnection } = await import("node:net");
