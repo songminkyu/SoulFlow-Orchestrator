@@ -262,10 +262,15 @@ export class ToolIndex {
     this.semantic_scorer = scorer;
   }
 
-  /** 도구 스키마 + 카테고리 정보로 FTS5 인덱스를 빌드. 도구 목록이 변경되지 않으면 no-op. */
+  /** 도구 스키마 + 카테고리 정보로 FTS5 + 인메모리 인덱스를 빌드. 도구 목록이 변경되지 않으면 no-op. */
   build(schemas: ToolSchema[], category_map: Record<string, string>, db_path?: string): void {
     if (db_path) this.db_path = db_path;
-    if (!this.db_path) return;
+    if (!this.db_path) {
+      // DB 없이도 인메모리 인덱스는 빌드 (키워드 매칭 활성화)
+      this._build_mem(schemas, category_map);
+      this.tool_count = this.mem_tools.length;
+      return;
+    }
     // 도구 목록이 변경되지 않으면 DB 재빌드 및 임베딩 재생성 스킵
     const build_hash = simple_hash(schemas.map((s) => s.function.name).join(","));
     if (build_hash === this.last_build_hash && this.mem_tools.length > 0) return;
@@ -331,6 +336,9 @@ export class ToolIndex {
       this.tool_count = schemas.length;
     });
     this._build_mem(schemas, category_map);
+    // DB 에러로 with_vec_db 내부에서 tool_count가 설정되지 않아도
+    // 인메모리 인덱스 기준으로 size가 정확하도록 보장
+    this.tool_count = Math.max(this.tool_count, this.mem_tools.length);
   }
 
   /** 인메모리 역인덱스 구성. build() 후 호출. IDF 가중치로 토큰별 도구 목록 색인. */
