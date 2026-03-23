@@ -17,6 +17,9 @@ interface CronEntry {
 }
 
 const MAX_ENTRIES = 50;
+/** PCH-L13: 타이머 최소/최대 간격 — Node.js setInterval 안전 범위 + 의미 있는 최소값. */
+const MIN_INTERVAL_MS = 60_000;     // 1분
+const MAX_INTERVAL_MS = 86_400_000; // 24시간
 
 export class CronShellTool extends Tool {
   readonly name = "cron_shell";
@@ -132,12 +135,18 @@ export class CronShellTool extends Tool {
     const parts = expr.trim().split(/\s+/);
     if (parts.length < 5) return null;
 
+    const clamp = (ms: number): number | null => {
+      // PCH-L13: 최소 1분, 최대 24시간 — Node.js 2^31ms 오버플로우 및 과도한 타이머 방지
+      if (ms < MIN_INTERVAL_MS || ms > MAX_INTERVAL_MS) return null;
+      return ms;
+    };
+
     const minute_match = parts[0].match(/^\*\/(\d+)$/);
     if (minute_match) {
       const divisor = Number(minute_match[1]);
       // 제수가 0이면 무한 루프(DoS) 위험 → null 반환
       if (divisor === 0) return null;
-      return divisor * 60_000;
+      return clamp(divisor * 60_000);
     }
 
     const hour_match = parts[1].match(/^\*\/(\d+)$/);
@@ -145,10 +154,10 @@ export class CronShellTool extends Tool {
       const divisor = Number(hour_match[1]);
       // 제수가 0이면 무한 루프(DoS) 위험 → null 반환
       if (divisor === 0) return null;
-      return divisor * 3600_000;
+      return clamp(divisor * 3600_000);
     }
 
-    if (parts[0] === "*" && parts[1] === "*") return 60_000;
+    if (parts[0] === "*" && parts[1] === "*") return clamp(60_000);
     return null;
   }
 }
