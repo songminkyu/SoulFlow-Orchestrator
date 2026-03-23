@@ -26,7 +26,7 @@ import { SseManager } from "./sse-manager.js";
 import { MediaTokenStore } from "./media-store.js";
 import { build_dashboard_state, build_merged_tasks } from "./state-builder.js";
 import { ScopedMemoryOpsCache } from "./ops/memory.js";
-import { resolve_web_dir, serve_static } from "./static-server.js";
+import { resolve_web_dir, serve_static, send_json_compressed } from "./static-server.js";
 import { handle_bootstrap } from "./routes/bootstrap.js";
 import { handle_state } from "./routes/state.js";
 import { handle_process } from "./routes/process.js";
@@ -220,7 +220,12 @@ export class DashboardService implements ServiceLike {
     return resolve_request_origin(req, (this.options as Record<string, unknown>).public_url as string | undefined, this.bound_port ?? this.options.port);
   }
 
-  private _json(res: ServerResponse, status: number, data: unknown): void {
+  private _json(res: ServerResponse, status: number, data: unknown, req?: IncomingMessage): void {
+    if (req) {
+      // 비동기 압축 — fire-and-forget (res.end는 내부에서 호출)
+      void send_json_compressed(req, res, status, data);
+      return;
+    }
     set_no_cache(res);
     res.statusCode = status;
     res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -309,7 +314,7 @@ export class DashboardService implements ServiceLike {
         : null,
       workspace_layers,
       personal_dir,
-      json: (r, s, d) => this._json(r, s, d),
+      json: (r, s, d) => this._json(r, s, d, req),
       read_body: (r) => this._read_json_body(r, res),
       add_sse_client: (r, tid, uid) => this._sse.add_client(r, tid, uid),
       build_state: (team_id?: string, user_id?: string) => build_dashboard_state(this.options, this._sse.recent_messages, team_id, user_id),
@@ -361,7 +366,7 @@ export class DashboardService implements ServiceLike {
     }
     if (url.pathname.startsWith("/web") || url.pathname.startsWith("/assets/")) {
       const web_path = url.pathname.startsWith("/assets/") ? `/web${url.pathname}` : url.pathname;
-      await serve_static(this.web_dir, web_path, res); return;
+      await serve_static(this.web_dir, web_path, req, res); return;
     }
 
     // 미디어 토큰 — TN-6b: auth 활성 시 JWT 쿠키 OR 토큰 인증 필수

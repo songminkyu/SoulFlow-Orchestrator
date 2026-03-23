@@ -65,16 +65,21 @@ export type ListSpansFilter = {
   offset?: number;
 };
 
+/** 24시간 (ms). */
+const SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
 export class UsageStore {
   readonly sqlite_path: string;
 
   private readonly initialized: Promise<void>;
   private write_queue: Promise<void> = Promise.resolve();
+  private _sweep_timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(root: string) {
     const usage_dir = join(root, "runtime", "usage");
     this.sqlite_path = join(usage_dir, "usage.db");
     this.initialized = this._init(usage_dir);
+    this._schedule_sweep();
   }
 
   private with_sqlite<T>(run: (db: DatabaseSync) => T): T | null {
@@ -282,5 +287,42 @@ export class UsageStore {
       avg_latency_ms: Math.round(Number(r.avg_latency_ms)),
       error_calls: Number(r.error_calls),
     }));
+  }
+
+  /**
+   * retention_days 이전의 오래된 span 삭제.
+   * @returns 삭제된 row 수.
+   */
+  sweep(retention_days = 90): number {
+    const cutoff = new Date(Date.now() - retention_days * 86_400_000).toISOString();
+    const result = this.with_sqlite((db) => {
+      const info = db.prepare("DELETE FROM llm_spans WHERE at < ?").run(cutoff);
+      return (info as unknown as { changes: number }).changes ?? 0;
+    });
+    return result ?? 0;
+  }
+
+  /** 24시간 주기 자동 sweep 스케줄링. 최초 부트 시 1회 즉시 실행. */
+  private _schedule_sweep(): void {
+    // 초기 sweep — 비동기, 에러 무시
+    void this.initialized.then(() => {
+      try { this.sweep(); } catch { /* sweep 실패는 무시 */ }
+    });
+    // 24시간 주기
+    this._sweep_timer = setInterval(() => {
+      try { this.sweep(); } catch { /* sweep 실패는 무시 */ }
+    }, SWEEP_INTERVAL_MS);
+    // 프로세스 종료를 막지 않도록 unref
+    if (this._sweep_timer && typeof this._sweep_timer.unref === "function") {
+      this._sweep_timer.unref();
+    }
+  }
+
+  /** Graceful shutdown — sweep 타이머 해제. */
+  close(): void {
+    if (this._sweep_timer) {
+      clearInterval(this._sweep_timer);
+      this._sweep_timer = null;
+    }
   }
 }
