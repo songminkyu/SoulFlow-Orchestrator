@@ -913,7 +913,7 @@
   .kanban-header__actions { flex-wrap: wrap; }
 
   .kanban-board {
-    scroll-snap-type: x mandatory;
+    scroll-snap-type: x proximity;
     gap: var(--sp-3);
   }
 

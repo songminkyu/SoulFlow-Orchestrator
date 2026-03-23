@@ -166,7 +166,9 @@ export function RootLayout() {
   return (
     <div className="app">
       <a className="skip-to-content" href="#main-content">{t("a11y.skip_to_content")}</a>
-      <Sidebar />
+      <ErrorBoundary fallback={<div className="sidebar" aria-hidden="true" />}>
+        <Sidebar />
+      </ErrorBoundary>
       <div className="app__main">
         <header className="topbar">
           <div className="topbar__left">
