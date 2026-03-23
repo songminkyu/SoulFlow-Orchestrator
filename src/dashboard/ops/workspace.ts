@@ -8,7 +8,8 @@ import type { DashboardWorkspaceOps } from "../service.js";
 export function create_workspace_ops(workspace_dir: string): DashboardWorkspaceOps {
   return {
     async list_files(rel_path = "") {
-      const safe = sanitize_rel_path(rel_path);
+      const safe = sanitize_rel_path(rel_path, workspace_dir);
+      if (!safe && rel_path) return [];
       const abs = join(workspace_dir, safe);
       // TN-6d: is_inside 방어 심층 — sanitize_rel_path 우회 시 2차 차단
       if (!is_inside(workspace_dir, abs)) return [];
@@ -23,7 +24,8 @@ export function create_workspace_ops(workspace_dir: string): DashboardWorkspaceO
       } catch { return []; }
     },
     async read_file(rel_path) {
-      const safe = sanitize_rel_path(rel_path);
+      const safe = sanitize_rel_path(rel_path, workspace_dir);
+      if (!safe && rel_path) return null;
       const abs = join(workspace_dir, safe);
       if (!is_inside(workspace_dir, abs)) return null;
       try { return readFileSync(abs, "utf-8"); } catch { return null; }

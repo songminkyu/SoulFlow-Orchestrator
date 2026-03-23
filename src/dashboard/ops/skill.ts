@@ -74,7 +74,7 @@ function upload_skill_to(
     const strip_prefix = top_dirs.size === 1 ? `${[...top_dirs][0]}/` : "";
     for (const entry of entries) {
       if (entry.isDirectory) continue;
-      const rel = sanitize_rel_path(strip_prefix ? entry.entryName.replace(strip_prefix, "") : entry.entryName);
+      const rel = sanitize_rel_path(strip_prefix ? entry.entryName.replace(strip_prefix, "") : entry.entryName, skill_dir);
       if (!rel) continue;
       const target = join(skill_dir, rel);
       if (!is_inside(skill_dir, target)) continue;

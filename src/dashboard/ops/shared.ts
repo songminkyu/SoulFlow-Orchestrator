@@ -1,6 +1,6 @@
 /** Dashboard ops 공유 helper. */
 
-import { resolve } from "node:path";
+import { resolve, relative } from "node:path";
 import type { AgentProviderStore } from "../../agent/provider-store.js";
 import type { AgentBackendRegistry } from "../../agent/agent-registry.js";
 import type { ProviderRegistryLike } from "../../providers/index.js";
@@ -15,8 +15,21 @@ export function apply_connection_api_base(store: AgentProviderStore, config: imp
   return config;
 }
 
-/** workspace 내부 상대 경로 sanitize. 디렉토리 탈출 방지. */
-export function sanitize_rel_path(rel_path: string): string {
+/**
+ * workspace 내부 상대 경로 sanitize. 디렉토리 탈출 방지.
+ *
+ * base 제공 시: URL 디코딩 → resolve → is_inside 검증 → 상대 경로 반환.
+ * base 미제공 시: 기존 regex 기반 sanitize (하위 호환).
+ */
+export function sanitize_rel_path(rel_path: string, base?: string): string {
+  if (base !== undefined) {
+    // URL 인코딩 해제 (%2e%2e, %5c 등 우회 벡터 처리)
+    let decoded = rel_path;
+    try { decoded = decodeURIComponent(rel_path); } catch { /* 유효하지 않은 인코딩은 원본 유지 */ }
+    const resolved = resolve(base, decoded);
+    if (!is_inside(base, resolved)) return "";
+    return relative(resolve(base), resolved);
+  }
   return rel_path.replace(/\.\./g, "").replace(/^[/\\]+/, "");
 }
 
