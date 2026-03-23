@@ -292,7 +292,7 @@ export default function WbsPage() {
   const { data: boards } = useQuery<Board[]>({
     queryKey: ["kanban-boards"],
     queryFn: () => api.get("/api/kanban/boards"),
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
   });
 
   const board_id = board_id_param || boards?.[0]?.board_id || "";
@@ -302,7 +302,7 @@ export default function WbsPage() {
     queryKey: ["kanban-board", board_id],
     queryFn: () => api.get(`/api/kanban/boards/${encodeURIComponent(board_id)}`),
     enabled: !!board_id,
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   const refresh = () => void qc.invalidateQueries({ queryKey: ["kanban-board", board_id] });

@@ -100,8 +100,8 @@ export default function WorkflowsPage() {
   const { data: workflows, isLoading: wfLoading } = useQuery<PhaseLoopState[]>({
     queryKey: ["workflows"],
     queryFn: () => api.get("/api/workflow/runs"),
-    refetchInterval: 10_000,
-    staleTime: 3_000,
+    refetchInterval: 60_000,
+    staleTime: 10_000,
   });
 
   const { data: templates, isLoading: tplLoading } = useQuery<WorkflowTemplate[]>({

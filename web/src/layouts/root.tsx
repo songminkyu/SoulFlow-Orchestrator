@@ -148,9 +148,10 @@ export function RootLayout() {
           push_canvas(d.chat_id, d.spec as import("../../../src/dashboard/canvas.types").CanvasSpec);
         }
       },
-      task: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); void qc.invalidateQueries({ queryKey: ["tasks"] }); void qc.invalidateQueries({ queryKey: ["loops"] }); },
+      task: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); void qc.invalidateQueries({ queryKey: ["tasks"] }); void qc.invalidateQueries({ queryKey: ["loops"] }); void qc.invalidateQueries({ queryKey: ["kanban"] }); },
       agent: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); void qc.invalidateQueries({ queryKey: ["agents"] }); },
       progress: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["state"] }); void qc.invalidateQueries({ queryKey: ["processes"] }); },
+      workflow: () => { mark_event(); void qc.invalidateQueries({ queryKey: ["workflows"] }); void qc.invalidateQueries({ queryKey: ["workflow"] }); void qc.invalidateQueries({ queryKey: ["workflow-messages"] }); },
     });
     set_connection("reconnecting");
     return () => { if (msg_timer) clearTimeout(msg_timer); sse.close(); set_connection("disconnected"); };

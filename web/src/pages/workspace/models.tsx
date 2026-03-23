@@ -65,8 +65,8 @@ export function ModelsTab() {
   const { data: runtime, isLoading: runtimeLoading } = useQuery<RuntimeStatus>({
     queryKey: ["models-runtime"],
     queryFn: () => api.get("/api/models/runtime"),
-    refetchInterval: 10_000,
-    staleTime: 4_000,
+    refetchInterval: 30_000,
+    staleTime: 10_000,
   });
 
   const { data: models, isLoading: modelsLoading } = useQuery<ModelInfo[]>({
@@ -79,8 +79,8 @@ export function ModelsTab() {
   const { data: active } = useQuery<RunningModelInfo[]>({
     queryKey: ["models-active"],
     queryFn: () => api.get("/api/models/active"),
-    refetchInterval: 10_000,
-    staleTime: 4_000,
+    refetchInterval: 30_000,
+    staleTime: 10_000,
   });
 
   const startPull = async (name: string) => {

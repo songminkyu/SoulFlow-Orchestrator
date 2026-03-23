@@ -136,8 +136,8 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
   const { data: running_agents = [] } = useQuery<Array<{ id: string; status: string }>>({
     queryKey: ["agents"],
     queryFn: () => api.get("/api/agents"),
-    refetchInterval: 15_000,
-    staleTime: 5_000,
+    refetchInterval: 60_000,
+    staleTime: 10_000,
   });
 
   const running_ids = new Set(

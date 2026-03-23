@@ -50,8 +50,8 @@ export function useResourceCRUD<T extends object>({
   deleteEndpoint,
   onDeleteSuccess,
   onDeleteError,
-  refetchInterval = 15_000,
-  staleTime = 5_000,
+  refetchInterval = 30_000,
+  staleTime = 10_000,
 }: UseResourceCRUDOptions<T>): UseResourceCRUDResult<T> {
   const qc = useQueryClient();
   const [deleteTarget, setDeleteTarget] = useState<T | null>(null);
