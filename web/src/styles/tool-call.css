@@ -19,13 +19,13 @@
   margin-bottom: var(--sp-1);
 }
 .tool-call-list__label { font-weight: 600; }
-.tool-call-list__done  { color: #10b981; font-size: 11px; }
+.tool-call-list__done  { color: #10b981; font-size: var(--fs-tiny); }
 .tool-call-list__running {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--fs-tiny);
 }
 .tool-call-list__running .tool-call__spinner {
   width: 10px;
@@ -109,11 +109,11 @@
 .tool-call__check { color: #10b981; font-weight: 700; }
 .tool-call__x     { color: #ef4444; font-weight: 700; }
 
-.tool-call__icon  { flex-shrink: 0; font-size: 12px; line-height: 1; }
+.tool-call__icon  { flex-shrink: 0; font-size: var(--fs-xs); line-height: 1; }
 .tool-call__name  {
   flex: 1;
   font-family: var(--font-mono, monospace);
-  font-size: 11px;
+  font-size: var(--fs-tiny);
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -138,7 +138,7 @@
 }
 .tool-call__section { display: flex; flex-direction: column; gap: 4px; }
 .tool-call__section-label {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -150,7 +150,7 @@
   background: color-mix(in srgb, var(--text) 5%, transparent);
   border-radius: var(--radius-md);
   font-family: var(--font-mono, monospace);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   line-height: 1.5;
   color: var(--text);
   white-space: pre-wrap;
@@ -187,14 +187,14 @@
 }
 .thinking-section__header:hover { color: var(--text); }
 
-.thinking-section__icon { flex-shrink: 0; font-size: 12px; }
+.thinking-section__icon { flex-shrink: 0; font-size: var(--fs-xs); }
 .thinking-section__title {
   flex: 1;
   display: flex;
   align-items: center;
   gap: var(--sp-2);
 }
-.thinking-section__tokens { font-size: 10px; color: var(--text-muted); }
+.thinking-section__tokens { font-size: var(--fs-2xs); color: var(--text-muted); }
 .thinking-section__chevron {
   flex-shrink: 0;
   font-size: 9px;
@@ -226,7 +226,7 @@
 .thinking-section__pre {
   margin: 0;
   font-family: var(--font-mono, monospace);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   line-height: 1.6;
   color: var(--text-muted);
   white-space: pre-wrap;

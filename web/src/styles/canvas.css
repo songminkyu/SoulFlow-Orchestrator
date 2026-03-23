@@ -34,7 +34,7 @@
   border: none;
   cursor: pointer;
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   padding: 0 var(--sp-1);
   line-height: 1;
 }

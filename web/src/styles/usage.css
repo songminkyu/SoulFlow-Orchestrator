@@ -136,7 +136,7 @@
 }
 
 .usage-chart__bar-label {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   color: var(--muted);
   margin-top: var(--sp-1);
   white-space: nowrap;
@@ -151,7 +151,7 @@
 }
 
 .usage-chart__bars:has(> :nth-child(20)) .usage-chart__bar-col:nth-child(5n) .usage-chart__bar-label {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
 }
 
 /* ── Table ── */

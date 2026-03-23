@@ -424,7 +424,7 @@
   border-radius: 50%;
   background: color-mix(in srgb, var(--accent) 20%, transparent);
   color: var(--accent);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -438,7 +438,7 @@
   letter-spacing: 0.03em;
 }
 .chat-tabs__close {
-  font-size: 14px;
+  font-size: var(--fs-base);
   line-height: 1;
   color: var(--muted);
   /* PCH-F3: WCAG 2.5.5 — 최소 44×44 터치 타겟 */
@@ -542,7 +542,7 @@
 }
 .chat-bottom-bar__stop:hover { background: color-mix(in srgb, var(--err) 20%, transparent); }
 .chat-bottom-bar__route-chip {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   text-transform: uppercase;
   padding: 1px 6px;
@@ -669,7 +669,7 @@
   padding: 2px 8px;
   background: var(--hover);
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: var(--fs-xs);
   color: var(--muted);
   cursor: pointer;
@@ -711,7 +711,7 @@
 .chat-prompt-bar__model-popup--up { bottom: calc(100% + 6px); top: auto; }
 .chat-prompt-bar__model-popup--down { top: calc(100% + 6px); bottom: auto; }
 .chat-prompt-bar__model-popup-label {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   color: var(--muted);
   font-weight: 600;
   text-transform: uppercase;
@@ -1017,7 +1017,7 @@
 .session-browser__group { margin-bottom: var(--sp-2); }
 .session-browser__group-label {
   padding: var(--sp-1) var(--sp-4);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1064,7 +1064,7 @@
   flex-wrap: wrap;
 }
 .session-browser__badge {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   padding: 1px 6px;
   border-radius: var(--radius-sm);
@@ -1093,7 +1093,7 @@
 .session-browser__action-btn {
   background: none;
   border: none;
-  font-size: 14px;
+  font-size: var(--fs-base);
   cursor: pointer;
   padding: 4px;
   border-radius: var(--radius-sm);
@@ -1149,7 +1149,7 @@
 }
 .chat-ctx-menu__sub {
   display: block;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   color: var(--muted);
   font-family: "SFMono-Regular", "Consolas", monospace;
   letter-spacing: 0.03em;
@@ -1452,7 +1452,7 @@
 }
 .mention-picker__column:last-child { border-right: none; }
 .mention-picker__column-title {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1581,7 +1581,7 @@
   flex-direction: column;
 }
 .model-selector__group-label {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1667,7 +1667,7 @@
   border: none;
   background: none;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   cursor: pointer;
   flex-shrink: 0;
   padding: 0;

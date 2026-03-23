@@ -166,7 +166,7 @@
 
 .result-renderer__code-lang {
   display: inline-block;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-family: var(--font-mono);
   font-weight: 600;
   text-transform: uppercase;
@@ -300,14 +300,14 @@
 
 .tool-call-block__icon {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   line-height: 1;
 }
 
 .tool-call-block__name {
   flex: 1;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-tiny);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -324,7 +324,7 @@
 
 .tool-call-block__duration {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   color: var(--muted);
   font-family: var(--font-mono);
 }
@@ -369,7 +369,7 @@
 }
 
 .tool-call-block__section-label {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -385,7 +385,7 @@
   background: color-mix(in srgb, var(--text) 5%, transparent);
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   line-height: 1.5;
   color: var(--text);
   white-space: pre-wrap;
@@ -495,7 +495,7 @@
 
 /* Sizes */
 .status-badge--sm {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   padding: 1px 6px;
 }
 
@@ -560,7 +560,7 @@
   }
 
   .result-renderer__code pre {
-    font-size: 11px;
+    font-size: var(--fs-tiny);
   }
 
   .tool-call-block__json {

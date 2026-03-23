@@ -75,6 +75,8 @@
   /* Typography */
   --font-sans: "Inter", "Noto Sans KR", "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Consolas", "Menlo", monospace;
+  --fs-2xs: 10px;
+  --fs-tiny: 11px;
   --fs-xs: 12px;
   --fs-sm: 13px;
   --fs-base: 14px;
@@ -93,6 +95,7 @@
   --sp-8: 32px;
 
   /* Radii */
+  --radius-xs: 6px;
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;

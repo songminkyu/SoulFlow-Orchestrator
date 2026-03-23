@@ -85,7 +85,7 @@
 
 .unified-selector__item-icon {
   flex-shrink: 0;
-  font-size: 14px;
+  font-size: var(--fs-base);
 }
 .unified-selector__item-name {
   white-space: nowrap;
@@ -224,7 +224,7 @@
   color: var(--off);
 }
 .memory-panel__badge {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   padding: 1px 6px;
   border-radius: var(--radius-sm);
   font-weight: 600;
@@ -362,7 +362,7 @@
 .endpoint-selector__option-icon {
   flex-shrink: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 
 /* ── ToolChips ────────────────────────────────────────────── */
@@ -391,7 +391,7 @@
 
 .tool-chips__chip-icon {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--fs-tiny);
 }
 
 .tool-chips__chip-name {
@@ -413,7 +413,7 @@
   background: transparent;
   border: none;
   color: inherit;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1;
   cursor: pointer;
   padding: 0 1px;
@@ -695,7 +695,7 @@
 
 .capability-toggles__icon {
   flex-shrink: 0;
-  font-size: 16px;
+  font-size: var(--fs-md);
   width: 24px;
   text-align: center;
 }
