@@ -79,7 +79,7 @@ export abstract class BaseLlmProvider implements LlmProvider {
     this.id = args.id;
     this.api_base = args.api_base;
     this.default_model = args.default_model;
-    this.supports_tool_loop = args.supports_tool_loop ?? false;
+    this.supports_tool_loop = args.supports_tool_loop ?? true;
   }
 
   get_default_model(): string {

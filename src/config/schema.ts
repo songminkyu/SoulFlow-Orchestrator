@@ -112,6 +112,10 @@ const EmbeddingSchema = z.object({
 const OrchestrationSchema = z.object({
   maxToolResultChars: z.number().min(50),
   orchestratorMaxTokens: z.number().min(256),
+  /** 실행기(executor) LLM 호출의 최대 출력 토큰. 로컬 vLLM/Ollama 사용 시 높게 설정. */
+  executorMaxTokens: z.number().min(256).default(4096),
+  /** 시스템 프롬프트 최대 토큰. 0 = 비활성(무제한). 소형 OSS 모델 사용 시 설정하면 우선순위 기반 섹션 프루닝 적용. */
+  systemPromptMaxTokens: z.number().min(0).default(0),
   /** 오케스트레이터 프로바이더 인스턴스 ID (Providers 페이지에서 등록). */
   orchestratorProvider: z.string().default(""),
   /** 오케스트레이터 모델 오버라이드. 빈 문자열이면 인스턴스/프로바이더 기본 모델. */
@@ -280,6 +284,8 @@ export function get_config_defaults(): AppConfig {
     orchestration: {
       maxToolResultChars: 500,
       orchestratorMaxTokens: 4096,
+      executorMaxTokens: 4096,
+      systemPromptMaxTokens: 0,
       orchestratorProvider: "",
       executorProvider: "",
     },

@@ -66,6 +66,8 @@ export type RunnerDeps = {
     task_loop_max_turns: number;
     executor_provider: ExecutorProvider;
     max_tool_result_chars: number;
+    /** executor LLM 호출 최대 출력 토큰. 로컬 vLLM/Ollama는 높게 설정. */
+    executor_max_tokens: number;
     /** EG-4: run 전체 최대 tool 호출 수. 0 = 비활성. */
     max_tool_calls_per_run: number;
     /** EG-3: session reuse freshness window (ms). 0 = 비활성. */

@@ -62,6 +62,8 @@ export interface OpenAiCompatibleSettings {
   max_tokens?: number;
   temperature?: number;
   request_timeout_ms?: number;
+  /** true면 tool_choice 파라미터를 전송하지 않음. 함수 호출 미지원 모델용. */
+  no_tool_choice?: boolean;
 }
 
 export interface OpenRouterSettings extends OpenAiCompatibleSettings {

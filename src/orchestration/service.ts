@@ -82,6 +82,10 @@ type OrchestratorConfig = {
   streaming_max_chars: number;
   max_tool_result_chars: number;
   orchestrator_max_tokens: number;
+  /** executor LLM 호출 최대 출력 토큰. 로컬 vLLM/Ollama 사용 시 높게 설정. */
+  executor_max_tokens: number;
+  /** 시스템 프롬프트 최대 토큰. 0 = 비활성. 양수면 ContextBudget 프루닝 적용. */
+  system_prompt_max_tokens: number;
   /** EG-2: run당 최대 tool 호출 수. 0 = 비활성. */
   max_tool_calls_per_run: number;
   /** EG-1: 세션 재사용 freshness window (ms). 0 = 비활성. */
@@ -294,6 +298,8 @@ export class OrchestrationService implements OrchestrationServiceLike {
       on_tool_block: args.req.on_tool_block, backend_id, on_progress: args.req.on_progress,
       run_id: args.req.run_id, on_agent_event: args.req.on_agent_event,
       tools_accumulator,
+      tool_choice: args.req.tool_choice,
+      pinned_tools: args.req.pinned_tools,
       hook_runner: this.hook_runner,
       // web 채널: rate_limit 등은 on_agent_event → NDJSON rich event로 이미 전달 — 텍스트 스트림 중복 주입 방지
       skip_critical_text_inject: args.req.provider === "web",
@@ -345,6 +351,7 @@ export class OrchestrationService implements OrchestrationServiceLike {
         task_loop_max_turns: this.config.task_loop_max_turns,
         executor_provider: this.config.executor_provider,
         max_tool_result_chars: this.config.max_tool_result_chars,
+        executor_max_tokens: this.config.executor_max_tokens,
         max_tool_calls_per_run: this.config.max_tool_calls_per_run,
         freshness_window_ms: this.config.freshness_window_ms,
       },
@@ -613,13 +620,15 @@ export class OrchestrationService implements OrchestrationServiceLike {
   private async _build_system_prompt(skill_names: string[], provider: string, chat_id: string, tool_categories?: ReadonlySet<string>, alias?: string): Promise<string> {
     const context_builder = this.runtime.get_context_builder();
     const session_ctx = { channel: provider, chat_id };
+    // 시스템 프롬프트 예산. 0이면 무제한 (기본).
+    const max_ctx = this.config.system_prompt_max_tokens || undefined;
 
     // RP-4: alias에 대응하는 role → PromptProfileCompiler로 합성
     const role = alias || "";
     if (role) {
       const profile = this._profile_compiler.compile(role);
       if (profile) {
-        const base = await context_builder.build_system_prompt(skill_names, undefined, session_ctx, tool_categories);
+        const base = await context_builder.build_system_prompt(skill_names, undefined, session_ctx, tool_categories, max_ctx);
         const role_section = this._profile_compiler.render_system_section(profile);
         return `${base}\n\n${role_section}`;
       }
@@ -627,7 +636,7 @@ export class OrchestrationService implements OrchestrationServiceLike {
 
     // role 미매칭 → 기본 시스템 프롬프트 + concierge 힌트
     const system = await context_builder.build_system_prompt(
-      skill_names, undefined, session_ctx, tool_categories,
+      skill_names, undefined, session_ctx, tool_categories, max_ctx,
     );
     const concierge_profile = this._profile_compiler.compile("concierge");
     const active_role_hint = concierge_profile?.heart

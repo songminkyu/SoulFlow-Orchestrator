@@ -281,6 +281,8 @@ export async function create_orchestration_bundle(deps: OrchestrationBundleDeps)
       streaming_max_chars: app_config.channel.streaming.coalesceMaxChars,
       max_tool_result_chars: app_config.orchestration.maxToolResultChars,
       orchestrator_max_tokens: app_config.orchestration.orchestratorMaxTokens,
+      executor_max_tokens: app_config.orchestration.executorMaxTokens,
+      system_prompt_max_tokens: app_config.orchestration.systemPromptMaxTokens,
       max_tool_calls_per_run: app_config.orchestration.maxToolCallsPerRun,
       freshness_window_ms: app_config.orchestration.freshnessWindowMs,
       provider_caps,

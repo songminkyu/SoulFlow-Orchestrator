@@ -139,7 +139,7 @@ async function _continue_task_loop_inner(
           chat_id: req.message.chat_id,
           max_turns: deps.config.agent_loop_max_turns,
           model: undefined,
-          max_tokens: 1800,
+          max_tokens: deps.config.executor_max_tokens,
           temperature: 0.3,
           abort_signal: req.signal,
           on_stream: create_stream_handler(streaming_cfg_for(deps.streaming_cfg, req.provider), stream, req.on_stream),

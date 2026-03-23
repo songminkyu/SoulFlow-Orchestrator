@@ -209,9 +209,11 @@ function extract_openai_settings(
 }
 
 register_agent_provider_factory("openai_compatible", (config, token) => {
+  const s = config.settings as OpenAiCompatibleSettings;
   return new OpenAiCompatibleAgent(config.instance_id, {
-    ...extract_openai_settings(config.settings as OpenAiCompatibleSettings, { api_base: "https://api.openai.com/v1", model: "gpt-4o" }),
+    ...extract_openai_settings(s, { api_base: "https://api.openai.com/v1", model: "gpt-4o" }),
     api_key: token || "",
+    no_tool_choice: s.no_tool_choice ?? false,
   });
 });
 
