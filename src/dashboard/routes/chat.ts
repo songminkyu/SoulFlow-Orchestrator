@@ -6,6 +6,33 @@ import { read_json_body } from "../body-reader.js";
 
 /** 미디어 첨부 가능한 엔드포인트의 body size 상한 (10MB). base64 인코딩 고려. */
 const MAX_MEDIA_BODY_BYTES = 10_485_760;
+
+/* ─── PCH-S18: Per-user chat rate limiter ───────────────────────────────── */
+const _chat_user_hits = new Map<string, { count: number; window_start_ms: number }>();
+/** 60초 윈도우 내 최대 메시지 발행 횟수 (stream + messages + canvas-action 합산). */
+const CHAT_RATE_LIMIT = 30;
+const CHAT_RATE_WINDOW_MS = 60_000;
+const CHAT_RATE_CLEANUP_INTERVAL_MS = 10 * 60_000;
+let _chat_last_cleanup = Date.now();
+
+/** user 키 기준 슬라이딩 윈도우 rate check. true = 허용, false = 초과. */
+function _check_chat_rate(user_key: string): boolean {
+  const now = Date.now();
+  if (now - _chat_last_cleanup > CHAT_RATE_CLEANUP_INTERVAL_MS) {
+    for (const [k, v] of _chat_user_hits) {
+      if (now - v.window_start_ms > CHAT_RATE_CLEANUP_INTERVAL_MS) _chat_user_hits.delete(k);
+    }
+    _chat_last_cleanup = now;
+  }
+  const entry = _chat_user_hits.get(user_key);
+  if (!entry || now - entry.window_start_ms >= CHAT_RATE_WINDOW_MS) {
+    _chat_user_hits.set(user_key, { count: 1, window_start_ms: now });
+    return true;
+  }
+  if (entry.count >= CHAT_RATE_LIMIT) return false;
+  entry.count++;
+  return true;
+}
 import type { ApiChatSessionCreated, ApiChatSessionUpdated } from "../../contracts/api-responses.js";
 
 type ParsedBody = {
@@ -68,6 +95,8 @@ export async function handle_chat(ctx: RouteContext): Promise<boolean> {
   const path = url.pathname;
   const user_id = auth_user?.sub ?? "";
   const team_id = auth_user?.tid ?? "";
+  /** PCH-S18: rate limit 키 — team:user 조합, 익명은 "anon" */
+  const _chat_rate_key = `${team_id || "global"}:${user_id || "anon"}`;
   const publish_ctx: PublishContext = {
     user_id, team_id,
     workspace_dir: ctx.workspace_runtime?.user_content ?? ctx.personal_dir,
@@ -143,6 +172,8 @@ export async function handle_chat(ctx: RouteContext): Promise<boolean> {
   // POST /api/chat/sessions/:id/messages/stream — NDJSON 스트리밍 응답
   const stream_match = path.match(/^\/api\/chat\/sessions\/([^/]+)\/messages\/stream$/);
   if (stream_match && req.method === "POST") {
+    // PCH-S18: per-user rate limiting
+    if (!_check_chat_rate(_chat_rate_key)) { json(res, 429, { error: "rate_limit_exceeded", retry_after: CHAT_RATE_WINDOW_MS / 1000 }); return true; }
     const session_id = decodeURIComponent(stream_match[1]);
     const session = chat_sessions.get(session_id);
     if (!session || session.user_id !== user_id || session.team_id !== team_id) { json(res, 404, { error: "session_not_found" }); return true; }
@@ -191,6 +222,8 @@ export async function handle_chat(ctx: RouteContext): Promise<boolean> {
   // POST /api/chat/sessions/:id/canvas-action — IC-5: 캔버스 액션 (action_id + data)
   const canvas_match = path.match(/^\/api\/chat\/sessions\/([^/]+)\/canvas-action$/);
   if (canvas_match && req.method === "POST") {
+    // PCH-S18: per-user rate limiting (canvas-action도 publish_inbound 호출)
+    if (!_check_chat_rate(_chat_rate_key)) { json(res, 429, { error: "rate_limit_exceeded", retry_after: CHAT_RATE_WINDOW_MS / 1000 }); return true; }
     const session_id = decodeURIComponent(canvas_match[1]);
     const session = chat_sessions.get(session_id);
     if (!session || session.user_id !== user_id || session.team_id !== team_id) { json(res, 404, { error: "session_not_found" }); return true; }
@@ -225,6 +258,8 @@ export async function handle_chat(ctx: RouteContext): Promise<boolean> {
   // POST /api/chat/sessions/:id/messages { content, media? }
   const msg_match = path.match(/^\/api\/chat\/sessions\/([^/]+)\/messages$/);
   if (msg_match && req.method === "POST") {
+    // PCH-S18: per-user rate limiting
+    if (!_check_chat_rate(_chat_rate_key)) { json(res, 429, { error: "rate_limit_exceeded", retry_after: CHAT_RATE_WINDOW_MS / 1000 }); return true; }
     const session_id = decodeURIComponent(msg_match[1]);
     const session = chat_sessions.get(session_id);
     if (!session || session.user_id !== user_id || session.team_id !== team_id) { json(res, 404, { error: "session_not_found" }); return true; }

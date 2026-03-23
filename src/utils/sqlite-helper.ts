@@ -100,6 +100,14 @@ export async function with_sqlite_async<T>(
 
 /* ─── AP-2: sqlite-vec 확장 포함 헬퍼 ───────────────────────────────────── */
 
+/**
+ * PCH-Q7: 단일 호출로 트랜잭션 실행 — `db.transaction(fn)()` 2단계 패턴의 DRY 래퍼.
+ * better-sqlite3는 .transaction()이 함수를 반환하므로 즉시 호출이 필요.
+ */
+export function run_in_tx<T>(db: DatabaseSync, fn: () => T): T {
+  return db.transaction(fn)();
+}
+
 /** PCH-Q6: sqlite-vec 확장을 기존 DB 연결에 로드. 스토어가 직접 sqlite-vec를 import할 필요 없게 함. */
 export function load_vec(db: DatabaseSync): void {
   sqliteVec.load(db);
