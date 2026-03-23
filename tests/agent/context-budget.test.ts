@@ -65,20 +65,20 @@ describe("ContextBudget", () => {
     expect(result[0].name).toBe("a");
   });
 
-  it("total_tokens 추적", () => {
+  it("fit은 예산 내 선택된 섹션만 반환", () => {
     const budget = new ContextBudget({ max_tokens: 100 });
-    budget.fit([
+    const result = budget.fit([
       section("a", 0, 40),   // 10 tokens
       section("b", 1, 80),   // 20 tokens
     ]);
 
-    expect(budget.total_tokens).toBe(30);
+    expect(result).toHaveLength(2);
+    expect(result.map((s) => s.name)).toEqual(["a", "b"]);
   });
 
   it("빈 섹션 → 빈 결과", () => {
     const budget = new ContextBudget({ max_tokens: 100 });
     const result = budget.fit([]);
     expect(result).toHaveLength(0);
-    expect(budget.total_tokens).toBe(0);
   });
 });

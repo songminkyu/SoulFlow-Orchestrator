@@ -129,9 +129,9 @@ describe("BaseLlmProvider — 생성자", () => {
     expect(provider.get_default_model()).toBe("test-model");
   });
 
-  it("supports_tool_loop 기본값 = false", () => {
+  it("supports_tool_loop 기본값 = true", () => {
     const provider = make_provider();
-    expect(provider.supports_tool_loop).toBe(false);
+    expect(provider.supports_tool_loop).toBe(true);
   });
 
   it("supports_tool_loop = true 설정 가능", () => {

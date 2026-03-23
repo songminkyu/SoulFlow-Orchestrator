@@ -60,6 +60,15 @@ const createMockRunnerDeps = (): Partial<RunnerDeps> => ({
   providers: {
     run_headless: vi.fn(),
   },
+  config: {
+    agent_loop_max_turns: 8,
+    task_loop_max_turns: 5,
+    executor_provider: "codex_appserver",
+    max_tool_result_chars: 4000,
+    executor_max_tokens: 4096,
+    max_tool_calls_per_run: 0,
+    freshness_window_ms: 0,
+  },
   logger: {
     info: vi.fn(),
     warn: vi.fn(),

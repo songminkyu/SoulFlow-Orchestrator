@@ -118,7 +118,6 @@ export default function KanbanPage() {
   const { data: boards } = useQuery<Board[]>({
     queryKey: ["kanban-boards"],
     queryFn: () => api.get("/api/kanban/boards"),
-    refetchInterval: 60_000,
   });
 
   /* URL에 board 없으면 첫 번째 보드를 파생값으로 사용 — URL 업데이트 없이 렌더 내 계산 */
@@ -131,7 +130,6 @@ export default function KanbanPage() {
     queryKey: ["kanban-board", board_id],
     queryFn: () => api.get(`/api/kanban/boards/${encodeURIComponent(board_id)}`),
     enabled: !!board_id,
-    refetchInterval: 60_000,
   });
 
   const cards = boardDetail?.cards ?? [];
@@ -520,14 +518,12 @@ function CardDetailPanel({ card_id, columns, onClose, onUpdate, onMove, onDelete
     queryKey: ["kanban-card", card_id],
     queryFn: () => api.get<Card>(`/api/kanban/cards/${encodeURIComponent(card_id)}`),
     enabled: !!card_id,
-    refetchInterval: 60_000,
   });
 
   const { data: comments } = useQuery<Comment[]>({
     queryKey: ["kanban-comments", card_id],
     queryFn: () => api.get(`/api/kanban/cards/${encodeURIComponent(card_id)}/comments`),
     enabled: !!card_id,
-    refetchInterval: 60_000,
   });
 
   const { data: relations } = useQuery<Relation[]>({
@@ -540,7 +536,6 @@ function CardDetailPanel({ card_id, columns, onClose, onUpdate, onMove, onDelete
     queryKey: ["kanban-subtasks", card_id],
     queryFn: () => api.get(`/api/kanban/cards/${encodeURIComponent(card_id)}/subtasks`),
     enabled: !!card_id,
-    refetchInterval: 60_000,
   });
 
   const qc = useQueryClient();

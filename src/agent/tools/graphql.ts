@@ -3,6 +3,7 @@
 import { Tool } from "./base.js";
 import { error_message, make_abort_signal } from "../../utils/common.js";
 import { HTTP_FETCH_TIMEOUT_MS } from "../../utils/timeouts.js";
+import { validate_url } from "./http-utils.js";
 import type { JsonSchema, ToolExecutionContext } from "./types.js";
 
 export class GraphqlTool extends Tool {
@@ -29,7 +30,8 @@ export class GraphqlTool extends Tool {
     const url = String(params.url || "").trim();
     if (!url) return "Error: url is required";
 
-    try { new URL(url); } catch { return "Error: invalid URL"; }
+    const url_or_error = validate_url(url);
+    if (typeof url_or_error === "string") return url_or_error;
 
     if (action === "introspect") {
       return this.execute_query(url, INTROSPECTION_QUERY, {}, null, params, context);

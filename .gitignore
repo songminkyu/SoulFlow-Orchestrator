@@ -43,7 +43,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
-.claude/consensus-loop
+.claude/**/consensus-loop/**
 .claude/ralph-loop.local.md
 
 # 세션 핸드오프 (메모리 동기화로 관리, git 불필요)
