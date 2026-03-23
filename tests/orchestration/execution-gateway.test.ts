@@ -12,46 +12,46 @@ import type { ExecutionGatewayLike, ExecutionRoute } from "@src/orchestration/ex
 import type { RequestPlan } from "@src/orchestration/gateway-contracts.js";
 import type { ProviderCapabilities } from "@src/providers/executor.js";
 
-const ALL_CAPS: ProviderCapabilities = { chatgpt_available: true, claude_available: true, openrouter_available: true };
-const NO_CAPS: ProviderCapabilities = { chatgpt_available: false, claude_available: false, openrouter_available: false };
+const ALL_CAPS: ProviderCapabilities = { chatgpt_available: true, claude_available: true, openrouter_available: true, orchestrator_llm_available: true, gemini_available: true };
+const NO_CAPS: ProviderCapabilities = { chatgpt_available: false, claude_available: false, openrouter_available: false, orchestrator_llm_available: false, gemini_available: false };
 const CHATGPT_ONLY: ProviderCapabilities = { chatgpt_available: true, claude_available: false, openrouter_available: false };
 const CLAUDE_ONLY: ProviderCapabilities = { chatgpt_available: false, claude_available: true, openrouter_available: false };
 
 let gw: ExecutionGatewayLike;
 
 describe("build_fallback_chain", () => {
-  it("chatgpt primary → claude_code, openrouter, orchestrator_llm", () => {
+  it("chatgpt primary → claude_code, openrouter, orchestrator_llm, gemini", () => {
     const chain = build_fallback_chain("chatgpt", ALL_CAPS);
-    expect(chain).toEqual(["claude_code", "openrouter", "orchestrator_llm"]);
+    expect(chain).toEqual(["claude_code", "openrouter", "orchestrator_llm", "gemini"]);
   });
 
-  it("claude_code primary → chatgpt, openrouter, orchestrator_llm", () => {
+  it("claude_code primary → chatgpt, openrouter, orchestrator_llm, gemini", () => {
     const chain = build_fallback_chain("claude_code", ALL_CAPS);
-    expect(chain).toEqual(["chatgpt", "openrouter", "orchestrator_llm"]);
+    expect(chain).toEqual(["chatgpt", "openrouter", "orchestrator_llm", "gemini"]);
   });
 
-  it("openrouter primary → chatgpt, claude_code, orchestrator_llm", () => {
+  it("openrouter primary → chatgpt, claude_code, orchestrator_llm, gemini", () => {
     const chain = build_fallback_chain("openrouter", ALL_CAPS);
-    expect(chain).toEqual(["chatgpt", "claude_code", "orchestrator_llm"]);
+    expect(chain).toEqual(["chatgpt", "claude_code", "orchestrator_llm", "gemini"]);
   });
 
-  it("orchestrator_llm primary → chatgpt, claude_code, openrouter", () => {
+  it("orchestrator_llm primary → chatgpt, claude_code, openrouter, gemini", () => {
     const chain = build_fallback_chain("orchestrator_llm", ALL_CAPS);
-    expect(chain).toEqual(["chatgpt", "claude_code", "openrouter"]);
+    expect(chain).toEqual(["chatgpt", "claude_code", "openrouter", "gemini"]);
   });
 
   it("caps에서 일부 비활성 → 해당 provider 제외", () => {
     const chain = build_fallback_chain("chatgpt", CLAUDE_ONLY);
-    // claude_code 사용 가능, openrouter 불가, orchestrator_llm 항상 가능
-    expect(chain).toEqual(["claude_code", "orchestrator_llm"]);
+    // claude_code만 사용 가능, 나머지 비활성 (orchestrator_llm/gemini도 미설정=false)
+    expect(chain).toEqual(["claude_code"]);
   });
 
-  it("모든 provider 비활성 → orchestrator_llm만 남음", () => {
+  it("모든 provider 비활성 → 빈 배열", () => {
     const chain = build_fallback_chain("chatgpt", NO_CAPS);
-    expect(chain).toEqual(["orchestrator_llm"]);
+    expect(chain).toEqual([]);
   });
 
-  it("gemini primary → gemini는 fallback 순회 대상 아님, 모든 사용 가능 provider 반환", () => {
+  it("gemini primary → 나머지 사용 가능 provider 반환", () => {
     const chain = build_fallback_chain("gemini", ALL_CAPS);
     expect(chain).toEqual(["chatgpt", "claude_code", "openrouter", "orchestrator_llm"]);
   });
@@ -93,7 +93,7 @@ describe("ExecutionGateway.resolve", () => {
       const plan: RequestPlan = { route: "model_direct", kind: "once", executor: "chatgpt" };
       const route = gw.resolve(plan, ALL_CAPS, "chatgpt");
       expect(route.primary).toBe("chatgpt");
-      expect(route.fallbacks).toEqual(["claude_code", "openrouter", "orchestrator_llm"]);
+      expect(route.fallbacks).toEqual(["claude_code", "openrouter", "orchestrator_llm", "gemini"]);
     });
 
     it("once plan executor와 preference가 달라도 plan.executor 우선", () => {
@@ -129,8 +129,8 @@ describe("ExecutionGateway.resolve", () => {
       const route = gw.resolve(plan, NO_CAPS, "chatgpt");
       // claude_code는 NO_CAPS에서 비활성이지만 plan.executor로 지정 → primary는 plan.executor
       expect(route.primary).toBe("claude_code");
-      // fallback: chatgpt/openrouter 비활성 → orchestrator_llm만
-      expect(route.fallbacks).toEqual(["orchestrator_llm"]);
+      // fallback: 모든 caps 비활성 → 빈 배열
+      expect(route.fallbacks).toEqual([]);
     });
   });
 });

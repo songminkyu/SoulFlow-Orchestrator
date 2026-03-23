@@ -1,5 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
-import { pick_agent_event_fields, build_merged_tasks, build_dashboard_state } from "@src/dashboard/state-builder.ts";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { pick_agent_event_fields, build_merged_tasks, build_dashboard_state, reset_state_cache } from "@src/dashboard/state-builder.ts";
+
+beforeEach(() => reset_state_cache());
 import type { AgentEvent } from "@src/agent/agent.types.ts";
 
 const SOURCE = { backend: "test" as const, task_id: "t1" };

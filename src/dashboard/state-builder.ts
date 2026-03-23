@@ -17,6 +17,12 @@ function cache_key(team_id?: string, user_id?: string): string {
   return `${team_id ?? "*"}:${user_id ?? "*"}`;
 }
 
+/** 테스트 또는 런타임 리셋 용. 캐시 전체 초기화. */
+export function reset_state_cache(): void {
+  state_cache.clear();
+  inflight.clear();
+}
+
 export async function build_merged_tasks(options: DashboardOptions, team_id?: string): Promise<Array<{
   taskId: string; title: string; status: string; currentStep?: string; exitReason?: string;
   currentTurn: number; maxTurns: number; channel: string; chat_id: string; objective: string; updatedAt: string;

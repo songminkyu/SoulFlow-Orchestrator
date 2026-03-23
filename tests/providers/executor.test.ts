@@ -19,9 +19,14 @@ describe("parse_executor_preference", () => {
     expect(parse_executor_preference("gemini_cli")).toBe("gemini");
   });
 
-  it("gemini always returns itself regardless of caps", () => {
-    const caps = { chatgpt_available: true, claude_available: true, openrouter_available: true };
+  it("gemini returns itself when gemini_available", () => {
+    const caps = { chatgpt_available: true, claude_available: true, openrouter_available: true, gemini_available: true };
     expect(resolve_executor_provider("gemini", caps)).toBe("gemini");
+  });
+
+  it("gemini falls back when gemini_available is false", () => {
+    const caps = { chatgpt_available: true, claude_available: true, openrouter_available: true };
+    expect(resolve_executor_provider("gemini", caps)).toBe("chatgpt");
   });
 
   it("defaults to chatgpt for unknown values", () => {
@@ -48,9 +53,13 @@ describe("resolve_executor_provider", () => {
     openrouter_available: false,
   };
 
-  it("orchestrator_llm always returns itself regardless of caps", () => {
-    expect(resolve_executor_provider("orchestrator_llm", NONE_AVAILABLE)).toBe("orchestrator_llm");
-    expect(resolve_executor_provider("orchestrator_llm", ALL_AVAILABLE)).toBe("orchestrator_llm");
+  it("orchestrator_llm returns itself when orchestrator_llm_available", () => {
+    expect(resolve_executor_provider("orchestrator_llm", { ...ALL_AVAILABLE, orchestrator_llm_available: true })).toBe("orchestrator_llm");
+  });
+
+  it("orchestrator_llm falls back when orchestrator_llm_available is false", () => {
+    expect(resolve_executor_provider("orchestrator_llm", NONE_AVAILABLE)).toBe("orchestrator_llm"); // 최종 fallback
+    expect(resolve_executor_provider("orchestrator_llm", ALL_AVAILABLE)).toBe("chatgpt"); // chatgpt 사용 가능하면 chatgpt
   });
 
   it("openrouter returns openrouter when available", () => {

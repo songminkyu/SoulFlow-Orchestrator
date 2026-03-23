@@ -6,6 +6,10 @@ export type ProviderCapabilities = {
   chatgpt_available: boolean;
   claude_available: boolean;
   openrouter_available: boolean;
+  /** Ollama/vLLM/OpenAI-compatible 로컬 LLM 가용 여부. 미설정 시 false. */
+  orchestrator_llm_available?: boolean;
+  /** Gemini CLI 가용 여부. 미설정 시 false. */
+  gemini_available?: boolean;
 };
 
 export function parse_executor_preference(raw: string): ExecutorProvider {
@@ -25,8 +29,20 @@ export function resolve_executor_provider(
   caps: ProviderCapabilities,
 ): ExecutorProvider {
   if (!BUILTIN_PROVIDERS.has(preferred)) return preferred;
-  if (preferred === "orchestrator_llm") return "orchestrator_llm";
-  if (preferred === "gemini") return "gemini";
+  if (preferred === "orchestrator_llm") {
+    if (caps.orchestrator_llm_available) return "orchestrator_llm";
+    if (caps.chatgpt_available) return "chatgpt";
+    if (caps.claude_available) return "claude_code";
+    if (caps.openrouter_available) return "openrouter";
+    return "orchestrator_llm"; // 최종 fallback
+  }
+  if (preferred === "gemini") {
+    if (caps.gemini_available) return "gemini";
+    if (caps.chatgpt_available) return "chatgpt";
+    if (caps.claude_available) return "claude_code";
+    if (caps.openrouter_available) return "openrouter";
+    return "orchestrator_llm";
+  }
   if (preferred === "openrouter") {
     if (caps.openrouter_available) return "openrouter";
     if (caps.chatgpt_available) return "chatgpt";

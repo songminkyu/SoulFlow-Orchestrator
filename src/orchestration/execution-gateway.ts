@@ -21,11 +21,13 @@ export type ExecutionGatewayLike = {
   resolve(plan: RequestPlan, caps: ProviderCapabilities, preference: ExecutorProvider): ExecutionRoute;
 };
 
-/** capability 확인 매핑. orchestrator_llm은 항상 사용 가능하므로 제외. */
+/** capability 확인 매핑. 모든 executor가 caps 기반으로 가용성 판별. */
 const CAPABILITY_CHECK: Partial<Record<string, keyof ProviderCapabilities>> = {
   chatgpt: "chatgpt_available",
   claude_code: "claude_available",
   openrouter: "openrouter_available",
+  orchestrator_llm: "orchestrator_llm_available",
+  gemini: "gemini_available",
 };
 
 /** caps에서 해당 executor가 사용 가능한지 판별. */
@@ -38,7 +40,7 @@ function is_available(executor: ExecutorProvider, caps: ProviderCapabilities): b
 /** 프로바이더 priority 정보. provider store에서 주입. */
 export type ProviderPriority = { provider_type: string; priority: number };
 
-const DEFAULT_ORDER: ExecutorProvider[] = ["chatgpt", "claude_code", "openrouter", "orchestrator_llm"];
+const DEFAULT_ORDER: ExecutorProvider[] = ["chatgpt", "claude_code", "openrouter", "orchestrator_llm", "gemini"];
 
 /** priority 기반 정렬. priority가 없으면 DEFAULT_ORDER 순서 사용. */
 function sort_by_priority(
@@ -78,10 +80,20 @@ export function build_fallback_chain(
   return chain;
 }
 
-/** ExecutionGateway 팩토리. priorities: provider store에서 읽은 priority 목록. */
-export function create_execution_gateway(priorities?: ProviderPriority[]): ExecutionGatewayLike {
+/** priority 공급자. 정적 배열 또는 매 호출마다 최신 값을 반환하는 함수. */
+export type PrioritySupplier = ProviderPriority[] | (() => ProviderPriority[]);
+
+function read_priorities(supplier?: PrioritySupplier): ProviderPriority[] | undefined {
+  if (!supplier) return undefined;
+  return typeof supplier === "function" ? supplier() : supplier;
+}
+
+/** ExecutionGateway 팩토리. priorities: provider store에서 읽은 priority 공급자 (배열 또는 콜백). */
+export function create_execution_gateway(priorities?: PrioritySupplier): ExecutionGatewayLike {
   return {
     resolve(plan, caps, preference) {
+      const live = read_priorities(priorities);
+
       // no_token (identity/builtin/inquiry/direct_tool) → LLM executor 불필요.
       if (plan.route === "no_token") {
         return { primary: preference, fallbacks: [] };
@@ -92,14 +104,14 @@ export function create_execution_gateway(priorities?: ProviderPriority[]): Execu
       let primary: ExecutorProvider;
       if ("executor" in plan) {
         primary = plan.executor;
-      } else if (priorities && priorities.length > 0) {
-        const ordered = sort_by_priority(DEFAULT_ORDER, priorities);
+      } else if (live && live.length > 0) {
+        const ordered = sort_by_priority(DEFAULT_ORDER, live);
         primary = ordered.find((e) => is_available(e, caps)) ?? resolve_executor_provider(preference, caps);
       } else {
         primary = resolve_executor_provider(preference, caps);
       }
 
-      const fallbacks = build_fallback_chain(primary, caps, priorities);
+      const fallbacks = build_fallback_chain(primary, caps, live);
       return { primary, fallbacks };
     },
   };

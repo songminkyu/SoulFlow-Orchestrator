@@ -274,7 +274,7 @@ export class OrchestrationService implements OrchestrationServiceLike {
   }
 
   private _caps(): ProviderCapabilities {
-    return this.config.provider_caps ?? { chatgpt_available: true, claude_available: false, openrouter_available: false };
+    return this.config.provider_caps ?? { chatgpt_available: true, claude_available: false, openrouter_available: false, orchestrator_llm_available: false, gemini_available: false };
   }
 
   /** 공통 AgentHooks 구성. args.req + stream + backend_id 조합. */

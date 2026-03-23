@@ -1,6 +1,8 @@
-import { describe, it, expect, vi } from "vitest";
-import { build_dashboard_state } from "@src/dashboard/state-builder.ts";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { build_dashboard_state, reset_state_cache } from "@src/dashboard/state-builder.ts";
 import type { ValidatorSummary } from "@src/repo-profile/validator-summary-adapter.ts";
+
+beforeEach(() => reset_state_cache());
 
 function make_full_options(overrides: Record<string, unknown> = {}) {
   return {

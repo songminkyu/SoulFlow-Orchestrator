@@ -161,10 +161,13 @@ export async function create_provider_bundle(deps: ProviderBundleDeps): Promise<
   // provider 가용성 caps (store 기반)
   const codex_config = provider_store.get("codex_cli");
   const claude_config = provider_store.get("claude_cli") || provider_store.get("claude_sdk");
+  const gemini_config = provider_store.get("gemini_cli");
   const provider_caps: ProviderCapabilities = {
     chatgpt_available: codex_config?.enabled ?? false,
     claude_available: claude_config?.enabled ?? false,
     openrouter_available: Boolean(openrouter_key),
+    orchestrator_llm_available: orchestrator_llm_config?.enabled ?? app_config.orchestratorLlm.enabled ?? false,
+    gemini_available: gemini_config?.enabled ?? false,
   };
 
   return {

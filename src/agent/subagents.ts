@@ -105,7 +105,7 @@ export class SubagentRegistry {
     this.build_tools = args?.build_tools || (() => create_default_tool_registry({ workspace: this.workspace, bus: this.bus }).registry);
     this.context_builder = args?.context_builder || null;
     this.agent_backends = args?.agent_backends || null;
-    this.provider_caps = args?.provider_caps || { chatgpt_available: false, claude_available: false, openrouter_available: false };
+    this.provider_caps = args?.provider_caps || { chatgpt_available: false, claude_available: false, openrouter_available: false, orchestrator_llm_available: false, gemini_available: false };
   }
 
   get_agent_backends(): AgentBackendRegistry | null {

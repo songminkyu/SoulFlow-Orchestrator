@@ -36,7 +36,7 @@ import { create_cd_observer } from "../agent/cd-scoring.js";
 import { HookRunner, load_hooks_from_file } from "../hooks/index.js";
 import type { TeamWorkspace } from "../workspace/workspace-context.js";
 import type { ObservabilityLike } from "../observability/context.js";
-import { create_execution_gateway, type ProviderPriority } from "../orchestration/execution-gateway.js";
+import { create_execution_gateway, type ProviderPriority, type PrioritySupplier } from "../orchestration/execution-gateway.js";
 import { create_direct_executor } from "../orchestration/execution/direct-executor.js";
 import { create_prompt_profile_compiler } from "../orchestration/prompt-profile-compiler.js";
 import { create_role_policy_resolver } from "../orchestration/role-policy-resolver.js";
@@ -60,8 +60,8 @@ export interface OrchInfraDeps {
   primary_provider: string;
   default_chat_id: string;
   resolve_instance_to_type: (id: string) => string;
-  /** 프로바이더 priority 목록. gateway가 자동 선택 순서에 사용. */
-  provider_priorities?: ProviderPriority[];
+  /** 프로바이더 priority 공급자. gateway가 자동 선택 순서에 사용. 콜백이면 매 resolve마다 최신 값. */
+  provider_priorities?: PrioritySupplier;
 }
 
 /** 에이전트 런타임 의존성. provider, backend registry, 프로세스/확인/HITL. */

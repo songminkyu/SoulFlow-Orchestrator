@@ -36,12 +36,20 @@ describe("resolve_executor_provider", () => {
   const chatgpt_only: any = { chatgpt_available: true, claude_available: false, openrouter_available: false };
   const empty: any = { chatgpt_available: false, claude_available: false, openrouter_available: false };
 
-  it("orchestrator_llm → 항상 orchestrator_llm", () => {
-    expect(resolve_executor_provider("orchestrator_llm", full)).toBe("orchestrator_llm");
+  it("orchestrator_llm → orchestrator_llm_available일 때 반환", () => {
+    expect(resolve_executor_provider("orchestrator_llm", { ...full, orchestrator_llm_available: true })).toBe("orchestrator_llm");
   });
 
-  it("gemini → 항상 gemini", () => {
-    expect(resolve_executor_provider("gemini", full)).toBe("gemini");
+  it("orchestrator_llm → orchestrator_llm_available 미설정 시 chatgpt로 폴백", () => {
+    expect(resolve_executor_provider("orchestrator_llm", full)).toBe("chatgpt");
+  });
+
+  it("gemini → gemini_available일 때 반환", () => {
+    expect(resolve_executor_provider("gemini", { ...full, gemini_available: true })).toBe("gemini");
+  });
+
+  it("gemini → gemini_available 미설정 시 chatgpt로 폴백", () => {
+    expect(resolve_executor_provider("gemini", full)).toBe("chatgpt");
   });
 
   it("비빌트인 provider → 그대로 반환", () => {

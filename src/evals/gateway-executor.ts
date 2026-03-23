@@ -93,6 +93,8 @@ export function create_gateway_executor(): EvalExecutorLike {
             chatgpt_available: input.caps?.chatgpt_available ?? true,
             claude_available: input.caps?.claude_available ?? true,
             openrouter_available: input.caps?.openrouter_available ?? false,
+            orchestrator_llm_available: input.caps?.orchestrator_llm_available ?? false,
+            gemini_available: input.caps?.gemini_available ?? false,
           };
           const pref = (input.preference ?? "chatgpt") as ExecutorProvider;
           const plan = build_eval_plan(input.plan_kind, input.executor as ExecutorProvider | undefined);

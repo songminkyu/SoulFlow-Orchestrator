@@ -174,7 +174,7 @@ export async function createRuntime(): Promise<RuntimeApp> {
     persona_renderer, hitl_pending_store, tool_index,
     resolve_instance_to_type, primary_provider, default_chat_id, logger,
     observability, usage_store,
-    provider_priorities: provider_store.list().map((p) => ({ provider_type: p.provider_type, priority: p.priority })),
+    provider_priorities: () => provider_store.list().map((p) => ({ provider_type: p.provider_type, priority: p.priority })),
   });
 
   // 인증은 항상 활성 — admin.db 부재 시 자동 생성 (미초기화 상태로 시작)
