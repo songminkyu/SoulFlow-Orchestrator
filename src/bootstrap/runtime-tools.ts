@@ -73,7 +73,10 @@ export function register_runtime_tools(deps: RuntimeToolsDeps): void {
     agent_runtime.register_tool(new OAuthFetchTool(oauth_store, oauth_flow));
   }
   if (!agent_runtime.has_tool("workflow")) {
-    agent_runtime.register_tool(new WorkflowTool(workflow_ops_result as never, agent_provider_ops_result as never));
+    agent_runtime.register_tool(new WorkflowTool(workflow_ops_result as never, agent_provider_ops_result as never, {
+      get_tool_names: () => agent.tools.tool_names(),
+      get_skill_names: () => agent.context.skills_loader.list_skills(false).map((s) => s.name).filter(Boolean),
+    }));
   }
   if (!agent_runtime.has_tool("kanban")) {
     agent_runtime.register_tool(kanban_tool);

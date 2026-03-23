@@ -69,10 +69,12 @@ HIGH 모호성(되돌리기 어려운 구조 선택)은 진행 전 사용자 확
 
 ```
 workflow action=models       # 사용 가능한 backend ID + model ID 확인
+workflow action=tools        # 에이전트에 할당 가능한 도구 목록
+workflow action=skills       # 에이전트에 할당 가능한 스킬 목록
 workflow action=node_types   # 노드 타입 카탈로그 (DAG Style B 사용 시)
 ```
 
-반드시 실제 조회 결과 사용. backend 이름·model ID 추측 금지.
+반드시 실제 조회 결과 사용. backend 이름·model ID·도구·스킬 이름 추측 금지.
 
 ### 3단계 — 구조 선택 + 설계
 

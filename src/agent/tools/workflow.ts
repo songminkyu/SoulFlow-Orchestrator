@@ -51,15 +51,15 @@ export class WorkflowTool extends Tool {
     "## 수정 흐름\n" +
     "get name=<slug>(현재 확인) → (definition 수정) → update name=<slug>(자동 YAML 저장) → flowchart name=<slug>(시각화)\n" +
     "\n" +
-    "Actions: create, list, get, run, update, delete, export, flowchart, sequence, node_types, models";
+    "Actions: create, list, get, run, update, delete, export, flowchart, sequence, node_types, models, tools, skills";
 
   readonly parameters: JsonSchema = {
     type: "object",
     properties: {
       action: {
         type: "string",
-        enum: ["create", "list", "get", "run", "update", "delete", "export", "flowchart", "sequence", "node_types", "models"],
-        description: "Action to perform. flowchart: Mermaid flowchart LR diagram. sequence: Mermaid sequence diagram. node_types: show available node type catalog. models: list backends and models.",
+        enum: ["create", "list", "get", "run", "update", "delete", "export", "flowchart", "sequence", "node_types", "models", "tools", "skills"],
+        description: "Action to perform. flowchart: Mermaid flowchart LR diagram. sequence: Mermaid sequence diagram. node_types: show available node type catalog. models: list backends and models. tools: list available tools for agents. skills: list available skills for agents.",
       },
       name: { type: "string", description: "Workflow template name or slug" },
       definition: {
@@ -92,11 +92,19 @@ export class WorkflowTool extends Tool {
   private readonly ops: DashboardWorkflowOps;
   private readonly provider_ops: DashboardAgentProviderOps | null;
   private catalog_cache: string | null = null;
+  private readonly _get_tool_names: (() => string[]) | null;
+  private readonly _get_skill_names: (() => string[]) | null;
 
-  constructor(ops: DashboardWorkflowOps, provider_ops?: DashboardAgentProviderOps | null) {
+  constructor(
+    ops: DashboardWorkflowOps,
+    provider_ops?: DashboardAgentProviderOps | null,
+    runtime_deps?: { get_tool_names?: () => string[]; get_skill_names?: () => string[] },
+  ) {
     super();
     this.ops = ops;
     this.provider_ops = provider_ops ?? null;
+    this._get_tool_names = runtime_deps?.get_tool_names ?? null;
+    this._get_skill_names = runtime_deps?.get_skill_names ?? null;
   }
 
   protected async run(params: Record<string, unknown>, context?: ToolExecutionContext): Promise<string> {
@@ -114,7 +122,9 @@ export class WorkflowTool extends Tool {
       case "sequence": return this.handle_diagram(params, "sequence");
       case "node_types": return this.handle_node_types(params);
       case "models": return this.handle_models();
-      default: return `Error: unsupported action '${action}'. Use: create, list, get, run, update, delete, export, flowchart, sequence, node_types, models`;
+      case "tools": return this.handle_tools();
+      case "skills": return this.handle_skills();
+      default: return `Error: unsupported action '${action}'. Use: create, list, get, run, update, delete, export, flowchart, sequence, node_types, models, tools, skills`;
     }
   }
 
@@ -307,5 +317,19 @@ export class WorkflowTool extends Tool {
       this.catalog_cache = build_node_catalog();
     }
     return this.catalog_cache;
+  }
+
+  /** 사용 가능한 도구 목록 반환. 에이전트 tools[] 필드에 유효한 이름만 사용하도록. */
+  private handle_tools(): string {
+    const names = this._get_tool_names?.() ?? [];
+    if (names.length === 0) return JSON.stringify({ tools: [], hint: "도구 목록을 조회할 수 없습니다." });
+    return JSON.stringify({ tools: names, count: names.length, hint: "에이전트의 tools 필드에는 이 목록의 이름만 사용하세요." });
+  }
+
+  /** 사용 가능한 스킬 목록 반환. 에이전트 skills[] 필드에 유효한 이름만 사용하도록. */
+  private handle_skills(): string {
+    const names = this._get_skill_names?.() ?? [];
+    if (names.length === 0) return JSON.stringify({ skills: [], hint: "스킬 목록을 조회할 수 없습니다." });
+    return JSON.stringify({ skills: names, count: names.length, hint: "에이전트의 skills 필드에는 이 목록의 이름만 사용하세요." });
   }
 }
