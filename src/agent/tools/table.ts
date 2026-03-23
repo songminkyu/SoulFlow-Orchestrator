@@ -2,7 +2,7 @@
 
 import { Tool } from "./base.js";
 import type { JsonSchema } from "./types.js";
-import { error_message } from "../../utils/common.js";
+import { sandbox_eval } from "./sandbox-runner.js";
 
 const MAX_ROWS = 50_000;
 
@@ -81,12 +81,13 @@ export class TableTool extends Tool {
   }
 
   private filter(data: Record<string, unknown>[], condition: string): string {
-    try {
-      const fn = new Function("row", `"use strict"; return (${condition});`);
-      return JSON.stringify(data.filter((row) => fn(row)));
-    } catch (e) {
-      return `Error: invalid condition — ${error_message(e)}`;
+    const results: Record<string, unknown>[] = [];
+    for (const row of data) {
+      const out = sandbox_eval(`(${condition})`, { row });
+      if ("error" in out) return `Error: invalid condition — ${out.error}`;
+      if (out.result) results.push(row);
     }
+    return JSON.stringify(results);
   }
 
   private group_by(data: Record<string, unknown>[], field: string): string {

@@ -1,8 +1,8 @@
-/** Eval 도구 — 안전한 JS 표현식 평가 (샌드박스 new Function). */
+/** Eval 도구 — vm.runInNewContext 기반 격리 JS 평가. */
 
 import { Tool } from "./base.js";
 import type { JsonSchema } from "./types.js";
-import { error_message } from "../../utils/common.js";
+import { sandbox_run_as_function } from "./sandbox-runner.js";
 
 const MAX_CODE_LENGTH = 10_000;
 
@@ -39,15 +39,12 @@ export class EvalTool extends Tool {
       }
     }
 
-    try {
-      const keys = Object.keys(context);
-      const values = Object.values(context);
-      const fn = new Function(...keys, `"use strict";\n${code}`);
-      const result = fn(...values);
-      return this.format_result(result);
-    } catch (e) {
-      return `Error: ${error_message(e)}`;
-    }
+    const timeout_ms = typeof params.timeout_ms === "number" ? params.timeout_ms : 5_000;
+    const keys = Object.keys(context);
+    const values = Object.values(context);
+    const out = sandbox_run_as_function(keys, code, values, timeout_ms);
+    if ("error" in out) return `Error: ${out.error}`;
+    return this.format_result(out.result);
   }
 
   private format_result(result: unknown): string {

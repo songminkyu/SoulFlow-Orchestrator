@@ -6,6 +6,8 @@
  * DEFAULT_MAX_ROUNDS 초과 시 항상 "fail"로 강제 종료.
  */
 
+import { sandbox_eval } from "../agent/tools/sandbox-runner.js";
+
 // ── Types ────────────────────────────────────────────────────────
 
 /** Critic 판정 결과. */
@@ -40,9 +42,12 @@ export type CriticFn = (value: unknown, budget: RetryBudget) => CriticGateResult
  */
 export function evaluate_critic_condition(value: unknown, condition: string): CriticGateResult {
   try {
-    // new Function: 표현식 평가. value를 스코프로 주입.
-    const fn = new Function("value", `return (${condition})`);
-    const result = fn(value) as unknown;
+    // vm.runInNewContext 기반 격리 평가. value를 스코프로 주입.
+    const out = sandbox_eval(`(${condition})`, { value });
+    if ("error" in out) {
+      return { verdict: "fail", reason: `condition error: ${out.error}` };
+    }
+    const result = out.result;
     if (result === true || result === "pass") return { verdict: "pass" };
     if (result === "rework") return { verdict: "rework", rework_instruction: "condition returned rework" };
     return { verdict: "fail", reason: `condition evaluated to: ${JSON.stringify(result)}` };

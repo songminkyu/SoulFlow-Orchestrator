@@ -2,7 +2,7 @@
 
 import { Tool } from "./base.js";
 import type { JsonSchema } from "./types.js";
-import { error_message } from "../../utils/common.js";
+import { sandbox_eval } from "./sandbox-runner.js";
 
 const UNIT_TABLE: Record<string, Record<string, number>> = {
   length: { mm: 0.001, cm: 0.01, m: 1, km: 1000, in: 0.0254, ft: 0.3048, yd: 0.9144, mi: 1609.344 },
@@ -65,14 +65,11 @@ export class MathTool extends Tool {
     if (/[a-zA-Z_$]/.test(expr.replace(/\b(Math|PI|E|abs|ceil|floor|round|sqrt|pow|log|log2|log10|sin|cos|tan|min|max|random|trunc|sign|cbrt|exp|hypot)\b/g, ""))) {
       return "Error: expression contains invalid identifiers";
     }
-    try {
-      const fn = new Function("Math", `"use strict"; return (${expr});`);
-      const result = fn(Math);
-      if (typeof result !== "number" || !isFinite(result)) return `Error: result is ${result}`;
-      return String(result);
-    } catch (e) {
-      return `Error: ${error_message(e)}`;
-    }
+    const out = sandbox_eval(`(${expr})`, {});
+    if ("error" in out) return `Error: ${out.error}`;
+    const result = out.result;
+    if (typeof result !== "number" || !isFinite(result)) return `Error: result is ${result}`;
+    return String(result);
   }
 
   private convert(value: number, from: string, to: string): string {
