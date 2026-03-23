@@ -11,22 +11,23 @@ import { useNdjsonStream } from "../hooks/use-ndjson-stream";
 import { useDashboardStore } from "../store";
 import { useT } from "../i18n";
 import { SharedPromptBar } from "../components/shared/prompt-bar";
-import type { SharedPromptBarProps, UnifiedSelectorItem } from "../components/shared/prompt-bar";
+import type { SharedPromptBarProps } from "../components/shared/prompt-bar";
 import { MessageList } from "./chat/message-list";
 // EmptyState 대신 chat-empty-hub__greeting으로 인라인 표시 (samples/ 레퍼런스)
 import { ChatSessionTabs } from "./chat/chat-session-tabs";
 import { ChatBottomBar } from "./chat/chat-status-bar";
 import { SessionBrowser } from "./chat/session-browser";
 import { MemoryPanel } from "../components/shared/memory-panel";
-import { compose_agent_prompt } from "./chat/agent-context-bar";
 import { CanvasPanel } from "./chat/canvas-panel";
+import { useChatAgentConfig } from "./chat/use-chat-agent-config";
+import { useChatCompose } from "./chat/use-chat-compose";
 import type { ChatSessionSummary, ChatSession, ChatMessage, ChatMediaItem } from "./chat/types";
 import type { AgentDefinition } from "../../../src/agent/agent-definition.types";
-import type { MentionItem } from "../components/mention-picker";
 import type { ApiChatSessionCreated } from "../api/contracts";
 
 type MirrorSessionEntry = { key: string; provider: string; chat_id: string; alias: string; thread?: string; updated_at: string; message_count: number };
 type MirrorSession = { key: string; provider: string; chat_id: string; alias: string; messages: ChatMessage[] };
+type MirrorAction = { type: "append"; msg: ChatMessage } | { type: "clear" };
 
 export default function ChatPage() {
   const t = useT();
@@ -37,33 +38,28 @@ export default function ChatPage() {
   const init_def = (location.state as { agent_definition?: AgentDefinition } | null)?.agent_definition ?? null;
   /** URL ?session=ID 파라미터에서 초기 세션 선택 */
   const url_session = useMemo(() => new URLSearchParams(location.search).get("session"), [location.search]);
+
+  /* ─── 내비게이션 상태 ─── */
   const [activeId, setActiveId] = useState<string | null>(url_session);
   const [mirrorKey, setMirrorKey] = useState<string | null>(null);
-  const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
-  const [waiting_response, setWaitingResponse] = useState(false);
-  /** U3: soft-delete — pending_delete_id + 타이머로 undo 창 구현 */
-  const pending_delete_timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** 내부 패널: sessions(세션 브라우저) | memory(메모리 관리) | null(닫힘) */
   const [panel, setPanel] = useState<"sessions" | "memory" | null>(null);
   const sessions_open = panel === "sessions";
-  const { pending: creating, run: run_create } = useAsyncState();
-  const [pending_media, setPendingMedia] = useState<ChatMediaItem[]>([]);
+
+  /* ─── PCH-F5: 에이전트 설정 (7 useState → useChatAgentConfig) ─── */
+  const config = useChatAgentConfig(init_def);
+
+  /* ─── PCH-F5: 전송 상태 (5 useState → useChatCompose useReducer) ─── */
+  const compose = useChatCompose();
+
+  /* ─── refs ─── */
+  /** U3: soft-delete — pending_delete_id + 타이머로 undo 창 구현 */
+  const pending_delete_timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stream_inflight = useRef(false);
-  /** 에이전트 정의 (갤러리 진입 시 or @mention 선택) */
-  const [activeDefinition, setActiveDefinition] = useState<AgentDefinition | null>(init_def);
-  const [systemPromptOverride, setSystemPromptOverride] = useState(() => init_def ? compose_agent_prompt(init_def) : "");
-  const [selectedProvider, setSelectedProvider] = useState(init_def?.preferred_providers[0] ?? "");
-  const [selectedModel, setSelectedModel] = useState(init_def?.model ?? "");
-  /** FE-2b: @mention 첨부 아이템 (에이전트/도구/워크플로우) */
-  const [attached_items, setAttachedItems] = useState<MentionItem[]>([]);
-  /** FE-2b: 도구 선택 정책 */
-  const [tool_choice, setToolChoice] = useState<"auto" | "manual" | "none">("auto");
-  /** 기능 토글 (웹 검색, 코드 실행 등) */
-  const [capabilities, setCapabilities] = useState<Set<string>>(new Set(["web_search"]));
   const messagesRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [sent_msg_count, setSentMsgCount] = useState(0);
+
+  const { pending: creating, run: run_create } = useAsyncState();
   const web_stream = useDashboardStore((s) => s.web_stream);
   const set_web_stream = useDashboardStore((s) => s.set_web_stream);
   const mirror_event = useDashboardStore((s) => s.mirror_event);
@@ -78,42 +74,37 @@ export default function ChatPage() {
 
   const is_mirror = !!mirrorKey;
 
+  /* ─── Queries ─── */
+
   const { data: sessions = [] } = useQuery<ChatSessionSummary[]>({
     queryKey: ["chat-sessions"],
     queryFn: () => api.get("/api/chat/sessions"),
-    staleTime: 10_000,
   });
 
   const { data: agentDefinitions = [] } = useQuery<AgentDefinition[]>({
     queryKey: ["agent-definitions"],
-    queryFn: () => api.get("/api/agent-definitions"),
-    staleTime: 60_000,
+    queryFn: () => api.get("/api/agents/definitions"),
   });
 
   const { data: activeSession, isLoading: activeSessionLoading } = useQuery<ChatSession>({
     queryKey: ["chat-session", activeId],
     queryFn: () => api.get<ChatSession>(`/api/chat/sessions/${encodeURIComponent(activeId!)}`),
     enabled: !!activeId && !is_mirror,
-    staleTime: 5_000,
     refetchOnWindowFocus: false,
   });
 
   const { data: mirror_sessions = [] } = useQuery<MirrorSessionEntry[]>({
     queryKey: ["mirror-sessions"],
     queryFn: () => api.get("/api/chat/mirror"),
-    refetchInterval: 30_000,
-    staleTime: 10_000,
   });
 
   const { data: mirrorSession, isLoading: mirrorSessionLoading } = useQuery<MirrorSession>({
     queryKey: ["mirror-session", mirrorKey],
     queryFn: () => api.get<MirrorSession>(`/api/chat/mirror/${encodeURIComponent(mirrorKey!)}`),
-    enabled: is_mirror,
-    refetchInterval: 15_000,
-    staleTime: 5_000,
+    enabled: !!mirrorKey,
+    refetchOnWindowFocus: false,
   });
 
-  type MirrorAction = { type: "append"; msg: ChatMessage } | { type: "clear" };
   const [mirrorLiveMessages, dispatchMirror] = useReducer(
     (state: ChatMessage[], action: MirrorAction) => action.type === "append" ? [...state, action.msg] : [],
     [],
@@ -174,15 +165,13 @@ export default function ChatPage() {
   /** U3: soft-delete — 즉시 FE에서 세션 제거 + undo 토스트(5초). 타임아웃 후 실제 API 삭제. */
   const delete_session = (id: string) => {
     if (activeId === id) setActiveId(null);
-    // 낙관적 업데이트: 캐시에서 즉시 제거
     qc.setQueryData<ChatSessionSummary[]>(["chat-sessions"], (prev) => prev?.filter((s) => s.id !== id) ?? []);
-    // undo 창 동안 이전 타이머 취소
     if (pending_delete_timer.current) clearTimeout(pending_delete_timer.current);
     toast(t("chat.session_deleted"), "info", {
       label: t("common.undo"),
       onClick: () => {
         if (pending_delete_timer.current) { clearTimeout(pending_delete_timer.current); pending_delete_timer.current = null; }
-        void qc.invalidateQueries({ queryKey: ["chat-sessions"] }); // 복구
+        void qc.invalidateQueries({ queryKey: ["chat-sessions"] });
       },
     });
     pending_delete_timer.current = setTimeout(() => {
@@ -199,7 +188,7 @@ export default function ChatPage() {
     void qc.invalidateQueries({ queryKey: ["chat-sessions"] });
   };
 
-  const MAX_FILE_SIZE = 7 * 1024 * 1024; // 7MB (base64 인코딩 후 ~10MB)
+  const MAX_FILE_SIZE = 7 * 1024 * 1024;
 
   const handle_file = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -214,7 +203,7 @@ export default function ChatPage() {
         const url = ev.target?.result as string;
         if (!url) return;
         const type = file.type.startsWith("image/") ? "image" : "file";
-        setPendingMedia((prev) => [...prev, { type, url, mime: file.type, name: file.name, size: file.size }]);
+        compose.add_media({ type, url, mime: file.type, name: file.name, size: file.size } as ChatMediaItem);
       };
       reader.onerror = () => toast(t("chat.file_read_failed"), "err");
       reader.readAsDataURL(file);
@@ -222,128 +211,9 @@ export default function ChatPage() {
     e.target.value = "";
   };
 
-  /** FE-2b: attached_items에서 pinned_tools 배열 추출 (tool/workflow 타입만) */
-  const pinned_tools_from_items = (items: MentionItem[]): string[] =>
+  /** FE-2b: attached_items에서 pinned_tools 배열 추출 */
+  const pinned_tools_from_items = (items: typeof config.attached_items): string[] =>
     items.filter((i) => i.type === "tool" || i.type === "workflow").map((i) => i.id);
-
-  /** FE-2b: @mention 선택 시 에이전트면 activeDefinition 설정, 도구/워크플로우면 attached_items에 추가 */
-  const handle_mention_select = (item: MentionItem) => {
-    if (item.type === "agent") {
-      const def = agentDefinitions.find((d) => d.id === item.id) ?? null;
-      setActiveDefinition(def);
-      if (def) {
-        setSystemPromptOverride(compose_agent_prompt(def));
-        setSelectedProvider(def.preferred_providers[0] ?? "");
-        setSelectedModel(def.model ?? "");
-      }
-    } else {
-      setAttachedItems((prev) => prev.some((i) => i.id === item.id) ? prev : [...prev, item]);
-    }
-  };
-
-  const handle_mention_remove = (id: string) => {
-    setAttachedItems((prev) => prev.filter((i) => i.id !== id));
-  };
-
-  /** UnifiedSelectorItem → MentionItem 변환 후 handle_mention_select 위임 */
-  const handle_tool_add = (item: UnifiedSelectorItem) => {
-    const mention_type: MentionItem["type"] =
-      item.type === "mcp-tool" || item.type === "app-tool" ? "tool" :
-      item.type === "workflow" ? "workflow" :
-      "agent";
-    handle_mention_select({
-      type: mention_type,
-      id: item.id,
-      name: item.name,
-      description: item.description,
-    });
-  };
-
-  /** endpoint 변경 시 model + agent 동기화 */
-  const handle_endpoint_change = (ep: { type: string; id: string; label: string }) => {
-    setSelectedModel(ep.id);
-    if (ep.type === "agent") {
-      const def = agentDefinitions.find((d) => d.id === ep.id) ?? null;
-      if (def) {
-        setActiveDefinition(def);
-        setSystemPromptOverride(compose_agent_prompt(def));
-        setSelectedProvider(def.preferred_providers[0] ?? "");
-      }
-    }
-  };
-
-  const send = async () => {
-    if ((!input.trim() && pending_media.length === 0) || sending || stream_inflight.current) return;
-
-    // 세션이 없으면 자동 생성 후 전송
-    let target_id = activeId;
-    if (!target_id) {
-      try {
-        const res = await api.post<ApiChatSessionCreated>("/api/chat/sessions");
-        target_id = res.id;
-        setActiveId(res.id);
-        void qc.invalidateQueries({ queryKey: ["chat-sessions"] });
-      } catch {
-        toast(t("chat.create_failed"), "err");
-        return;
-      }
-    }
-
-    stream_inflight.current = true;
-    const trimmed = input.trim();
-
-    // 옵티미스틱 업데이트: 사용자 메시지를 즉시 캐시에 추가
-    if (trimmed) {
-      qc.setQueryData<ChatSession>(["chat-session", target_id], (prev) => {
-        if (!prev) return prev;
-        const optimistic_msg: ChatMessage = { direction: "user", content: trimmed, at: new Date().toISOString() };
-        return { ...prev, messages: [...(prev.messages ?? []), optimistic_msg] };
-      });
-    }
-
-    setSentMsgCount((raw_messages?.length ?? 0) + 1);
-    setSending(true);
-    setWaitingResponse(true);
-    const body: Record<string, unknown> = { content: trimmed };
-    if (pending_media.length > 0) body.media = pending_media;
-    if (selectedProvider) body.provider_instance_id = selectedProvider;
-    if (selectedModel) body.model = selectedModel;
-    if (systemPromptOverride.trim()) body.system_prompt = systemPromptOverride.trim();
-    // FE-2b: 도구 정책 + 고정 도구 전달
-    if (tool_choice !== "auto") body.tool_choice = tool_choice;
-    const pinned = pinned_tools_from_items(attached_items);
-    if (pinned.length > 0) body.pinned_tools = pinned;
-    if (capabilities.size > 0) body.enabled_capabilities = [...capabilities];
-    setInput("");
-    setPendingMedia([]);
-    setSending(false);
-    start_stream(target_id, body).then(
-      () => {
-        stream_inflight.current = false;
-        // 스트림 완료 → web_message SSE 이벤트가 chat-session을 invalidate하므로
-        // 여기서 즉시 invalidate하지 않음 (BE 저장 전에 가져오면 메시지 소실)
-        // SSE 미수신 대비 fallback: 1초 후 1회 refetch
-        setTimeout(() => void qc.invalidateQueries({ queryKey: ["chat-session", target_id] }), 1000);
-      },
-      () => { stream_inflight.current = false; toast(t("chat.send_failed"), "err"); setWaitingResponse(false); },
-    );
-  };
-
-  const send_mirror = async () => {
-    if (!mirrorKey || !input.trim() || sending) return;
-    setSentMsgCount(raw_messages.length);
-    setSending(true);
-    setWaitingResponse(true);
-    try {
-      await api.post(`/api/chat/mirror/${encodeURIComponent(mirrorKey)}/messages`, { content: input.trim() });
-      setInput("");
-    } catch {
-      toast(t("chat.send_failed"), "err");
-      setWaitingResponse(false);
-    } finally {
-      setSending(false);
-    }
-  };
 
   const raw_messages = is_mirror
     ? [...(mirrorSession?.messages ?? []), ...mirrorLiveMessages]
@@ -356,13 +226,11 @@ export default function ChatPage() {
   const is_streaming = stream_active && !active_stream!.done;
 
   const new_assistant_arrived =
-    raw_messages.length > sent_msg_count &&
+    raw_messages.length > compose.sent_msg_count &&
     raw_messages[raw_messages.length - 1]?.direction === "assistant";
-  // 스트림 done 또는 어시스턴트 메시지 도착 시 대기 상태 해제
-  // stream_active && done (= 스트림 완료): BE 저장 전이라도 FE는 입력 가능해야 함
   const stream_done = stream_active && active_stream?.done;
-  if (waiting_response && (is_streaming || new_assistant_arrived || stream_done)) {
-    setWaitingResponse(false);
+  if (compose.waiting_response && (is_streaming || new_assistant_arrived || stream_done)) {
+    compose.set_waiting(false);
   }
 
   useEffect(() => {
@@ -379,7 +247,6 @@ export default function ChatPage() {
     if (web_stream?.done && web_stream.chat_id === activeId) set_web_stream(null);
   }, [activeSession?.messages, ndjson_stream, web_stream, activeId, cancel_stream, set_web_stream]);
 
-  /** 스트리밍 시작 시간 — 안정적 timestamp로 불필요한 리렌더 방지 */
   const stream_start_ref = useRef<string>("");
   if (stream_active && !stream_start_ref.current) stream_start_ref.current = new Date().toISOString();
   if (!stream_active) stream_start_ref.current = "";
@@ -397,10 +264,74 @@ export default function ChatPage() {
     return [...raw_messages, virtual_msg];
   }, [raw_messages, stream_active, active_stream?.content, ndjson_routing]);
 
+  const send = async () => {
+    if ((!compose.input.trim() && compose.pending_media.length === 0) || compose.sending || stream_inflight.current) return;
+
+    let target_id = activeId;
+    if (!target_id) {
+      try {
+        const res = await api.post<ApiChatSessionCreated>("/api/chat/sessions");
+        target_id = res.id;
+        setActiveId(res.id);
+        void qc.invalidateQueries({ queryKey: ["chat-sessions"] });
+      } catch {
+        toast(t("chat.create_failed"), "err");
+        return;
+      }
+    }
+
+    stream_inflight.current = true;
+    const trimmed = compose.input.trim();
+    const media = compose.pending_media; // capture before start_send clears
+
+    if (trimmed) {
+      qc.setQueryData<ChatSession>(["chat-session", target_id], (prev) => {
+        if (!prev) return prev;
+        const optimistic_msg: ChatMessage = { direction: "user", content: trimmed, at: new Date().toISOString() };
+        return { ...prev, messages: [...(prev.messages ?? []), optimistic_msg] };
+      });
+    }
+
+    // start_send: 원자적 전환 — sending=true, waiting=true, input="", media=[], sent_count=n
+    compose.start_send((raw_messages?.length ?? 0) + 1);
+
+    const body: Record<string, unknown> = { content: trimmed };
+    if (media.length > 0) body.media = media;
+    if (config.selectedProvider) body.provider_instance_id = config.selectedProvider;
+    if (config.selectedModel) body.model = config.selectedModel;
+    if (config.systemPromptOverride.trim()) body.system_prompt = config.systemPromptOverride.trim();
+    if (config.tool_choice !== "auto") body.tool_choice = config.tool_choice;
+    const pinned = pinned_tools_from_items(config.attached_items);
+    if (pinned.length > 0) body.pinned_tools = pinned;
+    if (config.capabilities.size > 0) body.enabled_capabilities = [...config.capabilities];
+
+    compose.finish_send(); // sending=false (입력 잠금 해제, waiting은 유지)
+    start_stream(target_id, body).then(
+      () => {
+        stream_inflight.current = false;
+        setTimeout(() => void qc.invalidateQueries({ queryKey: ["chat-session", target_id] }), 1000);
+      },
+      () => { stream_inflight.current = false; toast(t("chat.send_failed"), "err"); compose.set_waiting(false); },
+    );
+  };
+
+  const send_mirror = async () => {
+    if (!mirrorKey || !compose.input.trim() || compose.sending) return;
+    compose.start_send(raw_messages.length);
+    try {
+      await api.post(`/api/chat/mirror/${encodeURIComponent(mirrorKey)}/messages`, { content: compose.input.trim() });
+    } catch {
+      toast(t("chat.send_failed"), "err");
+      compose.set_waiting(false);
+    } finally {
+      compose.finish_send();
+    }
+  };
+
   const last_msg = messages.length > 0 ? messages[messages.length - 1] : null;
   const last_is_user = last_msg?.direction === "user";
   const has_active = !!activeId || is_mirror;
-  const is_busy = sending || waiting_response || is_streaming;
+  const is_busy = compose.sending || compose.waiting_response || is_streaming;
 
   const session_label = is_mirror
     ? (mirror_sessions.find((m) => m.key === mirrorKey)?.alias || t("session_browser.mirror_group"))
@@ -414,34 +345,29 @@ export default function ChatPage() {
   const select_and_close = (id: string) => { select_session(id); setPanel(null); };
   const mirror_and_close = (key: string) => { select_mirror(key); setPanel(null); };
 
-  /** SharedPromptBar props — mirror 모드에서는 간소화 */
-  const endpoint_value = selectedModel
-    ? { type: "model" as const, id: selectedModel, label: selectedModel }
+  const endpoint_value = config.selectedModel
+    ? { type: "model" as const, id: config.selectedModel, label: config.selectedModel }
     : null;
 
   const prompt_bar_tools = useMemo(() =>
-    attached_items
+    config.attached_items
       .filter((i) => i.type === "tool" || i.type === "workflow")
       .map((i) => ({ id: i.id, name: i.name, description: i.description })),
-    [attached_items],
+    [config.attached_items],
   );
 
-  // Mirror mode: simple send (no tools, no endpoint change)
-  const mirror_send_handler = () => { void send_mirror(); };
-  const normal_send_handler = () => { void send(); };
-
   const handle_capability_change = useCallback((id: string, on: boolean) => {
-    setCapabilities((prev) => {
+    config.setCapabilities((prev) => {
       const next = new Set(prev);
       if (on) next.add(id); else next.delete(id);
       return next;
     });
-  }, []);
+  }, [config.setCapabilities]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const promptBarProps: SharedPromptBarProps = is_mirror ? {
-    input,
-    onInputChange: setInput,
-    onSend: mirror_send_handler,
+    input: compose.input,
+    onInputChange: compose.set_input,
+    onSend: () => { void send_mirror(); },
     sending: is_busy,
     streaming: false,
     endpoint: null,
@@ -456,20 +382,20 @@ export default function ChatPage() {
     onAttach: undefined,
     disabled: !mirrorKey,
   } : {
-    input,
-    onInputChange: setInput,
-    onSend: normal_send_handler,
+    input: compose.input,
+    onInputChange: compose.set_input,
+    onSend: () => { void send(); },
     sending: is_busy,
     streaming: is_streaming,
     onStop: cancel_active,
     endpoint: endpoint_value,
-    onEndpointChange: handle_endpoint_change,
+    onEndpointChange: (ep) => config.handle_endpoint_change(ep, agentDefinitions),
     tools: prompt_bar_tools,
-    onToolAdd: handle_tool_add,
-    onToolRemove: handle_mention_remove,
-    toolChoice: tool_choice,
-    onToolChoiceChange: setToolChoice,
-    capabilities,
+    onToolAdd: (item) => config.handle_tool_add(item, agentDefinitions),
+    onToolRemove: config.handle_mention_remove,
+    toolChoice: config.tool_choice,
+    onToolChoiceChange: config.setToolChoice,
+    capabilities: config.capabilities,
     onCapabilityChange: handle_capability_change,
     onAttach: () => fileInputRef.current?.click(),
     suggestions: undefined,
@@ -516,8 +442,8 @@ export default function ChatPage() {
             </span>
           )}
           {is_mirror && <Badge status={t("chat.mirror_badge")} variant="info" />}
-          {activeDefinition && !is_mirror && (
-            <Badge status={`${activeDefinition.icon} ${activeDefinition.name}`} variant="ok" />
+          {config.activeDefinition && !is_mirror && (
+            <Badge status={`${config.activeDefinition.icon} ${config.activeDefinition.name}`} variant="ok" />
           )}
           {pending_approvals.length > 0 && (
             <Badge status={`\uD83D\uDD10 ${pending_approvals.length}`} variant="warn" />
@@ -568,7 +494,6 @@ export default function ChatPage() {
             pending_approvals={is_mirror ? [] : pending_approvals}
             onResolveApproval={(id, text) => void resolve_approval(id, text)}
           />
-          {/* U1: 스트림 에러 시 부분 콘텐츠 아래 에러 배너 표시 */}
           {active_stream?.error && (
             <div className="chat-stream-error" role="alert">
               {t("chat.stream_error")}: {active_stream.error}
@@ -583,7 +508,6 @@ export default function ChatPage() {
               onDismiss={(canvas_id) => dismiss_canvas(activeId, canvas_id)}
             />
           )}
-          {/* 하단 독 */}
           <div className="chat-bottom-dock">
             <ChatBottomBar
               session_label={session_label}
