@@ -3,9 +3,30 @@
 import type { InboundMessage } from "../../bus/types.js";
 import { resolve_reply_to } from "../../channels/types.js";
 import type { ToolExecutionContext } from "../../agent/tools/types.js";
+import type { AgentHooks } from "../../agent/agent.types.js";
 import type { ExecutionMode, OrchestrationRequest, OrchestrationResult, ResultUsage } from "../types.js";
 import type { StreamBuffer } from "../../channels/stream-buffer.js";
 import { now_ms } from "../../utils/common.js";
+
+// ── PCH-Q4: EG-4 budget hooks 래퍼 ──
+
+/**
+ * native_tool_loop 경로에서 pre_tool_use 훅으로 budget 한도를 강제.
+ * run-once / run-agent-loop에서 중복된 동일 패턴 추출.
+ * budget_max <= 0이면 base_hooks를 그대로 반환.
+ */
+export function wrap_budget_hooks(base_hooks: AgentHooks, budget_max: number): AgentHooks {
+  if (budget_max <= 0) return base_hooks;
+  let native_tool_count = 0;
+  return {
+    ...base_hooks,
+    pre_tool_use: async (name: string, params: Record<string, unknown>, ctx?: ToolExecutionContext) => {
+      if (native_tool_count >= budget_max) return { permission: "deny" as const, reason: "max_tool_calls_exceeded" };
+      native_tool_count++;
+      return base_hooks.pre_tool_use ? base_hooks.pre_tool_use(name, params, ctx) : { permission: "allow" as const };
+    },
+  };
+}
 
 // ── 결과 생성자 ──
 

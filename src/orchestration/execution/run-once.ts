@@ -17,7 +17,7 @@ import { create_budget_tracker, is_over_budget, STOP_REASON_BUDGET_EXCEEDED } fr
 import {
   create_stream_handler, flush_remaining, emit_execution_info,
 } from "../agent-hooks-builder.js";
-import { error_result, reply_result, suppress_result } from "./helpers.js";
+import { error_result, reply_result, suppress_result, wrap_budget_hooks } from "./helpers.js";
 import type { RunExecutionArgs, RunnerDeps } from "./runner-deps.js";
 import { streaming_cfg_for } from "./runner-deps.js";
 import type { OrchestrationResult } from "../types.js";
@@ -67,16 +67,8 @@ async function _run_once_inner(deps: RunnerDeps, args: RunExecutionArgs): Promis
           : "";
         // EG-4: native 경로 pre-execution budget 강제 — pre_tool_use 훅으로 초과 시 deny
         const base_hooks = deps.hooks_for(stream, args, backend.id, args.tool_ctx.task_id, tools_used);
-        const budget_max = deps.config.max_tool_calls_per_run;
-        let native_tool_count = 0;
-        const hooks = budget_max > 0 ? {
-          ...base_hooks,
-          pre_tool_use: async (name: string, params: Record<string, unknown>, ctx?: unknown) => {
-            if (native_tool_count >= budget_max) return { permission: "deny" as const, reason: "max_tool_calls_exceeded" };
-            native_tool_count++;
-            return base_hooks.pre_tool_use ? base_hooks.pre_tool_use(name, params, ctx as ToolExecutionContext | undefined) : { permission: "allow" as const };
-          },
-        } : base_hooks;
+        // PCH-Q4: wrap_budget_hooks로 중복 패턴 통합
+        const hooks = wrap_budget_hooks(base_hooks, deps.config.max_tool_calls_per_run);
         const result = await deps.agent_backends.run(backend.id, {
           task: `${history_prefix}${args.context_block}`,
           task_id: once_task_id,
