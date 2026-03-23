@@ -256,11 +256,12 @@ function _compute_next_run(schedule: CronSchedule, now: number, on_warn?: (msg: 
   if (schedule.kind === "cron" && schedule.expr) {
     const parsed = _parse_cron(schedule.expr);
     if (!parsed) return null;
-    const tz = String(schedule.tz || "").trim();
+    // PCH-L11: tz 미지정 시 UTC 기본값 — 로컬 타임존 의존 제거
+    const tz = String(schedule.tz || "UTC").trim();
     const end_ms = now + 366 * 24 * 60 * 60_000;
     let candidate_ms = Math.floor(now / 60_000) * 60_000 + 60_000; // 다음 분 경계
     while (candidate_ms <= end_ms) {
-      const parts = tz ? _get_tz_parts(candidate_ms, tz) : _get_local_parts(candidate_ms);
+      const parts = _get_tz_parts(candidate_ms, tz);
       if (!parts) {
         on_warn?.(`timezone parsing failed for tz=${tz}, aborting next-run computation`);
         return null;

@@ -58,6 +58,8 @@ export class SkillRefStore implements ReferenceStoreLike {
   private embed_fn: EmbedFn | null = null;
   private last_sync = 0;
   private initialized = false;
+  /** PCH-L4: 동시성 가드 — 동시 sync() 호출 시 중복 실행 방지 */
+  private _syncing = false;
 
   constructor(
     /** src/skills 등 스킬 루트 디렉터리 목록. */
@@ -97,6 +99,8 @@ export class SkillRefStore implements ReferenceStoreLike {
   async sync(): Promise<{ added: number; updated: number; removed: number }> {
     const now = Date.now();
     if (now - this.last_sync < SYNC_DEBOUNCE_MS) return { added: 0, updated: 0, removed: 0 };
+    if (this._syncing) return { added: 0, updated: 0, removed: 0 };
+    this._syncing = true;
     this.last_sync = now;
     this.ensure_init();
 
@@ -159,7 +163,7 @@ export class SkillRefStore implements ReferenceStoreLike {
       }
 
       return { added, updated, removed };
-    }) ?? { added: 0, updated: 0, removed: 0 };
+    }).finally(() => { this._syncing = false; }) ?? { added: 0, updated: 0, removed: 0 };
   }
 
   async search(query: string, opts?: { limit?: number; doc_filter?: string }): Promise<ReferenceSearchResult[]> {
