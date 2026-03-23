@@ -143,6 +143,19 @@ run_env() {
     mkdir -p "$WORKSPACE/.agents/$agent"
   done
 
+  # 포트 충돌 방지: 다른 프로필의 soulflow 컨테이너 정리
+  # (dev→prod 전환 시 dev Redis가 6379 점유하면 prod Redis 시작 불가)
+  if [ -z "$INSTANCE" ]; then
+    for other in dev test staging prod; do
+      [ "$other" = "$profile" ] && continue
+      local other_project="soulflow-$other"
+      if $RUNTIME compose -f docker/docker-compose.yml -p "$other_project" ps -q 2>/dev/null | grep -q .; then
+        echo -e "   ${YELLOW}기존 $other 환경 정지 중...${NC}"
+        $RUNTIME compose -f docker/docker-compose.yml -p "$other_project" down --remove-orphans 2>/dev/null || true
+      fi
+    done
+  fi
+
   # 프리셋 → 환경변수
   export BUILD_TARGET
   export NODE_ENV

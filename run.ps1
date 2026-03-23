@@ -254,6 +254,20 @@ function Start-Environment {
     }
   }
 
+  # 포트 충돌 방지: 다른 프로필의 soulflow 컨테이너 정리
+  # (dev→prod 전환 시 dev Redis가 6379 점유하면 prod Redis 시작 불가)
+  if (-not $Instance) {
+    $others = @("dev", "test", "staging", "prod") | Where-Object { $_ -ne $ProfileName }
+    foreach ($other in $others) {
+      $otherProject = "soulflow-$other"
+      $running = & $Runtime compose -f docker/docker-compose.yml -p $otherProject ps -q 2>$null
+      if ($running) {
+        Write-Host "   기존 $other 환경 정지 중..." -ForegroundColor DarkYellow
+        Run-Compose @("-f", "docker/docker-compose.yml", "-p", $otherProject, "down", "--remove-orphans") 2>$null
+      }
+    }
+  }
+
   # 프리셋 → 환경변수
   $env:BUILD_TARGET = $p.BUILD_TARGET
   $env:NODE_ENV = $p.NODE_ENV

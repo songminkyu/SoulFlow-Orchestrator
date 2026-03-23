@@ -162,6 +162,19 @@ if not exist "%WORKSPACE%\.agents\.claude" mkdir "%WORKSPACE%\.agents\.claude"
 if not exist "%WORKSPACE%\.agents\.codex" mkdir "%WORKSPACE%\.agents\.codex"
 if not exist "%WORKSPACE%\.agents\.gemini" mkdir "%WORKSPACE%\.agents\.gemini"
 
+REM 포트 충돌 방지: 다른 프로필의 soulflow 컨테이너 정리
+if "%INSTANCE%"=="" (
+  for %%P in (dev test staging prod) do (
+    if /i not "%%P"=="%COMMAND%" (
+      !RT! compose -f docker/docker-compose.yml -p soulflow-%%P ps -q 2>nul | findstr /r "." >nul 2>nul
+      if !errorlevel! equ 0 (
+        echo    기존 %%P 환경 정지 중...
+        !RT! compose -f docker/docker-compose.yml -p soulflow-%%P down --remove-orphans 2>nul
+      )
+    )
+  )
+)
+
 REM instance 모드: 기본 인프라(redis, docker-proxy) 먼저 보장
 if not "%INSTANCE%"=="" (
   set "BASE_PROJECT=soulflow-%COMMAND%"
