@@ -76,21 +76,33 @@ const RE_MEDIA_TOKEN = /^\/media\/([a-z0-9]{16,})$/i;
 export function apply_cors(req: IncomingMessage, res: ServerResponse, cors_origins: string[]): boolean {
   const origin = req.headers.origin;
 
-  // 보안 헤더 (M-25 일부 폐쇄)
+  // PCH-C6: 보안 헤더 — CSP + HSTS + 기존 헤더
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; font-src 'self' data:; frame-ancestors 'none'",
+  );
+  // HSTS: HTTPS 환경에서만 유의미하나 헤더는 항상 전송 (프록시 뒤 환경 포함)
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
 
   if (!origin) return false;
 
-  const is_allowed = cors_origins.includes("*") || cors_origins.includes(origin);
+  // PCH-C8: wildcard와 credentials 조합 금지
+  const is_wildcard = cors_origins.includes("*");
+  const is_allowed = is_wildcard || cors_origins.includes(origin);
   if (!is_allowed) return false;
 
-  res.setHeader("Access-Control-Allow-Origin", origin);
-  res.setHeader("Access-Control-Allow-Credentials", "true");
+  // wildcard 시 origin 반영 금지 — 브라우저 자격증명 요청 차단
+  res.setHeader("Access-Control-Allow-Origin", is_wildcard ? "*" : origin);
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   res.setHeader("Access-Control-Max-Age", "600");
-  res.setHeader("Vary", "Origin");
+  if (!is_wildcard) {
+    // specific origin 허용 시에만 credentials 활성화
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Vary", "Origin");
+  }
 
   if (req.method === "OPTIONS") {
     res.writeHead(204);

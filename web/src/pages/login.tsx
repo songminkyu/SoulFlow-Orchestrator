@@ -13,6 +13,7 @@ function PasswordInput({
   id: string; value: string; onChange: (v: string) => void;
   autoComplete: string; disabled: boolean; label: string; placeholder?: string;
 }) {
+  const { t } = useI18n();
   const [visible, setVisible] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
@@ -44,13 +45,13 @@ function PasswordInput({
           className="login-card__pw-toggle"
           onClick={() => { setVisible((v) => !v); ref.current?.focus(); }}
           tabIndex={-1}
-          aria-label={visible ? "비밀번호 숨기기" : "비밀번호 보기"}
+          aria-label={visible ? t("login.password_hide") : t("login.password_show")}
         >
           {visible ? "\u{1F441}" : "\u{2022}\u{2022}\u{2022}"}
         </button>
       </div>
       {capsLock && (
-        <span className="login-card__caps-warn">Caps Lock이 켜져 있습니다</span>
+        <span className="login-card__caps-warn">{t("login.caps_lock")}</span>
       )}
     </div>
   );
@@ -181,11 +182,11 @@ function SetupForm() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (password !== confirm) { setError("비밀번호가 일치하지 않습니다."); return; }
-    if (password.length < 6) { setError("비밀번호는 6자 이상이어야 합니다."); return; }
-    if (username.trim().length < 2) { setError("아이디는 2자 이상이어야 합니다."); return; }
+    if (password !== confirm) { setError(t("login.err_password_mismatch")); return; }
+    if (password.length < 8) { setError(t("login.err_password_min_8")); return; }
+    if (username.trim().length < 2) { setError(t("login.err_username_min_2")); return; }
     setup.mutate({ username: username.trim(), password }, {
-      onError: () => setError("설정에 실패했습니다. 다시 시도해주세요."),
+      onError: () => setError(t("login.err_setup_failed")),
     });
   };
 
@@ -199,7 +200,7 @@ function SetupForm() {
       )}
 
       <div className="form-group">
-        <label className="form-label" htmlFor="setup-username">관리자 아이디</label>
+        <label className="form-label" htmlFor="setup-username">{t("login.label_admin_username")}</label>
         <input
           id="setup-username"
           className="form-input"
@@ -214,7 +215,7 @@ function SetupForm() {
 
       <PasswordInput
         id="setup-password"
-        label="비밀번호 (6자 이상)"
+        label={t("login.label_password_new")}
         value={password}
         onChange={setPassword}
         autoComplete="new-password"
@@ -223,7 +224,7 @@ function SetupForm() {
 
       <PasswordInput
         id="setup-confirm"
-        label="비밀번호 확인"
+        label={t("login.label_password_confirm")}
         value={confirm}
         onChange={setConfirm}
         autoComplete="new-password"
@@ -232,7 +233,7 @@ function SetupForm() {
 
       {confirm && password !== confirm && (
         <span className="login-card__field-hint login-card__field-hint--err">
-          비밀번호가 일치하지 않습니다
+          {t("login.err_password_mismatch")}
         </span>
       )}
 
@@ -241,7 +242,7 @@ function SetupForm() {
         type="submit"
         disabled={setup.isPending || !username || !password || !confirm || password !== confirm}
       >
-        {setup.isPending ? <><Spinner /> 생성 중...</> : "관리자 계정 생성"}
+        {setup.isPending ? <><Spinner /> {t("login.creating")}</> : t("login.create_account")}
       </button>
     </form>
   );
@@ -266,7 +267,7 @@ function LoginForm() {
       await login.mutateAsync({ username: username.trim(), password });
       navigate("/", { replace: true });
     } catch {
-      setError("아이디 또는 비밀번호가 올바르지 않습니다.");
+      setError(t("login.err_invalid_credentials"));
       setShake(true);
       setTimeout(() => setShake(false), 500);
       usernameRef.current?.focus();
@@ -307,7 +308,7 @@ function LoginForm() {
 
       <PasswordInput
         id="login-password"
-        label="비밀번호"
+        label={t("login.label_password")}
         value={password}
         onChange={(v) => { setPassword(v); setError(null); }}
         autoComplete="current-password"
@@ -319,7 +320,7 @@ function LoginForm() {
         type="submit"
         disabled={login.isPending || !username || !password}
       >
-        {login.isPending ? <><Spinner /> 로그인 중...</> : t("login.submit")}
+        {login.isPending ? <><Spinner /> {t("login.logging_in")}</> : t("login.submit")}
       </button>
     </form>
   );

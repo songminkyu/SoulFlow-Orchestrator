@@ -64,8 +64,8 @@ export async function handle_auth(ctx: RouteContext): Promise<boolean> {
       json(res, 400, { error: "username_password_required" });
       return true;
     }
-    if (username.length < 2 || password.length < 6) {
-      json(res, 400, { error: "username_min_2_password_min_6" });
+    if (username.length < 2 || password.length < 8) {
+      json(res, 400, { error: "username_min_2_password_min_8" });
       return true;
     }
 

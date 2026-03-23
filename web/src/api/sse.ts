@@ -3,7 +3,12 @@ type SseHandler = (data: unknown) => void;
 const BASE_DELAY = 1_000;
 const MAX_DELAY = 30_000;
 
-export function create_sse(path: string, handlers: Record<string, SseHandler>): { close: () => void } {
+export function create_sse(
+  path: string,
+  handlers: Record<string, SseHandler>,
+  /** PCH-U4: 연결 끊김 후 재연결 대기 진입 시 호출 */
+  on_reconnecting?: () => void,
+): { close: () => void } {
   let es: EventSource | null = null;
   let reconnect_timer: ReturnType<typeof setTimeout> | null = null;
   let attempt = 0;
@@ -27,6 +32,7 @@ export function create_sse(path: string, handlers: Record<string, SseHandler>): 
       es?.close();
       es = null;
       if (closed) return;
+      on_reconnecting?.();
       const delay = Math.min(BASE_DELAY * 2 ** attempt, MAX_DELAY);
       attempt++;
       reconnect_timer = setTimeout(connect, delay);

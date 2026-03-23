@@ -158,7 +158,10 @@ export function RootLayout() {
       agent: () => { mark_event(); batch_invalidate("state", "agents"); },
       progress: () => { mark_event(); batch_invalidate("state", "processes"); },
       workflow: () => { mark_event(); batch_invalidate("workflows", "workflow", "workflow-messages"); },
-    });
+    },
+    // PCH-U4: 연결 끊김 시 "reconnecting" 상태로 즉시 전환
+    () => set_connection("reconnecting"),
+    );
     set_connection("reconnecting");
     return () => { if (batch_timer) clearTimeout(batch_timer); sse.close(); set_connection("disconnected"); };
   }, [set_connection, set_web_stream, set_mirror_event, qc]);
