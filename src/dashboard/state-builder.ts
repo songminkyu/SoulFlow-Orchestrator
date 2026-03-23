@@ -1,4 +1,5 @@
-/** 대시보드 상태 조립 함수. service.ts의 build_state + _build_merged_tasks 추출. */
+/** 대시보드 상태 조립 함수. service.ts의 build_state + _build_merged_tasks 추출.
+ *  TTL 캐시: 동일 team_id+user_id 요청은 CACHE_TTL_MS 이내 재사용. */
 
 import type { DashboardOptions, RecentMessage } from "./service.js";
 import type { ProcessEntry } from "../orchestration/process-tracker.js";
@@ -6,6 +7,15 @@ import type { AgentEvent } from "../agent/agent.types.js";
 import { now_seoul_iso } from "../utils/common.js";
 import { project_summary } from "../observability/projector.js";
 import { extract_reconcile_read_model } from "../orchestration/reconcile-read-model.js";
+
+// ── State Cache ─────────────────────────────────
+const CACHE_TTL_MS = 3_000;
+const state_cache = new Map<string, { data: Record<string, unknown>; at: number }>();
+const inflight = new Map<string, Promise<Record<string, unknown>>>();
+
+function cache_key(team_id?: string, user_id?: string): string {
+  return `${team_id ?? "*"}:${user_id ?? "*"}`;
+}
 
 export async function build_merged_tasks(options: DashboardOptions, team_id?: string): Promise<Array<{
   taskId: string; title: string; status: string; currentStep?: string; exitReason?: string;
@@ -38,6 +48,33 @@ export async function build_merged_tasks(options: DashboardOptions, team_id?: st
 }
 
 export async function build_dashboard_state(
+  options: DashboardOptions,
+  recent_messages: RecentMessage[],
+  team_id?: string,
+  user_id?: string,
+): Promise<Record<string, unknown>> {
+  const ck = cache_key(team_id, user_id);
+
+  // TTL 내 캐시 히트 → 즉시 반환
+  const cached = state_cache.get(ck);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.data;
+
+  // 동일 키에 대한 중복 빌드 방지 (coalesce)
+  const existing = inflight.get(ck);
+  if (existing) return existing;
+
+  const promise = build_dashboard_state_impl(options, recent_messages, team_id, user_id);
+  inflight.set(ck, promise);
+  try {
+    const result = await promise;
+    state_cache.set(ck, { data: result, at: Date.now() });
+    return result;
+  } finally {
+    inflight.delete(ck);
+  }
+}
+
+async function build_dashboard_state_impl(
   options: DashboardOptions,
   recent_messages: RecentMessage[],
   team_id?: string,
