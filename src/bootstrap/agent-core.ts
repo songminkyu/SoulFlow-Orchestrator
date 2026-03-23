@@ -17,6 +17,7 @@ import { PhaseWorkflowStore } from "../agent/phase-workflow-store.js";
 import { ToolIndex } from "../orchestration/tool-index.js";
 import { ReferenceStore } from "../services/reference-store.js";
 import { SkillRefStore } from "../services/skill-ref-store.js";
+import { SqlitePool } from "../utils/sqlite-helper.js";
 import { SessionStore } from "../session/index.js";
 import { MemoryConsolidationService } from "../agent/memory-consolidation.service.js";
 import { PersonaMessageRenderer, TonePreferenceStore } from "../channels/persona-message-renderer.js";
@@ -74,6 +75,8 @@ export interface AgentCoreResult {
   skill_ref_store: SkillRefStore;
   sessions: SessionStore;
   memory_consolidation: MemoryConsolidationService;
+  /** PCH-P2: 공유 SQLite 연결 풀 — 핫패스 스토어에서 DB open/close 오버헤드 제거. */
+  sqlite_pool: SqlitePool;
 }
 
 /** last_output이 비어있을 때 task 상태에서 유용한 컨텍스트를 조합. */
@@ -114,10 +117,13 @@ export async function create_agent_core(deps: AgentCoreDeps): Promise<AgentCoreR
     get_tone_preference: (chat_key) => tone_pref_store.get(chat_key),
   });
 
+  // PCH-P2: 공유 SQLite 연결 풀 생성 — 핫패스 스토어의 DB open/close 오버헤드 제거
+  const sqlite_pool = new SqlitePool();
+
   const agent = new AgentDomain(user_dir, {
     providers, bus, data_dir, events, agent_backends: agent_backend_registry,
     secret_vault: providers.get_secret_vault(), logger: logger.child("agent"),
-    provider_caps, app_root,
+    provider_caps, app_root, sqlite_pool,
     on_task_change: (task) => {
       broadcaster.broadcast_task_event("status_change", task);
       if (task.status === "waiting_user_input" || task.status === "max_turns_reached") {
@@ -182,7 +188,7 @@ export async function create_agent_core(deps: AgentCoreDeps): Promise<AgentCoreR
   agent.context.set_daily_injection(app_config.memory.dailyInjectionDays, app_config.memory.dailyInjectionMaxChars);
   agent.context.set_longterm_injection(app_config.memory.longtermInjectionMaxChars);
 
-  const reference_store = new ReferenceStore(user_dir);
+  const reference_store = new ReferenceStore(user_dir, sqlite_pool);
   if (embed_service) reference_store.set_embed(embed_service);
   if (image_embed_service) reference_store.set_image_embed(image_embed_service);
   agent.context.set_reference_store(reference_store);
@@ -191,6 +197,7 @@ export async function create_agent_core(deps: AgentCoreDeps): Promise<AgentCoreR
   const skill_ref_store = new SkillRefStore(
     [join(app_root, "src", "skills"), join(user_dir, "skills")],
     join(data_dir, "references"),
+    sqlite_pool,
   );
   if (embed_service) skill_ref_store.set_embed(embed_service);
   agent.context.set_skill_ref_store(skill_ref_store);
@@ -219,5 +226,6 @@ export async function create_agent_core(deps: AgentCoreDeps): Promise<AgentCoreR
     persona_renderer, tone_pref_store,
     phase_workflow_store, kanban_store, kanban_tool, kanban_automation,
     tool_index, reference_store, skill_ref_store, sessions, memory_consolidation,
+    sqlite_pool,
   };
 }

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import type { RechunkJob } from "./memory-rechunk-worker.js";
 import * as sqliteVec from "sqlite-vec";
-import { with_sqlite, with_sqlite_strict, with_vec_db, with_vec_db_async } from "../utils/sqlite-helper.js";
+import { with_sqlite, with_sqlite_strict, with_vec_db, with_vec_db_async, type SqlitePool, type SqliteRunOptions } from "../utils/sqlite-helper.js";
 import type {
   ConsolidationMessage,
   ConsolidationSession,
@@ -73,16 +73,32 @@ export class MemoryStore implements MemoryStoreLike {
   private readonly memory_dir: string;
   private readonly sqlite_path: string;
   private readonly initialized: Promise<void>;
+  private readonly pool: SqlitePool | null;
   private embed_fn: EmbedFn | null = null;
   private embed_worker_config: import("./memory.types.js").EmbedWorkerConfig | null = null;
   private rechunk_worker: Worker | null = null;
   private chunk_queue: ChunkQueue | null = null;
 
-  constructor(workspace_root: string) {
+  constructor(workspace_root: string, pool?: SqlitePool) {
     this.root = workspace_root;
     this.memory_dir = join(this.root, "memory");
     this.sqlite_path = join(this.memory_dir, "memory.db");
+    this.pool = pool ?? null;
     this.initialized = this.ensure_initialized();
+  }
+
+  /** pool이 있으면 풀 연결, 없으면 기존 open-per-call. */
+  private _db<T>(run: (db: import("../utils/sqlite-helper.js").DatabaseSync) => T, options?: SqliteRunOptions): T | null {
+    return this.pool ? this.pool.run(this.sqlite_path, run, options) : with_sqlite(this.sqlite_path, run, options);
+  }
+  private _db_strict<T>(run: (db: import("../utils/sqlite-helper.js").DatabaseSync) => T, options?: SqliteRunOptions): T {
+    return this.pool ? this.pool.run_strict(this.sqlite_path, run, options) : with_sqlite_strict(this.sqlite_path, run, options);
+  }
+  private _db_vec<T>(run: (db: import("../utils/sqlite-helper.js").DatabaseSync) => T, options?: SqliteRunOptions): T | null {
+    return this.pool ? this.pool.run(this.sqlite_path, run, options) : with_vec_db(this.sqlite_path, run, options);
+  }
+  private async _db_vec_async<T>(run: (db: import("../utils/sqlite-helper.js").DatabaseSync) => Promise<T>, options?: SqliteRunOptions): Promise<T | null> {
+    return this.pool ? this.pool.run_async(this.sqlite_path, run, options) : with_vec_db_async(this.sqlite_path, run, options);
   }
 
   /** 임베딩 서비스를 late-inject. 설정 후 벡터 시맨틱 검색 활성화. */
@@ -101,7 +117,7 @@ export class MemoryStore implements MemoryStoreLike {
 
   private async ensure_initialized(): Promise<void> {
     await mkdir(this.memory_dir, { recursive: true });
-    with_sqlite_strict(this.sqlite_path,(db) => {
+    this._db_strict((db) => {
       db.exec(`
         PRAGMA journal_mode=WAL;
         CREATE TABLE IF NOT EXISTS memory_documents (
@@ -211,7 +227,7 @@ export class MemoryStore implements MemoryStoreLike {
   }
 
   private ensure_longterm_document(): void {
-    const row = with_sqlite(this.sqlite_path,(db) => db.prepare(`
+    const row = this._db((db) => db.prepare(`
       SELECT doc_key
       FROM memory_documents
       WHERE doc_key = ?
@@ -223,7 +239,7 @@ export class MemoryStore implements MemoryStoreLike {
 
   private sqlite_upsert_document(kind: "longterm" | "daily", day: string, path: string, content: string): void {
     const doc_key = kind === "longterm" ? this.longterm_doc_key() : this.daily_doc_key(day);
-    with_sqlite_strict(this.sqlite_path,(db) => {
+    this._db_strict((db) => {
       db.prepare(`
         INSERT INTO memory_documents (doc_key, kind, day, path, content, updated_at)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -242,7 +258,7 @@ export class MemoryStore implements MemoryStoreLike {
   /** SQL-level atomic append — TOCTOU 방지. */
   private sqlite_append_document(kind: "longterm" | "daily", day: string, path: string, content: string): void {
     const doc_key = kind === "longterm" ? this.longterm_doc_key() : this.daily_doc_key(day);
-    with_sqlite_strict(this.sqlite_path,(db) => {
+    this._db_strict((db) => {
       db.prepare(`
         INSERT INTO memory_documents (doc_key, kind, day, path, content, updated_at)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -315,7 +331,7 @@ export class MemoryStore implements MemoryStoreLike {
     if (result.error || result.chunks.length === 0) return;
 
     try {
-      with_sqlite_strict(this.sqlite_path, (db) => {
+      this._db_strict((db) => {
         const existing = db
           .prepare("SELECT chunk_id, content_hash FROM memory_chunks WHERE doc_key = ?")
           .all(result.doc_key) as { chunk_id: string; content_hash: string }[];
@@ -385,7 +401,7 @@ export class MemoryStore implements MemoryStoreLike {
 
   private sqlite_read_document(kind: "longterm" | "daily", day: string): MemoryDocRow | null {
     const doc_key = kind === "longterm" ? this.longterm_doc_key() : this.daily_doc_key(day);
-    const row = with_sqlite(this.sqlite_path,(db) => db.prepare(`
+    const row = this._db((db) => db.prepare(`
       SELECT path, content
       FROM memory_documents
       WHERE doc_key = ?
@@ -399,7 +415,7 @@ export class MemoryStore implements MemoryStoreLike {
   }
 
   private sqlite_delete_daily(day: string): boolean {
-    const removed = with_sqlite_strict(this.sqlite_path,(db) => {
+    const removed = this._db_strict((db) => {
       const result = db.prepare("DELETE FROM memory_documents WHERE doc_key = ?").run(this.daily_doc_key(day));
       return result.changes;
     });
@@ -426,7 +442,7 @@ export class MemoryStore implements MemoryStoreLike {
 
   async list_daily(): Promise<string[]> {
     await this.initialized;
-    const rows = with_sqlite(this.sqlite_path,(db) => db.prepare(`
+    const rows = this._db((db) => db.prepare(`
       SELECT day
       FROM memory_documents
       WHERE kind = 'daily'
@@ -565,7 +581,7 @@ export class MemoryStore implements MemoryStoreLike {
     } else if (is_day_key(day)) { where.push("c.day = ?"); bind.push(day); }
     bind.push(top_k);
 
-    return with_sqlite(this.sqlite_path, (db) => {
+    return this._db((db) => {
       const rows = db.prepare(`
         SELECT c.chunk_id
         FROM memory_chunks_fts f
@@ -589,7 +605,7 @@ export class MemoryStore implements MemoryStoreLike {
       if (!embeddings?.[0]?.length) return [];
       const query_vec = normalize_vec_f32(embeddings[0]);
 
-      return with_vec_db(this.sqlite_path, (db) => {
+      return this._db_vec((db) => {
         const rows = db.prepare(`
           SELECT v.rowid, v.distance
           FROM memory_chunks_vec v
@@ -628,7 +644,7 @@ export class MemoryStore implements MemoryStoreLike {
   private async ensure_chunk_embeddings_fresh(): Promise<void> {
     if (!this.embed_fn) return;
 
-    const stale = with_sqlite(this.sqlite_path, (db) => db.prepare(`
+    const stale = this._db((db) => db.prepare(`
       SELECT c.rowid, c.chunk_id, c.content, c.content_hash
       FROM memory_chunks c
       WHERE c.content != ''
@@ -637,7 +653,7 @@ export class MemoryStore implements MemoryStoreLike {
 
     if (stale.length === 0) return;
 
-    await with_vec_db_async(this.sqlite_path, async (db) => {
+    await this._db_vec_async(async (db) => {
       const ins_vec = db.prepare("INSERT OR REPLACE INTO memory_chunks_vec (rowid, embedding) VALUES (?, ?)");
 
       for (let offset = 0; offset < stale.length; offset += EMBED_BATCH_SIZE) {
@@ -657,13 +673,13 @@ export class MemoryStore implements MemoryStoreLike {
   }
 
   private get_chunk_meta(chunk_id: string): { doc_key: string; kind: string; day: string; heading: string; start_line: number; content: string } | null {
-    return with_sqlite(this.sqlite_path, (db) => db.prepare(
+    return this._db((db) => db.prepare(
       "SELECT doc_key, kind, day, heading, start_line, content FROM memory_chunks WHERE chunk_id = ?",
     ).get(chunk_id) as { doc_key: string; kind: string; day: string; heading: string; start_line: number; content: string } | undefined) || null;
   }
 
   private get_chunk_content(chunk_id: string): string {
-    return with_sqlite(this.sqlite_path, (db) => {
+    return this._db((db) => {
       const row = db.prepare("SELECT content FROM memory_chunks WHERE chunk_id = ?").get(chunk_id) as { content: string } | undefined;
       return row?.content || "";
     }) || "";

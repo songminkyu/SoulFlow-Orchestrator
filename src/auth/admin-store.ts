@@ -6,7 +6,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
-import { with_sqlite, with_sqlite_strict } from "../utils/sqlite-helper.js";
+import { with_sqlite, with_sqlite_strict, type SqlitePool, type SqliteRunOptions } from "../utils/sqlite-helper.js";
 
 const PRAGMAS = ["journal_mode=WAL"];
 
@@ -115,14 +115,16 @@ function row_to_shared_provider(r: SharedProviderRow): SharedProviderRecord {
 
 export class AdminStore {
   private readonly db_path: string;
+  private readonly pool: SqlitePool | null;
 
-  constructor(db_path: string) {
+  constructor(db_path: string, pool?: SqlitePool) {
     this.db_path = db_path;
+    this.pool = pool ?? null;
     mkdirSync(dirname(db_path), { recursive: true });
-    with_sqlite_strict(db_path, (db) => { db.exec(INIT_SQL); return true; }, { pragmas: PRAGMAS });
+    this._db_strict((db) => { db.exec(INIT_SQL); return true; }, { pragmas: PRAGMAS });
     // H-7: 기존 DB에 password_changed_at 컬럼 추가 (SQLite는 ADD COLUMN IF NOT EXISTS 미지원 → try/catch)
     try {
-      with_sqlite_strict(db_path, (db) => {
+      this._db_strict((db) => {
         db.exec("ALTER TABLE users ADD COLUMN password_changed_at TEXT");
         return true;
       }, { pragmas: PRAGMAS });
@@ -131,10 +133,18 @@ export class AdminStore {
     }
   }
 
+  /** pool이 있으면 풀 연결, 없으면 기존 open-per-call. */
+  private _db<T>(run: (db: import("../utils/sqlite-helper.js").DatabaseSync) => T, options?: SqliteRunOptions): T | null {
+    return this.pool ? this.pool.run(this.db_path, run, options) : with_sqlite(this.db_path, run, options);
+  }
+  private _db_strict<T>(run: (db: import("../utils/sqlite-helper.js").DatabaseSync) => T, options?: SqliteRunOptions): T {
+    return this.pool ? this.pool.run_strict(this.db_path, run, options) : with_sqlite_strict(this.db_path, run, options);
+  }
+
   // ── 초기화 여부 ──
 
   is_initialized(): boolean {
-    return with_sqlite(this.db_path, (db) => {
+    return this._db((db) => {
       const row = db.prepare("SELECT COUNT(*) as cnt FROM users WHERE system_role = 'superadmin'").get() as { cnt: number };
       return row.cnt > 0;
     }, { pragmas: PRAGMAS }) ?? false;
@@ -143,14 +153,14 @@ export class AdminStore {
   // ── 설정 (jwt_secret 등) ──
 
   get_setting(key: string): string | null {
-    return with_sqlite(this.db_path, (db) => {
+    return this._db((db) => {
       const row = db.prepare("SELECT value FROM settings WHERE key = ?").get(key) as { value: string } | undefined;
       return row?.value ?? null;
     }, { pragmas: PRAGMAS }) ?? null;
   }
 
   set_setting(key: string, value: string): void {
-    with_sqlite_strict(this.db_path, (db) => {
+    this._db_strict((db) => {
       db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
         .run(key, value);
       return true;
@@ -160,20 +170,20 @@ export class AdminStore {
   // ── 사용자 ──
 
   list_users(): UserRecord[] {
-    return with_sqlite(this.db_path, (db) => {
+    return this._db((db) => {
       return (db.prepare("SELECT * FROM users ORDER BY created_at").all() as UserRow[]).map(row_to_user);
     }, { pragmas: PRAGMAS }) ?? [];
   }
 
   get_user_by_id(id: string): UserRecord | null {
-    return with_sqlite(this.db_path, (db) => {
+    return this._db((db) => {
       const row = db.prepare("SELECT * FROM users WHERE id = ?").get(id) as UserRow | undefined;
       return row ? row_to_user(row) : null;
     }, { pragmas: PRAGMAS }) ?? null;
   }
 
   get_user_by_username(username: string): UserRecord | null {
-    return with_sqlite(this.db_path, (db) => {
+    return this._db((db) => {
       const row = db.prepare("SELECT * FROM users WHERE username = ?").get(username) as UserRow | undefined;
       return row ? row_to_user(row) : null;
     }, { pragmas: PRAGMAS }) ?? null;
@@ -184,7 +194,7 @@ export class AdminStore {
    * 레거시 계정(컬럼 값 없음)은 null 반환 — 하위 호환성을 위해 토큰 허용.
    */
   get_password_changed_at(user_id: string): string | null {
-    return with_sqlite(this.db_path, (db) => {
+    return this._db((db) => {
       const row = db.prepare("SELECT password_changed_at FROM users WHERE id = ?").get(user_id) as { password_changed_at: string | null } | undefined;
       return row?.password_changed_at ?? null;
     }, { pragmas: PRAGMAS }) ?? null;
@@ -197,7 +207,7 @@ export class AdminStore {
     default_team_id?: string | null;
   }): UserRecord {
     const id = randomUUID();
-    with_sqlite_strict(this.db_path, (db) => {
+    this._db_strict((db) => {
       db.prepare(
         "INSERT INTO users (id, username, password_hash, system_role, default_team_id) VALUES (?, ?, ?, ?, ?)"
       ).run(id, input.username, input.password_hash, input.system_role, input.default_team_id ?? null);
@@ -219,7 +229,7 @@ export class AdminStore {
     if (patch.password_changed_at !== undefined) { fields.push("password_changed_at = ?"); values.push(patch.password_changed_at); }
     if (fields.length === 0) return true;
     values.push(id);
-    with_sqlite_strict(this.db_path, (db) => {
+    this._db_strict((db) => {
       db.prepare(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`).run(...values);
       return true;
     }, { pragmas: PRAGMAS });
@@ -227,7 +237,7 @@ export class AdminStore {
   }
 
   delete_user(id: string): boolean {
-    return with_sqlite_strict(this.db_path, (db) => {
+    return this._db_strict((db) => {
       const r = db.prepare("DELETE FROM users WHERE id = ?").run(id);
       return r.changes > 0;
     }, { pragmas: PRAGMAS });
@@ -236,20 +246,20 @@ export class AdminStore {
   // ── 팀 ──
 
   list_teams(): TeamRecord[] {
-    return with_sqlite(this.db_path, (db) => {
+    return this._db((db) => {
       return (db.prepare("SELECT * FROM teams ORDER BY created_at").all() as TeamRow[]).map(row_to_team);
     }, { pragmas: PRAGMAS }) ?? [];
   }
 
   get_team(id: string): TeamRecord | null {
-    return with_sqlite(this.db_path, (db) => {
+    return this._db((db) => {
       const row = db.prepare("SELECT * FROM teams WHERE id = ?").get(id) as TeamRow | undefined;
       return row ? row_to_team(row) : null;
     }, { pragmas: PRAGMAS }) ?? null;
   }
 
   ensure_team(id: string, name: string): TeamRecord {
-    with_sqlite_strict(this.db_path, (db) => {
+    this._db_strict((db) => {
       db.prepare("INSERT INTO teams (id, name) VALUES (?, ?) ON CONFLICT(id) DO NOTHING").run(id, name);
       return true;
     }, { pragmas: PRAGMAS });
@@ -257,7 +267,7 @@ export class AdminStore {
   }
 
   update_team(id: string, patch: { name: string }): TeamRecord | null {
-    with_sqlite_strict(this.db_path, (db) => {
+    this._db_strict((db) => {
       db.prepare("UPDATE teams SET name = ? WHERE id = ?").run(patch.name, id);
       return true;
     }, { pragmas: PRAGMAS });
@@ -265,7 +275,7 @@ export class AdminStore {
   }
 
   delete_team(id: string): boolean {
-    return with_sqlite_strict(this.db_path, (db) => {
+    return this._db_strict((db) => {
       const info = db.prepare("DELETE FROM teams WHERE id = ?").run(id);
       return (info.changes ?? 0) > 0;
     }, { pragmas: PRAGMAS }) ?? false;
@@ -274,7 +284,7 @@ export class AdminStore {
   // ── 공유 프로바이더 ──
 
   list_shared_providers(enabled_only = false): SharedProviderRecord[] {
-    return with_sqlite(this.db_path, (db) => {
+    return this._db((db) => {
       const sql = enabled_only
         ? "SELECT * FROM shared_providers WHERE enabled = 1 ORDER BY created_at"
         : "SELECT * FROM shared_providers ORDER BY created_at";
@@ -283,7 +293,7 @@ export class AdminStore {
   }
 
   get_shared_provider(id: string): SharedProviderRecord | null {
-    return with_sqlite(this.db_path, (db) => {
+    return this._db((db) => {
       const row = db.prepare("SELECT * FROM shared_providers WHERE id = ?").get(id) as SharedProviderRow | undefined;
       return row ? row_to_shared_provider(row) : null;
     }, { pragmas: PRAGMAS }) ?? null;
@@ -291,7 +301,7 @@ export class AdminStore {
 
   create_shared_provider(input: Omit<SharedProviderRecord, "id" | "created_at">): SharedProviderRecord {
     const id = randomUUID();
-    with_sqlite_strict(this.db_path, (db) => {
+    this._db_strict((db) => {
       db.prepare(
         "INSERT INTO shared_providers (id, name, type, model, config_json, api_key_ref, enabled) VALUES (?, ?, ?, ?, ?, ?, ?)"
       ).run(id, input.name, input.type, input.model, JSON.stringify(input.config), input.api_key_ref, input.enabled ? 1 : 0);
@@ -310,7 +320,7 @@ export class AdminStore {
     if (patch.enabled !== undefined) { fields.push("enabled = ?"); values.push(patch.enabled ? 1 : 0); }
     if (fields.length === 0) return true;
     values.push(id);
-    with_sqlite_strict(this.db_path, (db) => {
+    this._db_strict((db) => {
       db.prepare(`UPDATE shared_providers SET ${fields.join(", ")} WHERE id = ?`).run(...values);
       return true;
     }, { pragmas: PRAGMAS });
@@ -318,7 +328,7 @@ export class AdminStore {
   }
 
   delete_shared_provider(id: string): boolean {
-    return with_sqlite_strict(this.db_path, (db) => {
+    return this._db_strict((db) => {
       const r = db.prepare("DELETE FROM shared_providers WHERE id = ?").run(id);
       return r.changes > 0;
     }, { pragmas: PRAGMAS });

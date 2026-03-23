@@ -134,6 +134,7 @@ export async function createRuntime(): Promise<RuntimeApp> {
     persona_renderer, tone_pref_store,
     phase_workflow_store, kanban_store, kanban_tool, kanban_automation,
     tool_index, reference_store, sessions, memory_consolidation,
+    sqlite_pool,
   } = await create_agent_core({
     workspace, user_dir, data_dir, sessions_dir, app_root, app_config,
     providers, bus, events, agent_backend_registry, provider_caps,
@@ -179,7 +180,7 @@ export async function createRuntime(): Promise<RuntimeApp> {
 
   // 인증은 항상 활성 — admin.db 부재 시 자동 생성 (미초기화 상태로 시작)
   const admin_db_path = join(workspace, "admin", "admin.db");
-  const auth_svc = new AuthService(new AdminStore(admin_db_path));
+  const auth_svc = new AuthService(new AdminStore(admin_db_path, sqlite_pool));
 
   // 멀티테넌트: JWT 인증 후 개인 워크스페이스 디렉토리 보장
   const workspace_registry = auth_svc ? new WorkspaceRegistry(workspace) : null;

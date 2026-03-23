@@ -11,6 +11,7 @@ import { filter_tool_sections } from "../orchestration/tool-description-filter.j
 import { extract_persona_name } from "../orchestration/prompts.js";
 import type { ReferenceStoreLike } from "../services/reference-store.js";
 import { ContextBudget, type BudgetSection } from "./context-budget.js";
+import type { SqlitePool } from "../utils/sqlite-helper.js";
 
 async function try_read_first_file(candidates: string[]): Promise<string> {
   for (const path of candidates) {
@@ -60,10 +61,10 @@ export class ContextBuilder {
   /** 부트스트랩 파일 mtime 캐시 — 파일 변경 시에만 다시 읽음. */
   private readonly _file_cache = new Map<string, { mtime: number; content: string }>();
 
-  constructor(workspace: string, args?: { memory_store?: MemoryStoreLike; promises_dir?: string; app_root?: string }) {
+  constructor(workspace: string, args?: { memory_store?: MemoryStoreLike; promises_dir?: string; app_root?: string; sqlite_pool?: SqlitePool }) {
     this.workspace = workspace;
     this.skills_loader = new SkillsLoader(workspace, args?.app_root);
-    this.memory_store = args?.memory_store || new MemoryStore(workspace);
+    this.memory_store = args?.memory_store || new MemoryStore(workspace, args?.sqlite_pool);
     this.decision_service = new DecisionService(workspace);
     this.promise_service = new PromiseService(workspace, args?.promises_dir);
   }

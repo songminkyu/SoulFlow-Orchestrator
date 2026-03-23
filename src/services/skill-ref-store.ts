@@ -12,7 +12,7 @@ import * as sqliteVec from "sqlite-vec";
 import type { EmbedFn } from "../agent/memory.service.js";
 import type { ReferenceStoreLike, ReferenceSearchResult } from "./reference-store.js";
 import { now_iso } from "../utils/common.js";
-import { with_sqlite, with_sqlite_strict, with_sqlite_async, type DatabaseSync } from "../utils/sqlite-helper.js";
+import { with_sqlite, with_sqlite_strict, with_sqlite_async, type DatabaseSync, type SqlitePool } from "../utils/sqlite-helper.js";
 import { sha256_short } from "../utils/crypto.js";
 import { normalize_vec, VEC_DIMENSIONS } from "../utils/vec.js";
 
@@ -54,6 +54,7 @@ const INIT_SQL = `
 
 export class SkillRefStore implements ReferenceStoreLike {
   private readonly db_path: string;
+  private readonly pool: SqlitePool | null;
   private embed_fn: EmbedFn | null = null;
   private last_sync = 0;
   private initialized = false;
@@ -63,9 +64,22 @@ export class SkillRefStore implements ReferenceStoreLike {
     private readonly skills_roots: string[],
     /** runtime DB 저장 디렉터리. */
     data_dir: string,
+    pool?: SqlitePool,
   ) {
     mkdirSync(data_dir, { recursive: true });
     this.db_path = join(data_dir, "skill-refs.db");
+    this.pool = pool ?? null;
+  }
+
+  /** pool이 있으면 풀 연결, 없으면 기존 open-per-call. */
+  private _db<T>(run: (db: DatabaseSync) => T, options?: import("../utils/sqlite-helper.js").SqliteRunOptions): T | null {
+    return this.pool ? this.pool.run(this.db_path, run, options) : with_sqlite(this.db_path, run, options);
+  }
+  private _db_strict<T>(run: (db: DatabaseSync) => T, options?: import("../utils/sqlite-helper.js").SqliteRunOptions): T {
+    return this.pool ? this.pool.run_strict(this.db_path, run, options) : with_sqlite_strict(this.db_path, run, options);
+  }
+  private async _db_async<T>(run: (db: DatabaseSync) => Promise<T>, options?: import("../utils/sqlite-helper.js").SqliteRunOptions): Promise<T | null> {
+    return this.pool ? this.pool.run_async(this.db_path, run, options) : with_sqlite_async(this.db_path, run, options);
   }
 
   set_embed(fn: EmbedFn): void { this.embed_fn = fn; }
@@ -73,7 +87,7 @@ export class SkillRefStore implements ReferenceStoreLike {
   private ensure_init(): void {
     if (this.initialized) return;
     this.initialized = true;
-    with_sqlite_strict(this.db_path, (db) => {
+    this._db_strict((db) => {
       db.exec(INIT_SQL);
       sqliteVec.load(db);
       db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS skill_ref_chunks_vec USING vec0(embedding float[${VEC_DIMENSIONS}])`);
@@ -89,7 +103,7 @@ export class SkillRefStore implements ReferenceStoreLike {
     const fs_files = this.scan_skill_refs();
     const fs_paths = new Set(fs_files.map((f) => f.rel_path));
 
-    return await with_sqlite_async(this.db_path, async (db) => {
+    return await this._db_async(async (db) => {
       let added = 0, updated = 0, removed = 0;
       sqliteVec.load(db);
 
@@ -150,7 +164,7 @@ export class SkillRefStore implements ReferenceStoreLike {
     const limit = opts?.limit ?? 5;
     const skill_filter = opts?.doc_filter;
 
-    const results = await with_sqlite_async(this.db_path, async (db) => {
+    const results = await this._db_async(async (db) => {
       const found = new Map<string, ReferenceSearchResult>();
       sqliteVec.load(db);
 
@@ -218,7 +232,7 @@ export class SkillRefStore implements ReferenceStoreLike {
 
   list_documents(): { path: string; chunks: number; size: number; updated_at: string }[] {
     this.ensure_init();
-    return with_sqlite(this.db_path, (db) =>
+    return this._db((db) =>
       db.prepare("SELECT path, chunk_count as chunks, 0 as size, updated_at FROM skill_ref_documents ORDER BY path").all() as Array<{ path: string; chunks: number; size: number; updated_at: string }>,
       { readonly: true },
     ) ?? [];
@@ -226,7 +240,7 @@ export class SkillRefStore implements ReferenceStoreLike {
 
   get_stats(): { total_docs: number; total_chunks: number; last_sync: string | null } {
     this.ensure_init();
-    return with_sqlite(this.db_path, (db) => {
+    return this._db((db) => {
       const docs = (db.prepare("SELECT COUNT(*) as c FROM skill_ref_documents").get() as { c: number } | undefined)?.c ?? 0;
       const chunks = (db.prepare("SELECT COUNT(*) as c FROM skill_ref_chunks").get() as { c: number } | undefined)?.c ?? 0;
       return { total_docs: docs, total_chunks: chunks, last_sync: this.last_sync ? new Date(this.last_sync).toISOString() : null };
