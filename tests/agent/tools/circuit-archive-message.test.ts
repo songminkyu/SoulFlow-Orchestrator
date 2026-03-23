@@ -224,9 +224,12 @@ describe("ArchiveTool — tar.gz 명령 분기", () => {
   });
 
   it("extract tar.gz → tar xzf 호출", async () => {
-    await make_archive().execute({ operation: "extract", archive_path: "/tmp/test.tar.gz", output_dir: "/tmp/out" });
-    expect(called_cmd()).toContain("tar xzf");
-    expect(called_cmd()).toContain("-C");
+    await make_archive().execute({ operation: "extract", archive_path: "/tmp/test.tar.gz", output_dir: "out" });
+    // zip-slip 방어로 list(scan) 후 extract 실행 — extract는 두 번째 호출
+    const extract_call = mock_run_shell.mock.calls[1];
+    const extract_cmd = [extract_call[0] as string, ...(extract_call[1] as string[])].join(" ");
+    expect(extract_cmd).toContain("tar xzf");
+    expect(extract_cmd).toContain("-C");
   });
 
   it("create tar.gz with files → tar czf 호출", async () => {
@@ -250,8 +253,11 @@ describe("ArchiveTool — zip 명령 분기", () => {
   });
 
   it("extract zip → unzip -o 호출", async () => {
-    await make_archive().execute({ operation: "extract", archive_path: "/tmp/test.zip", format: "zip", output_dir: "/tmp/out" });
-    expect(called_cmd()).toContain("unzip -o");
+    await make_archive().execute({ operation: "extract", archive_path: "/tmp/test.zip", format: "zip", output_dir: "out" });
+    // zip-slip 방어로 list(scan) 후 extract 실행 — extract는 두 번째 호출
+    const extract_call = mock_run_shell.mock.calls[1];
+    const extract_cmd = [extract_call[0] as string, ...(extract_call[1] as string[])].join(" ");
+    expect(extract_cmd).toContain("unzip -o");
   });
 
   it("create zip with files → zip -r 호출", async () => {
