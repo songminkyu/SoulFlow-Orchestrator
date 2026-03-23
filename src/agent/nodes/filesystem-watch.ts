@@ -4,6 +4,7 @@ import type { NodeHandler, RunnerContext } from "../node-registry.js";
 import type { TriggerNodeDefinition, OrcheNodeDefinition } from "../workflow-node.types.js";
 import type { OrcheNodeExecutorContext, OrcheNodeExecuteResult, OrcheNodeTestResult } from "../orche-node-executor.js";
 import { error_message, now_iso } from "../../utils/common.js";
+import { validate_file_path } from "../../utils/path-validation.js";
 
 export const filesystem_watch_handler: NodeHandler = {
   node_type: "filesystem_watch",
@@ -37,6 +38,12 @@ export const filesystem_watch_handler: NodeHandler = {
     const watch_path = n.watch_path?.trim();
     if (!watch_path) {
       return { output: { files: [], batch_id: "", triggered_at: now_iso(), watch_path: "", error: "watch_path is required" } };
+    }
+
+    // CWE-22: workspace 밖 경로 감시 차단
+    const workspace = runner.options?.workspace;
+    if (workspace && !validate_file_path(watch_path, [workspace])) {
+      return { output: { files: [], batch_id: "", triggered_at: now_iso(), watch_path, error: "watch_path outside workspace" } };
     }
 
     // resume 시 이미 주입된 이벤트가 있으면 즉시 반환

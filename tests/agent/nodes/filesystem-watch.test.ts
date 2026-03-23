@@ -12,7 +12,7 @@ function make_node(overrides: Record<string, unknown> = {}) {
   return {
     node_id: "n1",
     node_type: "filesystem_watch",
-    watch_path: "/tmp/watched",
+    watch_path: "/workspace/watched",
     watch_events: ["add", "change"],
     watch_pattern: "",
     watch_batch_ms: 500,
@@ -20,11 +20,14 @@ function make_node(overrides: Record<string, unknown> = {}) {
   } as any;
 }
 
-function make_runner(wait?: ((path: string, opts: object) => Promise<Record<string, unknown> | null>) | null) {
+function make_runner(wait?: ((path: string, opts: object) => Promise<Record<string, unknown> | null>) | null, workspace?: string) {
   return {
     services: wait !== undefined ? { wait_filesystem_event: wait } : {},
     state: {
       memory: {},
+    },
+    options: {
+      workspace: workspace ?? "/workspace",
     },
     logger: {
       warn: vi.fn(),
@@ -77,7 +80,7 @@ describe("filesystem_watch_handler — runner_execute", () => {
   });
 
   it("injected event 있음 → 즉시 반환 + memory 정리", async () => {
-    const injected = { files: [{ path: "/tmp/watched/file.txt", event: "add" }], batch_id: "abc" };
+    const injected = { files: [{ path: "/workspace/watched/file.txt", event: "add" }], batch_id: "abc" };
     const runner = make_runner(vi.fn());
     runner.state.memory.__pending_filesystem_watch = true;
     runner.state.memory.__pending_filesystem_watch_event = injected;
@@ -88,7 +91,7 @@ describe("filesystem_watch_handler — runner_execute", () => {
   });
 
   it("wait 성공 → event 반환", async () => {
-    const event = { files: [{ path: "/tmp/watched/new.txt", event: "add" }], batch_id: "xyz", triggered_at: new Date().toISOString(), watch_path: "/tmp/watched" };
+    const event = { files: [{ path: "/workspace/watched/new.txt", event: "add" }], batch_id: "xyz", triggered_at: new Date().toISOString(), watch_path: "/workspace/watched" };
     const runner = make_runner(vi.fn().mockResolvedValue(event));
 
     const result = await filesystem_watch_handler.runner_execute!(make_node(), {} as any, runner);
@@ -112,7 +115,7 @@ describe("filesystem_watch_handler — runner_execute", () => {
   });
 
   it("watch_events 없음 → 기본 ['add'] 사용", async () => {
-    const wait_fn = vi.fn().mockResolvedValue({ files: [], batch_id: "b1", triggered_at: "", watch_path: "/tmp/x" });
+    const wait_fn = vi.fn().mockResolvedValue({ files: [], batch_id: "b1", triggered_at: "", watch_path: "/workspace/x" });
     const runner = make_runner(wait_fn);
 
     await filesystem_watch_handler.runner_execute!(make_node({ watch_events: [] }), {} as any, runner);
@@ -121,7 +124,7 @@ describe("filesystem_watch_handler — runner_execute", () => {
   });
 
   it("watch_pattern 있음 → pattern 전달", async () => {
-    const wait_fn = vi.fn().mockResolvedValue({ files: [], batch_id: "b2", triggered_at: "", watch_path: "/tmp/x" });
+    const wait_fn = vi.fn().mockResolvedValue({ files: [], batch_id: "b2", triggered_at: "", watch_path: "/workspace/x" });
     const runner = make_runner(wait_fn);
 
     await filesystem_watch_handler.runner_execute!(
@@ -131,6 +134,61 @@ describe("filesystem_watch_handler — runner_execute", () => {
     );
     const call_opts = wait_fn.mock.calls[0][1] as any;
     expect(call_opts.pattern).toBe("*.ts");
+  });
+
+  // ── CWE-22: 경로 검증 ────────────────────────────────
+  it("workspace 밖 watch_path → error 반환 (CWE-22)", async () => {
+    const wait_fn = vi.fn();
+    const runner = make_runner(wait_fn, "/workspace");
+
+    const result = await filesystem_watch_handler.runner_execute!(
+      make_node({ watch_path: "/etc/secrets" }),
+      {} as any,
+      runner,
+    );
+    expect(result.output.error).toBe("watch_path outside workspace");
+    expect(wait_fn).not.toHaveBeenCalled();
+  });
+
+  it("path traversal 시도 → error 반환 (CWE-22)", async () => {
+    const wait_fn = vi.fn();
+    const runner = make_runner(wait_fn, "/workspace");
+
+    const result = await filesystem_watch_handler.runner_execute!(
+      make_node({ watch_path: "/workspace/../etc/passwd" }),
+      {} as any,
+      runner,
+    );
+    expect(result.output.error).toBe("watch_path outside workspace");
+    expect(wait_fn).not.toHaveBeenCalled();
+  });
+
+  it("workspace 내 watch_path → 정상 동작", async () => {
+    const event = { files: [], batch_id: "ok", triggered_at: "", watch_path: "/workspace/data" };
+    const wait_fn = vi.fn().mockResolvedValue(event);
+    const runner = make_runner(wait_fn, "/workspace");
+
+    const result = await filesystem_watch_handler.runner_execute!(
+      make_node({ watch_path: "/workspace/data" }),
+      {} as any,
+      runner,
+    );
+    expect(result.output).toEqual(event);
+    expect(wait_fn).toHaveBeenCalled();
+  });
+
+  it("workspace 미설정 시 → 경로 검증 스킵 (하위 호환)", async () => {
+    const event = { files: [], batch_id: "compat", triggered_at: "", watch_path: "/anywhere" };
+    const wait_fn = vi.fn().mockResolvedValue(event);
+    const runner = make_runner(wait_fn);
+    runner.options.workspace = "";
+
+    const result = await filesystem_watch_handler.runner_execute!(
+      make_node({ watch_path: "/anywhere" }),
+      {} as any,
+      runner,
+    );
+    expect(result.output).toEqual(event);
   });
 });
 
