@@ -7,7 +7,8 @@ import { api } from "../../api/client";
 import type { ApiProtocolList } from "../../api/contracts";
 import { useAsyncState } from "../../hooks/use-async-state";
 import { ProfileEditor } from "./profile-editor";
-import type { AgentDefinition, CreateAgentDefinitionInput, UpdateAgentDefinitionInput, GeneratedAgentFields } from "../../../../src/agent/agent-definition.types";
+import type { AgentDefinition, CreateAgentDefinitionInput, UpdateAgentDefinitionInput } from "../../../../src/agent/agent-definition.types";
+import { generate_agent_fields, apply_generated_to_form } from "../../hooks/use-agent-generate";
 
 /** 에이전트 모달 모드 — 신규, 편집, 빌트인 포크 */
 export type AgentModalMode =
@@ -107,27 +108,8 @@ export function AgentModal({ mode, onClose, onSaved }: AgentModalProps) {
   async function handle_generate() {
     if (!aiPrompt.trim()) return;
     await runGenerate(async () => {
-      const res = await api.post<{ ok: boolean; data?: GeneratedAgentFields; error?: string }>("/api/agent-definitions/generate", { prompt: aiPrompt });
-      console.debug("[agent-generate] response:", JSON.stringify(res).slice(0, 500));
-      if (!res.ok || !res.data) throw new Error(res.error || "generate_failed");
-      const data = res.data;
-      setForm((f) => ({
-        ...f,
-        name: data.name || f.name,
-        description: data.description || f.description,
-        icon: data.icon || f.icon,
-        role_skill: data.role_skill || f.role_skill,
-        soul: data.soul || f.soul,
-        heart: data.heart || f.heart,
-        tools: data.tools?.join(", ") || f.tools,
-        shared_protocols: data.shared_protocols?.length ? data.shared_protocols : f.shared_protocols,
-        skills: data.skills?.join(", ") || f.skills,
-        use_when: data.use_when || f.use_when,
-        not_use_for: data.not_use_for || f.not_use_for,
-        extra_instructions: data.extra_instructions || f.extra_instructions,
-        preferred_providers: data.preferred_providers?.join(", ") || f.preferred_providers,
-        model: data.model || f.model,
-      }));
+      const data = await generate_agent_fields(aiPrompt);
+      setForm((f) => apply_generated_to_form(f, data));
       setTab("manual");
     });
   }

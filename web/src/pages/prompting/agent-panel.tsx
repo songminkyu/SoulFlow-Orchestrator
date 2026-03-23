@@ -11,7 +11,8 @@ import { useToast } from "../../components/toast";
 import { StudioModelPicker, type StudioModelValue } from "../../components/studio-model-picker";
 import { ChatPromptBar } from "../../components/chat-prompt-bar";
 import { RunResult, type RunResultValue } from "./run-result";
-import type { AgentDefinition, GeneratedAgentFields } from "../../../../src/agent/agent-definition.types";
+import type { AgentDefinition } from "../../../../src/agent/agent-definition.types";
+import { generate_agent_fields, apply_generated_to_form } from "../../hooks/use-agent-generate";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
@@ -209,30 +210,12 @@ export function AgentPanel({ initial_id }: AgentPanelProps) {
     if (!ai_prompt.trim()) return;
     setGenerating(true);
     try {
-      const res = await api.post<{ ok: boolean; data?: GeneratedAgentFields; error?: string }>("/api/agent-definitions/generate", { prompt: ai_prompt, provider_id: model.provider_id || undefined });
-      console.debug("[agent-generate] response:", JSON.stringify(res).slice(0, 500));
-      const data = res.data;
-      if (!res.ok || !data) {
-        toast(res.error || "generate_failed", "err");
-        return;
-      }
-      setForm((f) => ({
-        ...f,
-        name: data.name || f.name,
-        description: data.description || f.description,
-        icon: data.icon || f.icon,
-        role_skill: data.role_skill || f.role_skill,
-        soul: data.soul || f.soul,
-        heart: data.heart || f.heart,
-        tools: data.tools?.join(", ") || f.tools,
-        shared_protocols: data.shared_protocols?.length ? data.shared_protocols : f.shared_protocols,
-        skills: data.skills?.join(", ") || f.skills,
-        use_when: data.use_when || f.use_when,
-        not_use_for: data.not_use_for || f.not_use_for,
-        extra_instructions: data.extra_instructions || f.extra_instructions,
-      }));
+      const data = await generate_agent_fields(ai_prompt, model.provider_id || undefined);
+      setForm((f) => apply_generated_to_form(f, data));
       if (data.preferred_providers?.[0]) setModel((m) => ({ ...m, provider_id: data.preferred_providers![0]! }));
       if (data.model) setModel((m) => ({ ...m, model: data.model ?? "" }));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "generate_failed", "err");
     } finally {
       setGenerating(false);
     }
