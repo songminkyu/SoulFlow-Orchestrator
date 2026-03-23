@@ -2,6 +2,10 @@ import { MAX_CHAT_SESSIONS, MAX_MESSAGES_PER_SESSION, type ChatMediaItem, type C
 import { now_iso, short_id } from "../../utils/common.js";
 import type { RouteContext } from "../route-context.js";
 import { set_no_cache, require_team_manager, get_filter_team_id } from "../route-context.js";
+import { read_json_body } from "../body-reader.js";
+
+/** 미디어 첨부 가능한 엔드포인트의 body size 상한 (10MB). base64 인코딩 고려. */
+const MAX_MEDIA_BODY_BYTES = 10_485_760;
 import type { ApiChatSessionCreated, ApiChatSessionUpdated } from "../../contracts/api-responses.js";
 
 type ParsedBody = {
@@ -140,7 +144,8 @@ export async function handle_chat(ctx: RouteContext): Promise<boolean> {
     const session_id = decodeURIComponent(stream_match[1]);
     const session = chat_sessions.get(session_id);
     if (!session || session.user_id !== user_id || session.team_id !== team_id) { json(res, 404, { error: "session_not_found" }); return true; }
-    const body = await read_body(req);
+    // 미디어 첨부(PDF/이미지 base64)를 위해 body size 제한 확대 (1MB → 10MB)
+    const body = await read_json_body(req, res, MAX_MEDIA_BODY_BYTES);
     const parsed = parse_chat_body(body);
     if (!parsed.text && parsed.media.length === 0) { json(res, 400, { error: "content_or_media_required" }); return true; }
 
