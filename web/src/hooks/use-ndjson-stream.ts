@@ -115,11 +115,14 @@ export function useNdjsonStream() {
     setRouting(null);
 
     try {
+      const t0 = performance.now();
       const response = await fetch(
         `/api/chat/sessions/${encodeURIComponent(chat_id)}/messages/stream`,
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: controller.signal },
       );
       if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+      console.debug("[stream] connected in %dms", Math.round(performance.now() - t0));
+      let first_delta = true;
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -138,6 +141,7 @@ export function useNdjsonStream() {
           try {
             const msg = JSON.parse(trimmed) as NdjsonLine;
             if (msg.type === "delta") {
+              if (first_delta) { first_delta = false; console.debug("[stream] first delta in %dms", Math.round(performance.now() - t0)); }
               buffer_ref.current.push(msg.content);
               // 탭 숨김 시 버퍼만 쌓고, 보일 때는 rAF로 배치 플러시
               if (document.visibilityState !== "hidden") schedule_flush();
@@ -165,6 +169,7 @@ export function useNdjsonStream() {
             } else if (msg.type === "routing") {
               setRouting({ requested_channel: msg.requested_channel, delivered_channel: msg.delivered_channel, session_reuse: msg.session_reuse, execution_route: msg.execution_route });
             } else if (msg.type === "done") {
+              console.debug("[stream] done in %dms", Math.round(performance.now() - t0));
               // done 시 동기 플러시 — rAF 대기 없이 최종 상태 즉시 반영
               flush();
               setStream((prev) => prev ? { ...prev, done: true } : null);

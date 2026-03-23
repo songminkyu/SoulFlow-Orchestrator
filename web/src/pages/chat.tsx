@@ -246,13 +246,38 @@ export default function ChatPage() {
     }
   };
 
-  const send = () => {
-    if (!activeId || (!input.trim() && pending_media.length === 0) || sending || stream_inflight.current) return;
+  const send = async () => {
+    if ((!input.trim() && pending_media.length === 0) || sending || stream_inflight.current) return;
+
+    // 세션이 없으면 자동 생성 후 전송
+    let target_id = activeId;
+    if (!target_id) {
+      try {
+        const res = await api.post<ApiChatSessionCreated>("/api/chat/sessions");
+        target_id = res.id;
+        setActiveId(res.id);
+        void qc.invalidateQueries({ queryKey: ["chat-sessions"] });
+      } catch {
+        toast(t("chat.create_failed"), "err");
+        return;
+      }
+    }
+
     stream_inflight.current = true;
-    setSentMsgCount(raw_messages.length);
+    const trimmed = input.trim();
+
+    // 옵티미스틱 업데이트: 사용자 메시지를 즉시 캐시에 추가
+    if (trimmed) {
+      qc.setQueryData<ChatSession>(["chat-session", target_id], (prev) => {
+        if (!prev) return prev;
+        const optimistic_msg: ChatMessage = { direction: "user", content: trimmed, at: new Date().toISOString() };
+        return { ...prev, messages: [...(prev.messages ?? []), optimistic_msg] };
+      });
+    }
+
+    setSentMsgCount((raw_messages?.length ?? 0) + 1);
     setSending(true);
     setWaitingResponse(true);
-    const trimmed = input.trim();
     const body: Record<string, unknown> = { content: trimmed };
     if (pending_media.length > 0) body.media = pending_media;
     if (selectedProvider) body.provider_instance_id = selectedProvider;
@@ -266,8 +291,8 @@ export default function ChatPage() {
     setInput("");
     setPendingMedia([]);
     setSending(false);
-    start_stream(activeId!, body).then(
-      () => { stream_inflight.current = false; void qc.invalidateQueries({ queryKey: ["chat-session", activeId] }); },
+    start_stream(target_id, body).then(
+      () => { stream_inflight.current = false; void qc.invalidateQueries({ queryKey: ["chat-session", target_id] }); },
       () => { stream_inflight.current = false; toast(t("chat.send_failed"), "err"); setWaitingResponse(false); },
     );
   };
