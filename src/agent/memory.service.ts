@@ -604,6 +604,7 @@ export class MemoryStore implements MemoryStoreLike {
       const { embeddings } = await this.embed_fn([query.slice(0, MAX_EMBED_CHARS)], { dimensions: VEC_DIMENSIONS });
       if (!embeddings?.[0]?.length) return [];
       const query_vec = normalize_vec_f32(embeddings[0]);
+      if (!query_vec) return [];
 
       return this._db_vec((db) => {
         const rows = db.prepare(`
@@ -664,7 +665,9 @@ export class MemoryStore implements MemoryStoreLike {
 
         const tx = db.transaction(() => {
           for (let i = 0; i < batch.length; i++) {
-            ins_vec.run(BigInt(batch[i].rowid), normalize_vec_f32(embeddings[i]));
+            const vec = normalize_vec_f32(embeddings[i]);
+            if (!vec) continue;
+            ins_vec.run(BigInt(batch[i].rowid), vec);
           }
         });
         tx();

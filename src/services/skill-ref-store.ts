@@ -44,6 +44,7 @@ const INIT_SQL = `
     chunk_id  TEXT NOT NULL,
     content   TEXT NOT NULL DEFAULT ''
   );
+  CREATE INDEX IF NOT EXISTS idx_skill_ref_chunk_docs_cid ON skill_ref_chunk_docs(chunk_id);
   CREATE VIRTUAL TABLE IF NOT EXISTS skill_ref_chunks_fts USING fts5(
     chunk_id, content,
     content='skill_ref_chunk_docs',
@@ -137,15 +138,18 @@ export class SkillRefStore implements ReferenceStoreLike {
         const ins_fts_content = db.prepare("INSERT INTO skill_ref_chunk_docs (chunk_id, content) VALUES (?, ?)");
         const ins_fts = db.prepare("INSERT INTO skill_ref_chunks_fts (rowid, chunk_id, content) VALUES (?, ?, ?)");
 
-        for (const chunk of chunks) {
-          ins_chunk.run(chunk.chunk_id, file.rel_path, file.skill_name, chunk.heading, chunk.content, chunk.start_line, chunk.end_line);
-          const info = ins_fts_content.run(chunk.chunk_id, chunk.content);
-          ins_fts.run(info.lastInsertRowid, chunk.chunk_id, chunk.content);
-          to_embed.push({
-            chunk_id: chunk.chunk_id,
-            text: `[${file.skill_name}/${basename(file.rel_path)}] ${chunk.heading}\n${chunk.content}`.slice(0, MAX_EMBED_CHARS),
-          });
-        }
+        const insert_all = db.transaction(() => {
+          for (const chunk of chunks) {
+            ins_chunk.run(chunk.chunk_id, file.rel_path, file.skill_name, chunk.heading, chunk.content, chunk.start_line, chunk.end_line);
+            const info = ins_fts_content.run(chunk.chunk_id, chunk.content);
+            ins_fts.run(info.lastInsertRowid, chunk.chunk_id, chunk.content);
+            to_embed.push({
+              chunk_id: chunk.chunk_id,
+              text: `[${file.skill_name}/${basename(file.rel_path)}] ${chunk.heading}\n${chunk.content}`.slice(0, MAX_EMBED_CHARS),
+            });
+          }
+        });
+        insert_all();
 
         if (is_new) added++;
         else updated++;
@@ -192,11 +196,12 @@ export class SkillRefStore implements ReferenceStoreLike {
       }
 
       // 벡터 KNN
-      if (this.embed_fn) {
+      if (this.embed_fn && found.size < limit) {
         try {
           const { embeddings } = await this.embed_fn([query.slice(0, MAX_EMBED_CHARS)], { dimensions: VEC_DIMENSIONS });
           if (embeddings.length > 0) {
             const qvec = normalize_vec(embeddings[0]!);
+            if (!qvec) throw new Error("zero embedding");
             const qbuf = new Float32Array(qvec);
 
             const vec_sql = `SELECT v.rowid, v.distance FROM skill_ref_chunks_vec v WHERE v.embedding MATCH ? AND k = ? ORDER BY v.distance`;
@@ -207,16 +212,22 @@ export class SkillRefStore implements ReferenceStoreLike {
               const doc_rows = db.prepare(`SELECT d.rowid, d.chunk_id FROM skill_ref_chunk_docs d WHERE d.rowid IN (${rowids.map(() => "?").join(",")})`).all(...rowids) as { rowid: number; chunk_id: string }[];
               const rowid_to_chunk = new Map(doc_rows.map((r) => [r.rowid, r.chunk_id]));
 
+              const needed_ids: string[] = [];
+              const dist_map = new Map<string, number>();
               for (const vr of vec_rows) {
-                const chunk_id = rowid_to_chunk.get(vr.rowid);
-                if (!chunk_id || found.has(chunk_id)) continue;
-                const chunk = db.prepare("SELECT chunk_id, doc_path, heading, content FROM skill_ref_chunks WHERE chunk_id = ?").get(chunk_id) as { chunk_id: string; doc_path: string; heading: string; content: string } | undefined;
-                if (chunk) {
-                  if (skill_filter) {
-                    const skill = db.prepare("SELECT skill_name FROM skill_ref_chunks WHERE chunk_id = ?").get(chunk_id) as { skill_name: string } | undefined;
-                    if (skill && !skill_filter.split("|").includes(skill.skill_name)) continue;
-                  }
-                  found.set(chunk_id, { ...chunk, score: 1 / (1 + vr.distance) });
+                const cid = rowid_to_chunk.get(vr.rowid);
+                if (cid && !found.has(cid) && !dist_map.has(cid)) { needed_ids.push(cid); dist_map.set(cid, vr.distance); }
+              }
+              if (needed_ids.length > 0) {
+                const ph = needed_ids.map(() => "?").join(",");
+                const batch = db.prepare(
+                  `SELECT chunk_id, doc_path, skill_name, heading, content FROM skill_ref_chunks WHERE chunk_id IN (${ph})`,
+                ).all(...needed_ids) as Array<{ chunk_id: string; doc_path: string; skill_name: string; heading: string; content: string }>;
+                const allowed = skill_filter ? new Set(skill_filter.split("|")) : null;
+                for (const c of batch) {
+                  if (allowed && !allowed.has(c.skill_name)) continue;
+                  const dist = dist_map.get(c.chunk_id) ?? 1;
+                  found.set(c.chunk_id, { chunk_id: c.chunk_id, doc_path: c.doc_path, heading: c.heading, content: c.content, score: 1 / (1 + dist) });
                 }
               }
             }
@@ -359,6 +370,7 @@ export class SkillRefStore implements ReferenceStoreLike {
             const rowid = id_to_rowid.get(batch[j]!.chunk_id);
             if (rowid === undefined) continue;
             const vec = normalize_vec(embeddings[j]!);
+            if (!vec) continue;
             try { del_vec.run(rowid); } catch { /* 없을 수 있음 */ }
             ins_vec.run(rowid, new Float32Array(vec));
           }

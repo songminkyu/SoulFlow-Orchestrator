@@ -188,6 +188,7 @@ const INIT_SQL = `
     chunk_id    TEXT NOT NULL,
     content     TEXT NOT NULL DEFAULT ''
   );
+  CREATE INDEX IF NOT EXISTS idx_ref_chunk_docs_cid ON ref_chunk_docs(chunk_id);
   CREATE VIRTUAL TABLE IF NOT EXISTS ref_chunks_fts USING fts5(
     chunk_id, content,
     content='ref_chunk_docs',
@@ -401,6 +402,7 @@ export class ReferenceStore implements ReferenceStoreLike {
           const { embeddings } = await this.embed_fn([query.slice(0, MAX_EMBED_CHARS)], { dimensions: VEC_DIMENSIONS });
           if (embeddings.length > 0) {
             const qvec = normalize_vec(embeddings[0]);
+            if (!qvec) throw new Error("zero embedding");
             const qbuf = new Float32Array(qvec);
             const vec_rows = db.prepare(`
               SELECT v.rowid, v.distance
@@ -417,12 +419,20 @@ export class ReferenceStore implements ReferenceStoreLike {
               `).all(...rowids) as { rowid: number; chunk_id: string }[];
               const rowid_to_chunk = new Map(doc_rows.map((r) => [r.rowid, r.chunk_id]));
 
+              const needed_ids: string[] = [];
+              const dist_map = new Map<string, number>();
               for (const vr of vec_rows) {
-                const chunk_id = rowid_to_chunk.get(vr.rowid);
-                if (!chunk_id || found.has(chunk_id)) continue;
-                const chunk = db.prepare("SELECT chunk_id, doc_path, heading, content FROM ref_chunks WHERE chunk_id = ?").get(chunk_id) as ReferenceChunk | undefined;
-                if (chunk) {
-                  found.set(chunk_id, { ...chunk, score: 1 / (1 + vr.distance) });
+                const cid = rowid_to_chunk.get(vr.rowid);
+                if (cid && !found.has(cid) && !dist_map.has(cid)) { needed_ids.push(cid); dist_map.set(cid, vr.distance); }
+              }
+              if (needed_ids.length > 0) {
+                const ph = needed_ids.map(() => "?").join(",");
+                const batch = db.prepare(
+                  `SELECT chunk_id, doc_path, heading, content FROM ref_chunks WHERE chunk_id IN (${ph})`,
+                ).all(...needed_ids) as ReferenceChunk[];
+                for (const chunk of batch) {
+                  const dist = dist_map.get(chunk.chunk_id) ?? 1;
+                  found.set(chunk.chunk_id, { ...chunk, score: 1 / (1 + dist) });
                 }
               }
             }
@@ -436,6 +446,7 @@ export class ReferenceStore implements ReferenceStoreLike {
           const { embeddings } = await this.image_embed_fn([query.slice(0, MAX_EMBED_CHARS)], { dimensions: VEC_DIMENSIONS });
           if (embeddings.length > 0) {
             const qvec = normalize_vec(embeddings[0]!);
+            if (!qvec) throw new Error("zero embedding");
             const qbuf = new Float32Array(qvec);
             const img_rows = db.prepare(`
               SELECT v.rowid, v.distance
@@ -444,12 +455,18 @@ export class ReferenceStore implements ReferenceStoreLike {
               ORDER BY v.distance
             `).all(qbuf, limit) as { rowid: number; distance: number }[];
 
-            for (const vr of img_rows) {
-              const chunk = db.prepare(
-                "SELECT chunk_id, doc_path, heading, content FROM ref_chunks WHERE rowid = ?",
-              ).get(vr.rowid) as ReferenceChunk | undefined;
-              if (chunk && !found.has(chunk.chunk_id)) {
-                found.set(chunk.chunk_id, { ...chunk, score: 1 / (1 + vr.distance) });
+            if (img_rows.length > 0) {
+              const img_rowids = img_rows.map((r) => r.rowid);
+              const img_ph = img_rowids.map(() => "?").join(",");
+              const img_chunks = db.prepare(
+                `SELECT rowid, chunk_id, doc_path, heading, content FROM ref_chunks WHERE rowid IN (${img_ph})`,
+              ).all(...img_rowids) as (ReferenceChunk & { rowid: number })[];
+              const rowid_to_chunk_img = new Map(img_chunks.map((c) => [c.rowid, c]));
+              for (const vr of img_rows) {
+                const chunk = rowid_to_chunk_img.get(vr.rowid);
+                if (chunk && !found.has(chunk.chunk_id)) {
+                  found.set(chunk.chunk_id, { ...chunk, score: 1 / (1 + vr.distance) });
+                }
               }
             }
           }
@@ -657,6 +674,7 @@ export class ReferenceStore implements ReferenceStoreLike {
             const row = get_rowid.get(batch[j]!.chunk_id) as { rowid: number } | undefined;
             if (!row) continue;
             const vec = normalize_vec(embeddings[j]!);
+            if (!vec) continue;
             try { del_img_vec.run(row.rowid); } catch { /* 없을 수 있음 */ }
             ins_img_vec.run(row.rowid, new Float32Array(vec));
           }
@@ -693,6 +711,7 @@ export class ReferenceStore implements ReferenceStoreLike {
             const rowid = id_to_rowid.get(batch[j].chunk_id);
             if (rowid === undefined) continue;
             const vec = normalize_vec(embeddings[j]);
+            if (!vec) continue;
             const buf = new Float32Array(vec);
             try { del_vec.run(rowid); } catch { /* 없을 수 있음 */ }
             ins_vec.run(rowid, buf);
