@@ -137,6 +137,7 @@ const createMockDeps = (): ExecuteDispatcherDeps => ({
   log_event: vi.fn(),
   build_identity_reply: vi.fn(() => "who are you?"),
   build_system_prompt: vi.fn(async () => "system prompt"),
+  get_security_policy: () => "# Security Override Policy\n- Test policy",
   generate_guard_summary: vi.fn(async () => "summary"),
   run_once: vi.fn(async () => ({ reply: "once result", mode: "once", tool_calls_count: 0, streamed: false })),
   run_agent_loop: vi.fn(async () => ({ reply: "agent result", mode: "agent", tool_calls_count: 0, streamed: false })),
@@ -1129,9 +1130,9 @@ describe("PCH-1: system_prompt_override 보안 정책 주입", () => {
     expect(buildSpy).toHaveBeenCalled();
   });
 
-  it("get_security_policy 미설정 시 override가 그대로 사용된다", async () => {
+  it("보안 정책은 항상 prepend된다 (bypass 불가)", async () => {
     const deps = createMockDeps();
-    // get_security_policy 설정 안 함 (undefined)
+    deps.get_security_policy = () => "# Security Policy\n- No bypass";
 
     const runOnceSpy = vi.fn(async (args: RunExecutionArgs) => ({
       reply: "ok",
@@ -1151,6 +1152,8 @@ describe("PCH-1: system_prompt_override 보안 정책 주입", () => {
     await execute_dispatch(deps, overrideReq, mockPreflight);
 
     const captured = runOnceSpy.mock.calls[0][0].system_base;
-    expect(captured).toBe("Raw override");
+    expect(captured).toContain("# Security Policy");
+    expect(captured).toContain("Raw override");
+    expect(captured.indexOf("Security Policy")).toBeLessThan(captured.indexOf("Raw override"));
   });
 });
