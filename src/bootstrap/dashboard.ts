@@ -226,14 +226,20 @@ export function create_dashboard_bundle(deps: DashboardBundleDeps): DashboardBun
       store: agent_definition_store,
       generate_fn: async (prompt, scope, explicit_provider_id) => {
         const chat_provider = find_scoped_chat_provider(provider_store, scope);
+        // 사용자 프롬프트 언어 감지 → 응답 언어 지시
+        const has_korean = /[가-힣]/.test(prompt);
+        const lang_instruction = has_korean
+          ? "IMPORTANT: All string values in the JSON MUST be written in Korean (한국어). Field names remain in English."
+          : "";
         const gen_messages = [
           {
             role: "user" as const,
             content: `IMPORTANT: Do NOT use any tools. Respond with plain text only.
 
 You are an AI agent designer. Given a description, output a JSON object with these exact fields:
-{"name":"string","description":"string (one-line Use when... summary)","icon":"single emoji","role_skill":"string|null (e.g. role:pm, role:implementer, or null if custom)","soul":"string (persona/character)","heart":"string (behavior/manner)","tools":["string array"],"shared_protocols":["string array from: clarification-protocol,phase-gates,error-escalation,session-metrics,difficulty-guide"],"skills":[],"use_when":"string","not_use_for":"string","extra_instructions":"","preferred_providers":[],"model":null}
+{"name":"string","description":"string (one-line summary)","icon":"single emoji","role_skill":"string|null (e.g. role:pm, role:implementer, or null if custom)","soul":"string (persona/character)","heart":"string (behavior/manner)","tools":["string array"],"shared_protocols":["string array from: clarification-protocol,phase-gates,error-escalation,session-metrics,difficulty-guide"],"skills":[],"use_when":"string","not_use_for":"string","extra_instructions":"","preferred_providers":[],"model":null}
 
+${lang_instruction}
 Output ONLY the JSON object, no markdown, no explanation.
 
 Description: ${prompt}`,
