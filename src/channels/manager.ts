@@ -218,7 +218,7 @@ export class ChannelManager implements ServiceLike {
     });
     this.inbound_debouncer.set_handler((chat_key, items) => {
       const combined = InboundDebouncer.merge(items);
-      const task = this.inbound_lanes.execute(chat_key, () => this.handle_inbound_message(combined))
+      const task = this.inbound_lanes.execute(chat_key, (release) => this.handle_inbound_message(combined, release))
         .catch((e) => {
           if (error_message(e) !== "queue_cap_exceeded") {
             this.logger.error("inbound debounced handler failed", { error: error_message(e) });
@@ -361,7 +361,7 @@ export class ChannelManager implements ServiceLike {
     return true;
   }
 
-  async handle_inbound_message(message: InboundMessage): Promise<void> {
+  async handle_inbound_message(message: InboundMessage, release_concurrency?: () => void): Promise<void> {
     if (this._should_ignore(message)) return;
     const provider = resolve_provider(message);
     if (!provider) return;
@@ -392,7 +392,7 @@ export class ChannelManager implements ServiceLike {
         if (resumed) {
           this.logger.info("task resumed after approval", { task_id: approval.task_id });
           await this.send_outbound(provider, message, this.config.defaultAlias, this.render_msg({ kind: "approval_resumed" }, ck), { kind: "approval_resume_ack" });
-          await this.invoke_and_reply(provider, message, this.config.defaultAlias, approval.task_id, inbound_span.span.span_id, inbound_corr);
+          await this.invoke_and_reply(provider, message, this.config.defaultAlias, approval.task_id, inbound_span.span.span_id, inbound_corr, release_concurrency);
         } else {
           this.logger.warn("approval_resume_failed", { task_id: approval.task_id });
           await this.send_outbound(provider, message, this.config.defaultAlias, this.render_msg({ kind: "approval_resume_failed" }, ck), { kind: "approval_resume_failed" });
@@ -425,7 +425,7 @@ export class ChannelManager implements ServiceLike {
         }
         this.logger.info("guard_confirmed", { provider, chat_id: message.chat_id });
         const original: InboundMessage = { ...message, content: guard_result.original_text };
-        await this.invoke_and_reply(provider, original, this.config.defaultAlias, undefined, inbound_span.span.span_id, inbound_corr);
+        await this.invoke_and_reply(provider, original, this.config.defaultAlias, undefined, inbound_span.span.span_id, inbound_corr, release_concurrency);
         return;
       }
       // null → pending 만료 또는 무관한 텍스트 → 정상 플로우로 계속
@@ -438,7 +438,7 @@ export class ChannelManager implements ServiceLike {
     const resume = await this.task_resume.try_resume(provider, message);
     if (resume?.resumed) {
       this.logger.info("task resumed from referenced message", { task_id: resume.task_id, previous_status: resume.previous_status });
-      await this.invoke_and_reply(provider, message, this.config.defaultAlias, resume.task_id, inbound_span.span.span_id, inbound_corr);
+      await this.invoke_and_reply(provider, message, this.config.defaultAlias, resume.task_id, inbound_span.span.span_id, inbound_corr, release_concurrency);
       return;
     }
     if (resume?.referenced_context) {
@@ -448,7 +448,7 @@ export class ChannelManager implements ServiceLike {
         ...message,
         content: `${resume.referenced_context}\n\n[현재 요청]\n${String(message.content || "").trim()}`,
       };
-      await this.invoke_and_reply(provider, enriched, this.config.defaultAlias, undefined, inbound_span.span.span_id, inbound_corr);
+      await this.invoke_and_reply(provider, enriched, this.config.defaultAlias, undefined, inbound_span.span.span_id, inbound_corr, release_concurrency);
       return;
     }
 
@@ -492,7 +492,7 @@ export class ChannelManager implements ServiceLike {
         if (owner && owner.toLowerCase() !== this.config.defaultAlias.toLowerCase()) return;
       }
 
-      await this.invoke_and_reply(provider, message, this.config.defaultAlias, undefined, inbound_span.span.span_id, inbound_corr);
+      await this.invoke_and_reply(provider, message, this.config.defaultAlias, undefined, inbound_span.span.span_id, inbound_corr, release_concurrency);
     } finally {
       await this.registry.set_typing(channel_id, message.chat_id, false, anchor_ts);
     }
@@ -531,8 +531,8 @@ export class ChannelManager implements ServiceLike {
                   if (trigger_msg) {
                     this.logger.info("task resumed after reaction approval", { task_id: rxn_result.task_id });
                     const rkey = `${trigger_msg.instance_id || provider}:${trigger_msg.chat_id}`;
-                    this.inbound_lanes.execute(rkey, () =>
-                      this.invoke_and_reply(provider, trigger_msg, this.config.defaultAlias, rxn_result.task_id),
+                    this.inbound_lanes.execute(rkey, (release) =>
+                      this.invoke_and_reply(provider, trigger_msg, this.config.defaultAlias, rxn_result.task_id, undefined, undefined, release),
                     ).catch((e) => this.logger.error("reaction resume failed", { error: error_message(e) }));
                   }
                 } else {
@@ -601,7 +601,7 @@ export class ChannelManager implements ServiceLike {
           this.inbound_debouncer.push(chat_key, msg);
           continue;
         }
-        const task = this.inbound_lanes.execute(chat_key, () => this.handle_inbound_message(msg))
+        const task = this.inbound_lanes.execute(chat_key, (release) => this.handle_inbound_message(msg, release))
           .then(() => lease.ack())
           .catch((e) => {
             if (error_message(e) === "queue_cap_exceeded") {
@@ -622,7 +622,7 @@ export class ChannelManager implements ServiceLike {
           this.inbound_debouncer.push(chat_key, msg);
           continue;
         }
-        const task = this.inbound_lanes.execute(chat_key, () => this.handle_inbound_message(msg))
+        const task = this.inbound_lanes.execute(chat_key, (release) => this.handle_inbound_message(msg, release))
           .catch((e) => {
             if (error_message(e) !== "queue_cap_exceeded") {
               this.logger.error("inbound handler failed", { error: error_message(e) });
@@ -655,7 +655,7 @@ export class ChannelManager implements ServiceLike {
     }
   }
 
-  private async invoke_and_reply(provider: ChannelProvider, message: InboundMessage, alias: string, resumed_task_id?: string, parent_span_id?: string, inbound_correlation?: import("../observability/correlation.js").CorrelationContext): Promise<void> {
+  private async invoke_and_reply(provider: ChannelProvider, message: InboundMessage, alias: string, resumed_task_id?: string, parent_span_id?: string, inbound_correlation?: import("../observability/correlation.js").CorrelationContext, release_concurrency?: () => void): Promise<void> {
     const tid = String(message.thread_id || "").trim();
     if (tid && this.thread_ownership) {
       this.thread_ownership.claim(provider, message.chat_id, tid, alias);
@@ -735,6 +735,16 @@ export class ChannelManager implements ServiceLike {
       const corr_log = this.logger.child("orchestration", correlation_to_log_context(correlation));
       corr_log.info("orchestration_start", { alias });
 
+      // Early release: 첫 스트리밍 청크 도착 시 세마포어 조기 해제
+      // → 스트리밍 중에도 다른 세션/채널의 요청을 수용
+      let concurrency_released = false;
+      const try_release = () => {
+        if (!concurrency_released && release_concurrency) {
+          concurrency_released = true;
+          release_concurrency();
+        }
+      };
+
       const result = await this.orchestration.execute({
         message, alias, provider, media_inputs,
         session_history: history,
@@ -747,7 +757,7 @@ export class ChannelManager implements ServiceLike {
         system_prompt_override,
         workspace_override,
         user_dir_override: workspace_override,
-        on_stream: (chunk) => renderer.on_text_chunk(chunk),
+        on_stream: (chunk) => { try_release(); renderer.on_text_chunk(chunk); },
         on_progress: (event) => {
           // H-2: message.team_id는 validation 통과 보장 (bus publish 전 주입됨)
           this.bus.publish_progress({ ...event, team_id: message.team_id }).catch((e) =>
@@ -755,12 +765,13 @@ export class ChannelManager implements ServiceLike {
           );
         },
         on_agent_event: (event) => {
+          try_release();
           this.on_agent_event?.(event, msg_team_id);
           const stream_ev = agent_event_to_stream(event);
           if (stream_ev) renderer.on_stream_event(stream_ev);
         },
-        on_stream_event: (event) => renderer.on_stream_event(event),
-        on_tool_block: (name) => renderer.on_tool_start(name),
+        on_stream_event: (event) => { try_release(); renderer.on_stream_event(event); },
+        on_tool_block: (name) => { try_release(); renderer.on_tool_start(name); },
         signal: abort.signal,
         register_send_input: (cb) => { active_run.send_input = cb; },
       });

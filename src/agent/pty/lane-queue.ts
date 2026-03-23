@@ -100,12 +100,22 @@ export class LaneQueue {
     return lane;
   }
 
-  /** 직렬화된 실행. 같은 세션의 동시 호출이 순서대로 실행. 글로벌 세마포어로 전체 동시성 제한. */
-  async execute<T>(session_key: string, task: () => Promise<T>): Promise<T> {
-    const run = () => this.resolve_lane(session_key).enqueue(task);
-    if (!this.global_semaphore) return run();
+  /** 직렬화된 실행. 같은 세션의 동시 호출이 순서대로 실행. 글로벌 세마포어로 전체 동시성 제한.
+   *  task에 release_concurrency 콜백을 전달하면, 스트리밍 시작 등 적절한 시점에 세마포어를 조기 해제할 수 있다.
+   *  호출하지 않으면 태스크 완료 시 자동 해제 (기존 동작 유지). */
+  async execute<T>(session_key: string, task: (release_concurrency: () => void) => Promise<T>): Promise<T> {
+    const noop = () => {};
+    if (!this.global_semaphore) {
+      return this.resolve_lane(session_key).enqueue(() => task(noop));
+    }
     const release = await this.global_semaphore.acquire();
-    try { return await run(); } finally { release(); }
+    let released = false;
+    const release_once = () => { if (!released) { released = true; release(); } };
+    try {
+      return await this.resolve_lane(session_key).enqueue(() => task(release_once));
+    } finally {
+      release_once();
+    }
   }
 
   /** 현재 턴 완료 후 전달할 메시지를 큐잉. */
