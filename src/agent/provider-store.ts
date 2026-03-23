@@ -188,14 +188,14 @@ export class AgentProviderStore {
       scope_filter.forEach((s, i) => { params[`st${i}`] = s.scope_type; params[`si${i}`] = s.scope_id; });
       const rows = db.prepare(sql).all(params) as ProviderRow[];
       return rows.map(row_to_config);
-    }, { pragmas: PRAGMAS }) ?? [];
+    }, { pragmas: PRAGMAS, readonly: true }) ?? [];
   }
 
   get(instance_id: string): AgentProviderConfig | null {
     return with_sqlite(this.db_path, (db) => {
       const row = db.prepare("SELECT * FROM agent_providers WHERE instance_id = ?").get(instance_id) as ProviderRow | undefined;
       return row ? row_to_config(row) : null;
-    }, { pragmas: PRAGMAS }) ?? null;
+    }, { pragmas: PRAGMAS, readonly: true }) ?? null;
   }
 
   /** enabled + 해당 모드를 지원하는 프로바이더 목록. priority ASC 정렬. */
@@ -216,7 +216,7 @@ export class AgentProviderStore {
     return with_sqlite(this.db_path, (db) => {
       const row = db.prepare("SELECT COUNT(*) as cnt FROM agent_providers").get() as { cnt: number };
       return row.cnt;
-    }, { pragmas: PRAGMAS }) ?? 0;
+    }, { pragmas: PRAGMAS, readonly: true }) ?? 0;
   }
 
   // ── 쓰기 ──
@@ -351,14 +351,14 @@ export class AgentProviderStore {
     return with_sqlite(this.db_path, (db) => {
       const rows = db.prepare("SELECT * FROM provider_connections ORDER BY created_at ASC").all() as ConnectionRow[];
       return rows.map(row_to_connection);
-    }, { pragmas: PRAGMAS }) ?? [];
+    }, { pragmas: PRAGMAS, readonly: true }) ?? [];
   }
 
   get_connection(connection_id: string): ProviderConnection | null {
     return with_sqlite(this.db_path, (db) => {
       const row = db.prepare("SELECT * FROM provider_connections WHERE connection_id = ?").get(connection_id) as ConnectionRow | undefined;
       return row ? row_to_connection(row) : null;
-    }, { pragmas: PRAGMAS }) ?? null;
+    }, { pragmas: PRAGMAS, readonly: true }) ?? null;
   }
 
   upsert_connection(input: CreateProviderConnectionInput): void {
@@ -417,7 +417,7 @@ export class AgentProviderStore {
     return with_sqlite(this.db_path, (db) => {
       const row = db.prepare("SELECT COUNT(*) as cnt FROM agent_providers WHERE connection_id = ?").get(connection_id) as { cnt: number };
       return row.cnt;
-    }, { pragmas: PRAGMAS }) ?? 0;
+    }, { pragmas: PRAGMAS, readonly: true }) ?? 0;
   }
 
   // ── Connection 토큰 (vault 위임) ──

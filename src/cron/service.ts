@@ -586,7 +586,7 @@ export class CronService implements CronScheduler, ServiceLike {
         retry_max_retries, retry_backoff_ms
       FROM cron_jobs
       ORDER BY created_at_ms ASC
-    `).all() as CronDbRow[]) || [];
+    `).all() as CronDbRow[], { readonly: true }) || [];
     this._store = {
       version: 1,
       jobs: rows.map((row) => _row_to_job(row)),

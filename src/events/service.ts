@@ -84,6 +84,10 @@ export class WorkflowEventService implements WorkflowEventServiceLike {
     return with_sqlite(this.sqlite_path, run, { pragmas: ["foreign_keys=ON"] });
   }
 
+  private read_sqlite<T>(run: (db: DatabaseSync) => T): T | null {
+    return with_sqlite(this.sqlite_path, run, { pragmas: ["foreign_keys=ON"], readonly: true });
+  }
+
   private write_sqlite<T>(run: (db: DatabaseSync) => T): T {
     return with_sqlite_strict(this.sqlite_path, run, { pragmas: ["foreign_keys=ON"] });
   }
@@ -277,7 +281,7 @@ export class WorkflowEventService implements WorkflowEventServiceLike {
     await this.initialized;
     return this.enqueue_write(async () => {
       const event_id = normalize_text(input.event_id) || short_id();
-      const existing = this.with_sqlite((db) => db.prepare(`
+      const existing = this.read_sqlite((db) => db.prepare(`
         SELECT event_id, run_id, task_id, agent_id, phase, summary, payload_json, provider, channel, chat_id, thread_id, source, detail_file, at, team_id
         FROM workflow_events
         WHERE event_id = ?
@@ -401,7 +405,7 @@ export class WorkflowEventService implements WorkflowEventServiceLike {
       "LIMIT ? OFFSET ?",
     ].filter(Boolean).join(" ");
     params.push(limit, offset);
-    const rows = this.with_sqlite((db) => db.prepare(sql).all(...params) as DbEventRow[]) || [];
+    const rows = this.read_sqlite((db) => db.prepare(sql).all(...params) as DbEventRow[]) || [];
     const out: WorkflowEvent[] = [];
     for (const row of rows) {
       const event = this.row_to_event(row);
@@ -413,7 +417,7 @@ export class WorkflowEventService implements WorkflowEventServiceLike {
   async read_task_detail(task_id: string): Promise<string> {
     const id = normalize_text(task_id);
     if (!id) return "";
-    const row = this.with_sqlite((db) => db.prepare(`
+    const row = this.read_sqlite((db) => db.prepare(`
       SELECT content
       FROM workflow_task_details
       WHERE task_id = ?

@@ -199,7 +199,7 @@ export class DecisionStore {
       SELECT record_json
       FROM decisions
       ORDER BY updated_at ASC
-    `).all() as Array<{ record_json: string }>) || [];
+    `).all() as Array<{ record_json: string }>, { readonly: true }) || [];
     for (const row of rows) {
       try {
         const record = JSON.parse(String(row.record_json || "")) as DecisionRecord;
