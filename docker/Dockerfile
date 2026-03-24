@@ -77,9 +77,12 @@ RUN npm run build
 # web/ 변경 시에만 재빌드. src/만 변경 시 build-backend만 재실행.
 FROM deps AS build-web
 
+# web/ 소스만 복사 (node_modules는 deps 스테이지에서 이미 설치됨)
+COPY web/src/ web/src/
+COPY web/index.html web/tsconfig.json web/vite.config.ts web/
+COPY web/package.json web/
 COPY src/ src/
-COPY web/ web/
-RUN cd web && npx vite build
+RUN cd web && ./node_modules/.bin/vite build
 
 # ═══════════════════════════════════════════════════════════════════
 # L3: 런타임 기반 (소스와 완전 독립 — 항상 캐시)
