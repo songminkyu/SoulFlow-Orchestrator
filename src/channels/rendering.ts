@@ -356,9 +356,10 @@ function escape_html_attr(input: string): string {
 // ── 채널별 메시지 길이 한도 + 마크다운 분할 ──
 
 const PROVIDER_MAX_LENGTH: Record<string, number> = {
-  discord: 1950,   // 2000 - 멘션 여유
-  slack: 3800,     // ~4000
-  telegram: 4000,  // 4096 - 태그 여유
+  discord: 1950,      // 2000 - 멘션 여유
+  slack: 3800,        // ~4000
+  telegram: 4000,     // 4096 - 태그 여유
+  mattermost: 4000,   // 16383 실제 한도, 가독성 위해 보수적
   web: 20_000,
 };
 const DEFAULT_MAX_LENGTH = 1950;

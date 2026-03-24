@@ -4,7 +4,7 @@ import type { CommandDescriptor } from "./commands/registry.js";
 /** 채널 프로바이더 식별자. 동적 프로바이더 지원을 위해 string으로 확장. */
 export type ChannelProvider = string;
 
-const KNOWN_PROVIDERS = new Set(["slack", "discord", "telegram", "web"]);
+const KNOWN_PROVIDERS = new Set(["slack", "discord", "telegram", "mattermost", "web"]);
 
 /** 알려진 빌트인 프로바이더인지 검사. */
 export function is_known_provider(provider: string): boolean {

@@ -4,8 +4,11 @@ import { tmpdir } from "node:os";
 import { validate_file_path } from "../utils/path-validation.js";
 import type { InboundMessage, MediaItem, OutboundMessage, RichAction, RichEmbed } from "../bus/types.js";
 import { now_iso, error_message, short_id } from "../utils/common.js";
-import { BaseChannel } from "./base.js";
+import { BaseChannel, truncate_inbound_content } from "./base.js";
 import { channel_fetch, parse_json_response } from "./http-utils.js";
+import { create_logger } from "../logger.js";
+
+const _inbound_log = create_logger("mattermost-inbound");
 import type { MattermostChannelSettings } from "./settings.types.js";
 
 type MattermostChannelOptions = {
@@ -23,7 +26,7 @@ function to_inbound_message(
   raw: Record<string, unknown>,
   chat_id: string,
 ): InboundMessage {
-  const content = String(raw.message || "");
+  const content = truncate_inbound_content(String(raw.message || ""), _inbound_log, { provider: "mattermost", chat_id });
   const command = channel.parse_command(content);
   const mentions = channel.parse_agent_mentions(content);
   const props = (raw.props && typeof raw.props === "object" ? raw.props : {}) as Record<string, unknown>;
@@ -89,11 +92,10 @@ export class MattermostChannel extends BaseChannel {
       const resp = await channel_fetch(`${this.api_base}/api/v4/users/me`, {
         headers: this.headers(),
       });
+      const me = await resp.json().catch(() => ({})) as Record<string, unknown>;
       if (!resp.ok) {
-        const data = await parse_json_response(resp);
-        throw new Error(`auth_failed: ${data.message || resp.status}`);
+        throw new Error(`auth_failed: ${(me as Record<string, unknown>).message || resp.status}`);
       }
-      const me = await resp.json() as Record<string, unknown>;
       this.log.info("started", {
         instance_id: this.instance_id,
         bot_id: me.id,
@@ -143,7 +145,7 @@ export class MattermostChannel extends BaseChannel {
 
       // 긴 텍스트 → 파일 fallback
       if (text.length >= file_threshold) {
-        const notice = await this.create_post(chat_id, `본문이 길어 첨부 파일로 전송했습니다. (${text.length} chars)`, {
+        const notice = await this.create_post(chat_id, `Content sent as file attachment (${text.length} chars)`, {
           root_id: message.reply_to,
         });
         first_id = notice.message_id || "";
