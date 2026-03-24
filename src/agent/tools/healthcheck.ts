@@ -3,6 +3,7 @@
 import { Tool } from "./base.js";
 import type { JsonSchema } from "./types.js";
 import { error_message } from "../../utils/common.js";
+import { validate_url, PRIVATE_HOST_RE } from "./http-utils.js";
 
 export class HealthcheckTool extends Tool {
   readonly name = "healthcheck";
@@ -65,9 +66,11 @@ export class HealthcheckTool extends Tool {
   }
 
   private async check_http(url: string, timeout: number, expected: number): Promise<Record<string, unknown>> {
+    const url_check = validate_url(url);
+    if (typeof url_check === "string") return { healthy: false, error: url_check, url };
     const start = Date.now();
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(timeout), method: "GET", redirect: "follow" });
+      const res = await fetch(url, { signal: AbortSignal.timeout(timeout), method: "GET", redirect: "manual" });
       const latency = Date.now() - start;
       return { healthy: res.status === expected, status: res.status, latency_ms: latency, url };
     } catch (e) {
@@ -76,6 +79,9 @@ export class HealthcheckTool extends Tool {
   }
 
   private async check_tcp(host: string, port: number, timeout: number): Promise<Record<string, unknown>> {
+    const h = host.trim().toLowerCase();
+    if (!h) return { healthy: false, host, port, error: "host is required" };
+    if (PRIVATE_HOST_RE.test(h) || h.endsWith(".local")) return { healthy: false, host, port, error: "private/loopback host blocked" };
     const { createConnection } = await import("node:net");
     const start = Date.now();
     return new Promise((resolve) => {
@@ -95,6 +101,9 @@ export class HealthcheckTool extends Tool {
   }
 
   private async check_dns(host: string): Promise<Record<string, unknown>> {
+    const h = host.trim().toLowerCase();
+    if (!h) return { healthy: false, host, error: "host is required" };
+    if (PRIVATE_HOST_RE.test(h) || h.endsWith(".local")) return { healthy: false, host, error: "private/loopback host blocked" };
     const { promises: dns } = await import("node:dns");
     const start = Date.now();
     try {

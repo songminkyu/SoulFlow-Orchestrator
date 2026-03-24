@@ -8,6 +8,10 @@ import type {
   ProgressEvent,
 } from "./types.js";
 import { validate_message, validate_progress } from "./validation.js";
+import { create_logger } from "../logger.js";
+import { error_message } from "../utils/common.js";
+
+const _bus_log = create_logger("in-memory-bus");
 
 type Waiter<T> = (message: T | null) => void;
 
@@ -103,6 +107,7 @@ export class InMemoryMessageBus implements MessageBusRuntime {
   private readonly progress_waiters: Array<Waiter<ProgressEvent>> = [];
   private readonly observers: MessageBusObserver[] = [];
   private _closed = false;
+  private _observer_errors = 0;
 
   constructor(options?: MessageBusOptions) {
     const cap = Math.max(1, options?.max_queue_size ?? DEFAULT_MAX_QUEUE_SIZE);
@@ -120,14 +125,14 @@ export class InMemoryMessageBus implements MessageBusRuntime {
     if (this._closed) return;
     validate_message("inbound", message);
     this._publish(message, this.inbound_queue, this.inbound_waiters);
-    for (const fn of this.observers) try { fn("inbound", message); } catch { /* noop */ }
+    for (const fn of this.observers) try { fn("inbound", message); } catch (e) { this._observer_errors++; _bus_log.warn("observer error (inbound)", { error: error_message(e) }); }
   }
 
   async publish_outbound(message: OutboundMessage): Promise<void> {
     if (this._closed) return;
     validate_message("outbound", message);
     this._publish(message, this.outbound_queue, this.outbound_waiters);
-    for (const fn of this.observers) try { fn("outbound", message); } catch { /* noop */ }
+    for (const fn of this.observers) try { fn("outbound", message); } catch (e) { this._observer_errors++; _bus_log.warn("observer error (outbound)", { error: error_message(e) }); }
   }
 
   async consume_inbound(options?: ConsumeMessageOptions): Promise<InboundMessage | null> {
@@ -166,6 +171,7 @@ export class InMemoryMessageBus implements MessageBusRuntime {
       outbound: { depth: this.outbound_queue.length, overflow: this.outbound_queue.overflow_count },
       progress: { depth: this.progress_queue.length, overflow: this.progress_queue.overflow_count },
       capacity: this.inbound_queue.capacity,
+      observer_errors: this._observer_errors,
     };
   }
 

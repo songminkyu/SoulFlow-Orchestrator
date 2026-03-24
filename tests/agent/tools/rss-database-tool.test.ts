@@ -317,6 +317,24 @@ describe("DatabaseTool — explain", () => {
     const r = await make_db_tool().execute({ operation: "explain", datasource: "testdb", sql: "" });
     expect(r).toContain("Error");
   });
+
+  it("세미콜론 주입 → 차단", async () => {
+    const r = await make_db_tool().execute({ operation: "explain", datasource: "testdb", sql: "SELECT 1; DROP TABLE users;" });
+    expect(r).toContain("Error");
+    expect(r).toContain("multiple SQL statements");
+  });
+
+  it("DML (DELETE) explain → 차단", async () => {
+    const r = await make_db_tool().execute({ operation: "explain", datasource: "testdb", sql: "DELETE FROM users WHERE 1=1" });
+    expect(r).toContain("Error");
+    expect(r).toContain("SELECT/WITH");
+  });
+
+  it("SQL 코멘트 주입 → 차단", async () => {
+    const r = await make_db_tool().execute({ operation: "explain", datasource: "testdb", sql: "SELECT 1 -- injected" });
+    expect(r).toContain("Error");
+    expect(r).toContain("comments not allowed");
+  });
 });
 
 describe("DatabaseTool — unsupported operation", () => {

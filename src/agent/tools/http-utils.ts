@@ -6,7 +6,13 @@ import { create_guard_from_integration_settings } from "../../security/outbound-
 export const PRIVATE_HOST_RE =
   /^(localhost|127\.\d+\.\d+\.\d+|::1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+|169\.254\.\d+\.\d+|fc[0-9a-f]{2}:.*|fd[0-9a-f]{2}:.*|fe80:.*)$/i;
 
-/** URL 파싱 + 프로토콜/SSRF 검증. 실패 시 에러 문자열 반환. */
+/** 내부 서비스로의 SSRF를 차단할 위험 포트. */
+const BLOCKED_PORTS = new Set([
+  22, 25, 53, 111, 135, 136, 137, 138, 139, 445,     // SSH, SMTP, DNS, RPC, SMB
+  3306, 5432, 6379, 6380, 9200, 9300, 27017, 11211,   // MySQL, PG, Redis, ES, Mongo, Memcached
+]);
+
+/** URL 파싱 + 프로토콜/호스트/포트 SSRF 검증. 실패 시 에러 문자열 반환. */
 export function validate_url(url_str: string): URL | string {
   if (!url_str) return "url is required";
   let parsed: URL;
@@ -23,7 +29,39 @@ export function validate_url(url_str: string): URL | string {
   if (PRIVATE_HOST_RE.test(hostname) || hostname.endsWith(".local")) {
     return `private/loopback host blocked "${parsed.hostname}"`;
   }
+  // 명시적 포트가 있으면 위험 포트 차단
+  if (parsed.port && BLOCKED_PORTS.has(Number(parsed.port))) {
+    return `blocked port ${parsed.port} (internal service)`;
+  }
   return parsed;
+}
+
+const MAX_REDIRECTS = 5;
+
+/**
+ * 리다이렉트를 수동 추적하면서 매 hop마다 SSRF 재검증하는 안전한 fetch.
+ * healthcheck·RSS 등 도구에서 사용.
+ */
+export async function safe_fetch(url: string, init: RequestInit & { timeout_ms?: number } = {}): Promise<Response> {
+  let current = url;
+  for (let i = 0; i <= MAX_REDIRECTS; i++) {
+    const check = validate_url(current);
+    if (typeof check === "string") throw new Error(`SSRF blocked: ${check}`);
+    const res = await fetch(current, {
+      ...init,
+      redirect: "manual",
+      signal: init.timeout_ms ? AbortSignal.timeout(init.timeout_ms) : init.signal,
+    });
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get("location");
+      if (!location) return res;
+      // 상대 URL 처리
+      current = new URL(location, current).href;
+      continue;
+    }
+    return res;
+  }
+  throw new Error(`too many redirects (max ${MAX_REDIRECTS})`);
 }
 
 /**
@@ -102,7 +140,7 @@ export async function format_response(res: Response, max_chars: number): Promise
   } satisfies HttpResponseSummary);
 }
 
-/** 타임아웃 fetch. */
+/** 타임아웃 fetch. redirect: manual로 SSRF 리다이렉트 공격 차단. */
 export function timed_fetch(
   url: string,
   opts: { method: string; headers: Record<string, string>; body?: string; timeout_ms: number },
@@ -111,6 +149,7 @@ export function timed_fetch(
     method: opts.method,
     headers: opts.headers,
     body: opts.body,
+    redirect: "manual",
     signal: AbortSignal.timeout(opts.timeout_ms),
   });
 }

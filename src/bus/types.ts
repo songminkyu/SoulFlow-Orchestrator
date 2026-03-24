@@ -139,6 +139,10 @@ export type BusMetrics = {
   pending_count?: number;
   oldest_pending_age_ms?: number;
   consumer_lag?: number;
+  /** 옵저버 콜백 에러 누적 카운터. */
+  observer_errors?: number;
+  /** ACK 실패 누적 카운터. */
+  ack_failures?: number;
 };
 
 /* ── 런타임 통합 타입 ── */

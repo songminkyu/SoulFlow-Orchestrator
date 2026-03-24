@@ -57,6 +57,8 @@ export class RedisMessageBus implements MessageBusRuntime, ReliableMessageBus {
   private readonly consumer_name: string;
   private readonly observers: MessageBusObserver[] = [];
   private _closed = false;
+  private _observer_errors = 0;
+  private _ack_failures = 0;
   private bootstrap_done = false;
   private bootstrap_lock: Promise<void> | null = null;
   /** XAUTOCLAIM cursor — stream별로 마지막 scan 위치 추적하여 동일 메시지 반복 claim 방지. */
@@ -140,7 +142,7 @@ export class RedisMessageBus implements MessageBusRuntime, ReliableMessageBus {
   }
 
   private notify_observers(direction: "inbound" | "outbound", message: InboundMessage | OutboundMessage): void {
-    for (const fn of this.observers) try { fn(direction, message); } catch { /* noop */ }
+    for (const fn of this.observers) try { fn(direction, message); } catch (e) { this._observer_errors++; log.warn("observer error", { direction, error: error_message(e) }); }
   }
 
   /* ── publish ── */
@@ -320,12 +322,20 @@ export class RedisMessageBus implements MessageBusRuntime, ReliableMessageBus {
 
   private build_lease<T>(value: T, key: string, group: string, entry_id: string): MessageLease<T> {
     let settled = false;
+    const safe_xack = async (): Promise<void> => {
+      try {
+        await this.client.xack(key, group, entry_id);
+      } catch (e) {
+        this._ack_failures++;
+        log.warn("xack failed — message stays pending until XAUTOCLAIM", { key, group, entry_id, error: error_message(e) });
+      }
+    };
     return {
       value,
       ack: async () => {
         if (settled) return;
         settled = true;
-        await this.client.xack(key, group, entry_id);
+        await safe_xack();
       },
       retry: async (_delay_ms?: number) => {
         // release without ack — 다른 consumer가 claim 가능
@@ -334,7 +344,7 @@ export class RedisMessageBus implements MessageBusRuntime, ReliableMessageBus {
       release: async () => {
         if (settled) return;
         settled = true;
-        await this.client.xack(key, group, entry_id);
+        await safe_xack();
       },
     };
   }
@@ -353,7 +363,7 @@ export class RedisMessageBus implements MessageBusRuntime, ReliableMessageBus {
   }
 
   get_metrics(): BusMetrics {
-    return this.cached_metrics;
+    return { ...this.cached_metrics, observer_errors: this._observer_errors, ack_failures: this._ack_failures };
   }
 
   private start_metrics_refresh(): void {

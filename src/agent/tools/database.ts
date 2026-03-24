@@ -10,6 +10,16 @@ import { existsSync } from "node:fs";
 const MAX_ROWS = 1000;
 const SAFE_NAME = /^[a-zA-Z0-9_-]+$/;
 
+/** 세미콜론/코멘트 기반 SQL 인젝션 방지 (defense-in-depth). */
+function reject_dangerous_sql(sql: string): string | null {
+  if (/;\s*\S/.test(sql)) return "Error: multiple SQL statements not allowed (semicolons detected)";
+  if (/--/.test(sql) || /\/\*/.test(sql)) return "Error: SQL comments not allowed";
+  return null;
+}
+
+/** EXPLAIN은 읽기 전용 쿼리만 허용. */
+const EXPLAIN_ALLOWED_RE = /^\s*(SELECT|WITH)\b/i;
+
 export class DatabaseTool extends Tool {
   readonly name = "database";
   readonly category = "memory" as const;
@@ -55,6 +65,8 @@ export class DatabaseTool extends Tool {
         case "query": {
           const sql = String(params.sql || "").trim();
           if (!sql) return "Error: sql is required";
+          const danger = reject_dangerous_sql(sql);
+          if (danger) return danger;
           const result = with_sqlite(db_path, (db) => {
             const is_select = /^\s*(SELECT|PRAGMA|EXPLAIN|WITH)\b/i.test(sql);
             if (is_select) {
@@ -91,6 +103,9 @@ export class DatabaseTool extends Tool {
         case "explain": {
           const sql = String(params.sql || "").trim();
           if (!sql) return "Error: sql is required";
+          const danger = reject_dangerous_sql(sql);
+          if (danger) return danger;
+          if (!EXPLAIN_ALLOWED_RE.test(sql)) return "Error: EXPLAIN only supports SELECT/WITH queries";
           const result = with_sqlite(db_path, (db) => {
             const plan = db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all();
             return JSON.stringify({ query: sql, plan }, null, 2);

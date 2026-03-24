@@ -31,9 +31,16 @@ describe("HealthcheckTool — http check", () => {
     expect(parsed.healthy).toBe(false);
   });
 
+  it("HTTP 사설 호스트 → healthy=false + SSRF 차단", async () => {
+    const result = await tool.execute({ action: "http", url: "http://localhost:9" });
+    const parsed = JSON.parse(result);
+    expect(parsed.healthy).toBe(false);
+    expect(parsed.error).toContain("private/loopback host blocked");
+  });
+
   it("HTTP 오류 (fetch 예외) → healthy=false + error 포함", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
-    const result = await tool.execute({ action: "http", url: "http://localhost:9" });
+    const result = await tool.execute({ action: "http", url: "http://example.com:9" });
     const parsed = JSON.parse(result);
     expect(parsed.healthy).toBe(false);
     expect(parsed.error).toContain("ECONNREFUSED");
@@ -55,30 +62,35 @@ describe("HealthcheckTool — http check", () => {
 });
 
 describe("HealthcheckTool — tcp check", () => {
-  it("TCP 연결 실패 → healthy=false", async () => {
-    // 연결 불가 포트
+  it("TCP 사설 호스트 → SSRF 차단", async () => {
     const result = await tool.execute({ action: "tcp", host: "localhost", port: 1, timeout_ms: 500 });
     const parsed = JSON.parse(result);
     expect(parsed.healthy).toBe(false);
-    expect(parsed.host).toBe("localhost");
+    expect(parsed.error).toContain("private/loopback host blocked");
+  });
+
+  it("TCP 연결 실패 (외부 호스트) → healthy=false", async () => {
+    const result = await tool.execute({ action: "tcp", host: "example.com", port: 1, timeout_ms: 500 });
+    const parsed = JSON.parse(result);
+    expect(parsed.healthy).toBe(false);
+    expect(parsed.host).toBe("example.com");
     expect(parsed.port).toBe(1);
     expect(typeof parsed.latency_ms).toBe("number");
   });
 
   it("기본 포트=80 사용", async () => {
-    const result = await tool.execute({ action: "tcp", host: "localhost", timeout_ms: 300 });
+    const result = await tool.execute({ action: "tcp", host: "example.com", timeout_ms: 300 });
     const parsed = JSON.parse(result);
     expect(parsed.port).toBe(80);
   });
 });
 
 describe("HealthcheckTool — dns check", () => {
-  it("localhost DNS 조회 (실제 조회)", async () => {
+  it("localhost DNS → SSRF 차단", async () => {
     const result = await tool.execute({ action: "dns", host: "localhost" });
     const parsed = JSON.parse(result);
-    // localhost는 resolve4 실패할 수 있음 - healthy true/false 모두 가능
-    expect(parsed).toHaveProperty("host", "localhost");
-    expect(typeof parsed.latency_ms).toBe("number");
+    expect(parsed.healthy).toBe(false);
+    expect(parsed.error).toContain("private/loopback host blocked");
   });
 
   it("존재하지 않는 호스트 → healthy=false + error", async () => {

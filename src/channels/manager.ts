@@ -223,7 +223,7 @@ export class ChannelManager implements ServiceLike {
       // PCH-L9: flush 시점에 보관된 lease를 ack — reliable bus debounce 경로 데이터 손실 방지
       const leases = this.debounce_leases.get(chat_key) ?? [];
       this.debounce_leases.delete(chat_key);
-      const ack_all = (): Promise<void> => Promise.all(leases.map((l) => l.ack())).then(() => undefined).catch(() => undefined);
+      const ack_all = (): Promise<void> => Promise.all(leases.map((l) => l.ack())).then(() => undefined).catch((e) => { this.logger.warn("debounce ack_all partial failure", { chat_key, error: error_message(e) }); });
       const task = this.inbound_lanes.execute(chat_key, (release) => this.handle_inbound_message(combined, release))
         .then(ack_all)
         .catch((e) => {

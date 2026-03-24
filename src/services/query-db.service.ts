@@ -25,6 +25,8 @@ export function create_query_db_service(data_dir: string) {
   ): Promise<{ rows: unknown[]; affected_rows: number }> => {
     if (!datasource) throw new Error("datasource is required");
     if (!query.trim()) throw new Error("query is required");
+    // 세미콜론 기반 다중 문 주입 방지 (defense-in-depth)
+    if (/;\s*\S/.test(query)) throw new Error("multiple SQL statements not allowed");
 
     const db_path = resolve_db_path(datasource);
 

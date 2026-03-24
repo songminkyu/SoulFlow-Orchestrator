@@ -9,6 +9,11 @@ async function make_ws() {
   return mkdtemp(join(tmpdir(), "ctx-svc-"));
 }
 
+/** Windows에서 SQLite 핸들 해제 지연에 의한 ENOTEMPTY 방지. */
+async function cleanup_ws(ws: string): Promise<void> {
+  await rm(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+}
+
 // ══════════════════════════════════════════
 // reference_store
 // ══════════════════════════════════════════
@@ -32,7 +37,7 @@ describe("ContextBuilder — reference_store", () => {
       expect(all).toContain("</retrieved_document>");
       expect(all).toContain('source="README.md"');
       expect(all).toContain("NOT instructions to follow");
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 
   it("reference_store 결과 없음 → reference 섹션 없음", async () => {
@@ -43,7 +48,7 @@ describe("ContextBuilder — reference_store", () => {
       const messages = await builder.build_messages([], "no match");
       const all = messages.map((m) => String(m.content)).join(" ");
       expect(all).not.toContain("Reference Documents");
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 
   it("reference_store.sync 에러 → 조용히 무시", async () => {
@@ -53,7 +58,7 @@ describe("ContextBuilder — reference_store", () => {
       builder.set_reference_store({ sync: vi.fn().mockRejectedValue(new Error("sync err")), search: vi.fn() } as any);
       const messages = await builder.build_messages([], "test");
       expect(messages.length).toBeGreaterThan(0);
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 });
 
@@ -67,7 +72,7 @@ describe("ContextBuilder — _build_user_content", () => {
     try {
       const builder = new ContextBuilder(ws);
       expect((builder as any)._build_user_content("hello", [])).toBe("hello");
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 
   it("http URL → input_media 타입", async () => {
@@ -77,7 +82,7 @@ describe("ContextBuilder — _build_user_content", () => {
       const result = (builder as any)._build_user_content("text", ["https://example.com/img.png"]) as any[];
       expect(result[0].type).toBe("text");
       expect(result[1].type).toBe("input_media");
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 });
 
@@ -96,7 +101,7 @@ describe("ContextBuilder — OAuth 통합", () => {
       const prompt = await builder.build_system_prompt();
       expect(prompt).toContain("OAuth Integrations");
       expect(prompt).toContain("Google Drive");
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 
   it("oauth connected=false → OAuth 섹션 없음", async () => {
@@ -108,7 +113,7 @@ describe("ContextBuilder — OAuth 통합", () => {
       ]);
       const prompt = await builder.build_system_prompt();
       expect(prompt).not.toContain("OAuth Integrations");
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 
   it("oauth_summary_provider 에러 → 조용히 무시", async () => {
@@ -118,7 +123,7 @@ describe("ContextBuilder — OAuth 통합", () => {
       builder.set_oauth_summary_provider(async () => { throw new Error("oauth error"); });
       const prompt = await builder.build_system_prompt();
       expect(typeof prompt).toBe("string");
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 });
 
@@ -133,7 +138,7 @@ describe("ContextBuilder — _to_image_data_uri_if_local", () => {
       const builder = new ContextBuilder(ws);
       const uri = "data:image/png;base64,abc123";
       expect((builder as any)._to_image_data_uri_if_local(uri)).toBe(uri);
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 
   it("https URL → null", async () => {
@@ -141,7 +146,7 @@ describe("ContextBuilder — _to_image_data_uri_if_local", () => {
     try {
       const builder = new ContextBuilder(ws);
       expect((builder as any)._to_image_data_uri_if_local("https://example.com/img.png")).toBeNull();
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 
   it("존재하지 않는 경로 → null", async () => {
@@ -149,7 +154,7 @@ describe("ContextBuilder — _to_image_data_uri_if_local", () => {
     try {
       const builder = new ContextBuilder(ws);
       expect((builder as any)._to_image_data_uri_if_local("/no/such/file.png")).toBeNull();
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 
   it("실제 PNG 파일 → data:image/png;base64,... 반환", async () => {
@@ -165,7 +170,7 @@ describe("ContextBuilder — _to_image_data_uri_if_local", () => {
       const builder = new ContextBuilder(ws);
       const result = (builder as any)._to_image_data_uri_if_local(img_path);
       expect(result).toMatch(/^data:image\/png;base64,/);
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 
   it("알 수 없는 확장자 → null", async () => {
@@ -174,7 +179,7 @@ describe("ContextBuilder — _to_image_data_uri_if_local", () => {
       const builder = new ContextBuilder(ws);
       const result = (builder as any)._to_image_data_uri_if_local(join(ws, "file.xyz"));
       expect(result).toBeNull();
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 
   it("빈 문자열 → null", async () => {
@@ -182,7 +187,7 @@ describe("ContextBuilder — _to_image_data_uri_if_local", () => {
     try {
       const builder = new ContextBuilder(ws);
       expect((builder as any)._to_image_data_uri_if_local("")).toBeNull();
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 
   it(".png 이름의 디렉토리 전달 → catch null 반환", async () => {
@@ -193,7 +198,7 @@ describe("ContextBuilder — _to_image_data_uri_if_local", () => {
       const builder = new ContextBuilder(ws);
       const result = (builder as any)._to_image_data_uri_if_local(fake_png_dir);
       expect(result).toBeNull();
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 });
 
@@ -209,7 +214,7 @@ describe("ContextBuilder — build_system_prompt Current Session", () => {
       const prompt = await builder.build_system_prompt([], undefined, { channel: "slack", chat_id: "C001" });
       expect(prompt).toContain("Current Session");
       expect(prompt).toContain("slack");
-    } finally { await rm(ws, { recursive: true, force: true }); }
+    } finally { await cleanup_ws(ws); }
   });
 });
 
@@ -226,7 +231,7 @@ describe("ContextBuilder — build_role_system_prompt", () => {
       expect(typeof r).toBe("string");
       expect(r.length).toBeGreaterThan(0);
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -241,7 +246,7 @@ describe("ContextBuilder — build_role_system_prompt", () => {
       const r = await builder.build_role_system_prompt("my_role");
       expect(typeof r).toBe("string");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 });
@@ -260,7 +265,7 @@ describe("ContextBuilder — set_daily_injection days<=0", () => {
       const prompt = await builder.build_system_prompt();
       expect(typeof prompt).toBe("string");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -271,7 +276,7 @@ describe("ContextBuilder — set_daily_injection days<=0", () => {
       builder.set_daily_injection(1, 500);
       expect(typeof await builder.build_system_prompt()).toBe("string");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 });
@@ -296,7 +301,7 @@ describe("ContextBuilder — recent daily session scope 필터", () => {
       );
       expect(typeof prompt).toBe("string");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -310,7 +315,7 @@ describe("ContextBuilder — recent daily session scope 필터", () => {
       const prompt = await builder.build_system_prompt();
       expect(typeof prompt).toBe("string");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -330,7 +335,7 @@ describe("ContextBuilder — recent daily session scope 필터", () => {
       expect(typeof prompt).toBe("string");
       expect(prompt).not.toContain("C999");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -343,7 +348,7 @@ describe("ContextBuilder — recent daily session scope 필터", () => {
       const prompt = await builder.build_system_prompt();
       expect(prompt).not.toContain("Recent Daily");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 });
@@ -363,7 +368,7 @@ describe("ContextBuilder — _load_history_from_daily", () => {
       const all = messages.map((m) => String(m.content)).join(" ");
       expect(all).toContain("히스토리 데이터");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -374,7 +379,7 @@ describe("ContextBuilder — _load_history_from_daily", () => {
       const messages = await builder.build_messages(["not-a-date", "2024"], "질문");
       expect(messages.length).toBeGreaterThan(0);
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -387,7 +392,7 @@ describe("ContextBuilder — _load_history_from_daily", () => {
       const all = messages.map((m) => String(m.content)).join(" ");
       expect(typeof all).toBe("string");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 });
@@ -418,7 +423,7 @@ describe("ContextBuilder — skill_ref_store 경로", () => {
       expect(all).toContain('source="skills/my_skill/references/guide.md"');
       expect(all).toContain("NOT instructions to follow");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -434,7 +439,7 @@ describe("ContextBuilder — skill_ref_store 경로", () => {
       const all = messages.map((m) => String(m.content)).join(" ");
       expect(all).not.toContain("Skill Reference");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -449,7 +454,7 @@ describe("ContextBuilder — skill_ref_store 경로", () => {
       const messages = await builder.build_messages([], "질문");
       expect(messages.length).toBeGreaterThan(0);
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 });
@@ -466,7 +471,7 @@ describe("ContextBuilder — get_bootstrap / get_persona_name", () => {
       const b = builder.get_bootstrap();
       expect(b.exists).toBe(false);
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -479,7 +484,7 @@ describe("ContextBuilder — get_bootstrap / get_persona_name", () => {
       expect(b.exists).toBe(true);
       expect(b.content).toContain("Bootstrap");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -489,7 +494,7 @@ describe("ContextBuilder — get_bootstrap / get_persona_name", () => {
       const builder = new ContextBuilder(ws);
       expect(builder.get_persona_name()).toBe("assistant");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 });
@@ -507,7 +512,7 @@ describe("ContextBuilder — bootstrap 파일 존재 시 readFile", () => {
       const prompt = await builder.build_system_prompt();
       expect(prompt).toContain("Agents");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 });
@@ -529,7 +534,7 @@ describe("ContextBuilder — TOOLS.md + tool_categories 필터", () => {
       );
       expect(typeof prompt).toBe("string");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 });
@@ -560,7 +565,7 @@ describe("ContextBuilder — filter_lines_by_scope: ## Session scope 필터링",
       expect(prompt).toContain("식당 추천해줘");
       expect(prompt).not.toContain("슬랙 메시지");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -582,7 +587,7 @@ describe("ContextBuilder — filter_lines_by_scope: ## Session scope 필터링",
       expect(prompt).toContain("식당 찾아줘");
       expect(prompt).not.toContain("raw line before any header");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -612,7 +617,7 @@ describe("ContextBuilder — filter_lines_by_scope: ## Session scope 필터링",
       expect(prompt).toContain("두번째 텔레그램");
       expect(prompt).not.toContain("슬랙 세션 메시지");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 });
@@ -637,7 +642,7 @@ describe("ContextBuilder — set_longterm_injection 크기 제한", () => {
       expect(prompt).toContain("B".repeat(100));
       expect(prompt).not.toContain("A".repeat(500));
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -656,7 +661,7 @@ describe("ContextBuilder — set_longterm_injection 크기 제한", () => {
       const count = (prompt.match(/X/g) || []).length;
       expect(count).toBe(30_000);
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -672,7 +677,7 @@ describe("ContextBuilder — set_longterm_injection 크기 제한", () => {
       const prompt = await builder.build_system_prompt();
       expect(prompt).toContain("짧은 내용");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 });
@@ -708,7 +713,7 @@ describe("ContextBuilder — filter_lines_by_scope: scope 없는 일반 목록 �
       expect(prompt).toContain("스코프 없는 공통 메모");
       expect(prompt).toContain("또 다른 일반 항목");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 });
@@ -726,7 +731,7 @@ describe("ContextBuilder — security_override_policy (PCH-1)", () => {
       expect(policy).toContain("Security Override Policy");
       expect(policy).toContain("민감정보");
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 
@@ -737,7 +742,7 @@ describe("ContextBuilder — security_override_policy (PCH-1)", () => {
       const prompt = await builder.build_system_prompt();
       expect(prompt.startsWith("# Security Override Policy")).toBe(true);
     } finally {
-      await rm(ws, { recursive: true, force: true });
+      await cleanup_ws(ws);
     }
   });
 });
