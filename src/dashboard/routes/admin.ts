@@ -23,6 +23,9 @@ import { join } from "node:path";
 import type { RouteContext } from "../route-context.js";
 import type { TeamRole } from "../../auth/team-store.js";
 import { sanitize_filename, is_inside } from "../ops/shared.js";
+import { create_logger } from "../../logger.js";
+
+const _admin_log = create_logger("admin-route");
 import type { ApiSecuritySummary, ApiAdminUserList } from "../../contracts/api-responses.js";
 
 const RE_USER       = /^\/api\/admin\/users\/([^/]+)$/;
@@ -133,20 +136,31 @@ export async function handle_admin(ctx: RouteContext): Promise<boolean> {
     const target_user = auth_svc.get_user_by_id(del_m[1]);
     const deleted = auth_svc.delete_user(del_m[1], auth_user.sub);
     if (deleted && target_user) {
-      // GDPR Art.17 / PCH-C3: 사용자 삭제 시 채팅 세션 cascade 삭제
+      // GDPR Art.17 / V2-C2: 사용자 삭제 시 채팅 세션 cascade 삭제
       const session_store = ctx.session_store;
       if (session_store?.list_by_prefix && session_store.delete) {
-        // 모든 팀에서 해당 사용자의 세션 삭제: web:{*team_id*}:{user_id}:* 패턴
-        const all_teams = auth_svc.list_teams();
-        const team_ids = all_teams.map((t) => t.id);
-        // default 팀도 포함
-        if (!team_ids.includes("default")) team_ids.push("default");
-        for (const tid of team_ids) {
-          const prefix = `web:${tid}:${target_user.id}:`;
-          const sessions = await session_store.list_by_prefix(prefix, 1000);
-          for (const s of sessions) {
-            await session_store.delete(s.key);
+        let cascade_count = 0;
+        let cascade_errors = 0;
+        try {
+          const all_teams = auth_svc.list_teams();
+          const team_ids = all_teams.map((t) => t.id);
+          if (!team_ids.includes("default")) team_ids.push("default");
+          for (const tid of team_ids) {
+            const prefix = `web:${tid}:${target_user.id}:`;
+            // 페이징: 1000건씩 반복하여 전체 삭제 (이전 1000건 제한 제거)
+            let batch: Awaited<ReturnType<typeof session_store.list_by_prefix>>;
+            do {
+              batch = await session_store.list_by_prefix(prefix, 500);
+              for (const s of batch) {
+                try { await session_store.delete(s.key); cascade_count++; } catch { cascade_errors++; }
+              }
+            } while (batch.length >= 500);
           }
+        } catch (e) {
+          _admin_log.warn("GDPR cascade partial failure", { user_id: target_user.id, deleted: cascade_count, errors: cascade_errors, error: String(e) });
+        }
+        if (cascade_count > 0 || cascade_errors > 0) {
+          _admin_log.info("GDPR cascade complete", { user_id: target_user.id, sessions_deleted: cascade_count, errors: cascade_errors });
         }
       }
     }
