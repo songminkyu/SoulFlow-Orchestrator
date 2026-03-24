@@ -55,6 +55,9 @@ export class AuthService {
   // ── JWT 시크릿 (lazy init) ──
 
   private _get_jwt_secret(): string {
+    // V2-PR2: env → DB → auto-generate 체인 (컨테이너 환경 시크릿 로테이션 지원)
+    const env_secret = process.env.JWT_SECRET?.trim();
+    if (env_secret) return env_secret;
     let secret = this.store.get_setting("jwt_secret");
     if (!secret) {
       secret = randomBytes(48).toString("hex");

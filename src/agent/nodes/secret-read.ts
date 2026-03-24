@@ -29,6 +29,12 @@ export const secret_read_handler: NodeHandler = {
       /* 환경변수에서 시크릿 읽기 */
       const env_key = ns ? `${ns.toUpperCase()}_${key.toUpperCase()}` : key.toUpperCase();
       const env_val = process.env[env_key];
+      // V2-S1: 시크릿 값을 memory의 _sensitive 목록에 등록 — 다운스트림 로깅 시 마스킹 대상
+      if (env_val) {
+        const sensitive = (ctx.memory._sensitive_values as string[] | undefined) ?? [];
+        sensitive.push(env_val);
+        ctx.memory._sensitive_values = sensitive;
+      }
       return { output: { value: env_val || "", success: !!env_val } };
     } catch (_err) {
       return { output: { value: "", success: false } };
