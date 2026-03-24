@@ -47,6 +47,9 @@ export async function create_message_bus(config: BusFactoryConfig): Promise<Mess
     }
   }
 
+  if (config.backend === "redis") {
+    log.warn("redis backend requested but no valid URL — falling back to in-memory bus. Multi-instance deployments will not share state.");
+  }
   log.info("message bus: memory");
   return new InMemoryMessageBus();
 }

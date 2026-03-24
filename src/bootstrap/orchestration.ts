@@ -324,6 +324,12 @@ export async function create_orchestration_bundle(deps: OrchestrationBundleDeps)
     ),
   });
 
+  // V2-L5: systemPromptMaxTokens < 2000 경고
+  const spt = app_config.orchestration.systemPromptMaxTokens;
+  if (spt > 0 && spt < 2000) {
+    logger.warn(`systemPromptMaxTokens=${spt} is below 2000 — system prompt may be severely truncated`);
+  }
+
   // 팀 스코프: 크론 잡은 팀 멤버 간 공유
   const cron = new CronService(join(deps.ctx.team_runtime, "cron"), create_cron_job_handler({
     config: {
