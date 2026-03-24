@@ -72,7 +72,7 @@ describe("NotificationTool — webhook", () => {
   it("non-http URL → Error 반환", async () => {
     const r = await new NotificationTool().execute({ title: "Alert", webhook_url: "ftp://bad.example.com" });
     expect(r).toContain("Error");
-    expect(r).toContain("http");
+    expect(r).toContain("unsupported protocol");
   });
 
   it("webhook fetch 실패 → failed 반환", async () => {

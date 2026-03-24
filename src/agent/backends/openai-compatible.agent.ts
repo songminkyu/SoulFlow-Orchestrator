@@ -311,7 +311,8 @@ export class OpenAiCompatibleAgent implements AgentBackend {
     let finish_reason = "stop";
     let usage: Record<string, number> = {};
 
-    const reader = res.body!.getReader();
+    if (!res.body) throw new Error(`empty response body from ${this.id} (status=${res.status})`);
+    const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
 

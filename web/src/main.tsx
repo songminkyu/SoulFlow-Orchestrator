@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ToastProvider } from "./components/toast";
 import { I18nProvider } from "./i18n";
 import { router } from "./router";
+import "./styles/fonts.css";
 import "./styles/global.css";
 import "./styles/layout.css";
 import "./styles/workflow.css";

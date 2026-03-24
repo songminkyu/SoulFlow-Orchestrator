@@ -58,6 +58,12 @@ Thumbs.db
 .tmp-root-vitest.json
 NUL
 
+# PCH-D2: 로컬 폰트 파일 (scripts/download-fonts.mjs 로 재생성)
+web/src/assets/fonts/*.woff2
+web/src/assets/fonts/*.woff
+web/src/assets/fonts/*.ttf
+web/src/styles/fonts.css
+
 docs/**/design/improved/**
 docs/**/references/**
 paper/*

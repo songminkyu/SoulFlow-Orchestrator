@@ -58,7 +58,6 @@ async function _run_agent_loop_inner(
         const caps = backend.capabilities;
         // EG-4: native 경로 pre-execution budget 강제
         const base_hooks = deps.hooks_for(stream, args, backend.id, args.tool_ctx.task_id, tools_used);
-        // PCH-Q4: wrap_budget_hooks로 중복 패턴 통합
         const hooks = wrap_budget_hooks(base_hooks, deps.config.max_tool_calls_per_run);
         const result = await deps.agent_backends.run(backend.id, {
           task: args.context_block,

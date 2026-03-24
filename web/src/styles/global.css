@@ -458,13 +458,13 @@ textarea.input {
   min-width: 80px;
 }
 
-.search-input__field::placeholder { color: var(--text-muted); }
+.search-input__field::placeholder { color: var(--muted); }
 
 .search-input__clear {
   flex-shrink: 0;
   border: none;
   background: none;
-  color: var(--text-muted);
+  color: var(--muted);
   cursor: pointer;
   padding: 0 2px;
   font-size: var(--fs-sm);

@@ -266,26 +266,26 @@ function _compute_next_run(schedule: CronSchedule, now: number, on_warn?: (msg: 
         on_warn?.(`timezone parsing failed for tz=${tz}, aborting next-run computation`);
         return null;
       }
-      // 월 불일치 — 다음 달 1일 00:00으로 점프
+      // 월 불일치 — 다음 달 1일 00:00 UTC로 점프 (UTC 기준: tz 변환은 _get_tz_parts가 담당)
       if (!parsed.month.has(parts.month)) {
         const d = new Date(candidate_ms);
-        d.setMonth(d.getMonth() + 1, 1);
-        d.setHours(0, 0, 0, 0);
+        d.setUTCMonth(d.getUTCMonth() + 1, 1);
+        d.setUTCHours(0, 0, 0, 0);
         candidate_ms = d.getTime();
         continue;
       }
-      // 요일 또는 일 불일치 — 다음 날 00:00으로 점프
+      // 요일 또는 일 불일치 — 다음 날 00:00 UTC로 점프
       if (!parsed.day.has(parts.day) || !parsed.weekday.has(parts.weekday)) {
         const d = new Date(candidate_ms);
-        d.setDate(d.getDate() + 1);
-        d.setHours(0, 0, 0, 0);
+        d.setUTCDate(d.getUTCDate() + 1);
+        d.setUTCHours(0, 0, 0, 0);
         candidate_ms = d.getTime();
         continue;
       }
-      // 시 불일치 — 다음 시간 :00분으로 점프
+      // 시 불일치 — 다음 시간 :00분 UTC로 점프
       if (!parsed.hour.has(parts.hour)) {
         const d = new Date(candidate_ms);
-        d.setHours(d.getHours() + 1, 0, 0, 0);
+        d.setUTCHours(d.getUTCHours() + 1, 0, 0, 0);
         candidate_ms = d.getTime();
         continue;
       }

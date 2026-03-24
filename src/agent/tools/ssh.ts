@@ -1,16 +1,14 @@
 /** SSH 도구 — 원격 서버 명령 실행. Node.js child_process + ssh CLI 래퍼. */
 
 import { execFile } from "node:child_process";
+import { resolve, normalize } from "node:path";
 import { Tool } from "./base.js";
+import { PRIVATE_HOST_RE } from "./http-utils.js";
 import type { JsonSchema } from "./types.js";
 
-/** 내부망/루프백/APIPA/클라우드 메타데이터 IP 차단 (CWE-918 SSRF 방어). */
-const PRIVATE_HOST_RE = /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|::1$|fc[0-9a-f]{2}:|fd[0-9a-f]{2}:|fe80:)/i;
-
 function is_private_host(host: string): boolean {
-  // user@host 형식에서 호스트 부분만 추출
   const h = (host.includes("@") ? host.split("@").at(-1) ?? host : host).trim().toLowerCase();
-  return PRIVATE_HOST_RE.test(h);
+  return PRIVATE_HOST_RE.test(h) || h.endsWith(".local");
 }
 
 export class SshTool extends Tool {
@@ -41,6 +39,13 @@ export class SshTool extends Tool {
     if (is_private_host(host)) return "Error: blocked by safety policy (private/internal host)";
     const port = Number(params.port) || 22;
     const identity = params.identity_file ? String(params.identity_file) : null;
+    if (identity) {
+      // 경로 탈출 방지: 상대 경로 또는 민감 경로 차단
+      const norm = normalize(identity);
+      if (norm.includes("..") || norm.startsWith("/etc/") || norm.startsWith("/root/")) {
+        return "Error: identity_file path not allowed (path traversal or sensitive directory)";
+      }
+    }
     const timeout = Math.min(Number(params.timeout_ms) || 30000, 120000);
 
     const base_args = ["-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=10", "-p", String(port)];

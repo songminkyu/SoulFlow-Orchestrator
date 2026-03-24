@@ -584,7 +584,7 @@
   color: var(--muted);
   font-size: var(--fs-sm);
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--duration-fast), color var(--duration-fast);
 }
 .shared-prompt-bar__btn:hover { background: var(--hover); color: var(--text); }
 .shared-prompt-bar__btn--active { background: var(--hover); color: var(--accent); }
@@ -780,17 +780,17 @@
 }
 
 /* ── PCH-F11: Admin page component styles ──────────────────── */
-.admin-members-body { padding: 4px 16px 8px; }
+.admin-members-body { padding: var(--sp-1) var(--sp-4) var(--sp-2); }
 .admin-member-row {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
   padding: 3px 0;
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 .admin-member-name { font-weight: 500; min-width: 80px; }
 .admin-member-role-select {
-  font-size: 11px;
-  padding: 2px 4px;
+  font-size: var(--fs-tiny);
+  padding: 2px var(--sp-1);
   height: 24px;
 }

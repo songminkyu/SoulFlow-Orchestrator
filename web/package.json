@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:analyze": "ANALYZE=true npm run build",
     "preview": "vite preview",
     "lint": "eslint src/",
     "test": "vitest run",
@@ -51,6 +52,7 @@
     "eslint": "^10.0.3",
     "eslint-plugin-react-hooks": "^7.1.0-canary-46103596-20260305",
     "happy-dom": "^20.8.4",
+    "rollup-plugin-visualizer": "^7.0.1",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1"

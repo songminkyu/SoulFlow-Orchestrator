@@ -4,7 +4,6 @@ import { WebSocket } from "ws";
 import { Tool } from "./base.js";
 import type { JsonSchema, ToolExecutionContext } from "./types.js";
 
-/* PCH-S13: 세션 격리 + TTL ─────────────────────────────────────────────── */
 type WsEntry = { ws: WebSocket; messages: string[]; created: number; last_used: number };
 /** 네임스페이스별 연결 풀. 키 형식: `${namespace}:${id}` */
 const connections = new Map<string, WsEntry>();
@@ -12,10 +11,12 @@ const MAX_CONNECTIONS = 10;
 const MAX_MESSAGES = 100;
 /** 30분 미사용 연결 자동 정리 */
 const WS_TTL_MS = 30 * 60_000;
+/** context 없는 경우의 기본 네임스페이스 (team_id/task_id 충돌 방지용 접두사). */
+const WS_GLOBAL_NS = "__global__";
 
-/** context에서 격리 네임스페이스 추출 — team_id > task_id > "global" */
+/** context에서 격리 네임스페이스 추출 — team_id > task_id > fallback */
 function _ns(context?: ToolExecutionContext): string {
-  return context?.team_id ?? context?.task_id ?? "global";
+  return context?.team_id ?? context?.task_id ?? WS_GLOBAL_NS;
 }
 
 /** TTL 초과 연결 정리 (connect 시 호출). */

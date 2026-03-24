@@ -2,13 +2,19 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "node:path";
 
-export default defineConfig(({ command }) => ({
+export default defineConfig(async ({ command }) => ({
   plugins: [
     react({
       babel: {
         plugins: [["babel-plugin-react-compiler", {}]],
       },
     }),
+    // ANALYZE=true 시에만 번들 크기 분석 — dist/stats.html 생성
+    ...(process.env.ANALYZE
+      ? [(await import("rollup-plugin-visualizer")).visualizer({
+          open: true, filename: "../dist/stats.html", gzipSize: true, brotliSize: true,
+        })]
+      : []),
   ],
   base: command === "build" ? "/web/" : "/",
   resolve: {

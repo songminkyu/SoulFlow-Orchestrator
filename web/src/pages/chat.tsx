@@ -46,10 +46,7 @@ export default function ChatPage() {
   const [panel, setPanel] = useState<"sessions" | "memory" | null>(null);
   const sessions_open = panel === "sessions";
 
-  /* ─── PCH-F5: 에이전트 설정 (7 useState → useChatAgentConfig) ─── */
   const config = useChatAgentConfig(init_def);
-
-  /* ─── PCH-F5: 전송 상태 (5 useState → useChatCompose useReducer) ─── */
   const compose = useChatCompose();
 
   /* ─── refs ─── */

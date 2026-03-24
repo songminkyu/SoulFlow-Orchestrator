@@ -33,7 +33,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text-muted);
+  color: var(--muted);
   font-size: var(--fs-2xs);
   padding: 0 var(--sp-1);
   line-height: 1;
@@ -52,7 +52,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text-muted);
+  color: var(--muted);
   font-size: var(--fs-sm);
   padding: 0 var(--sp-1);
   line-height: 1;
@@ -101,11 +101,11 @@
 .canvas-metric__unit {
   font-size: var(--fs-sm);
   font-weight: 400;
-  color: var(--text-muted);
+  color: var(--muted);
 }
 .canvas-metric__label {
   font-size: var(--fs-xs);
-  color: var(--text-muted);
+  color: var(--muted);
 }
 .canvas-metric__trend {
   font-size: var(--fs-xs);
@@ -138,7 +138,7 @@
   align-items: center;
   gap: 5px;
   font-size: var(--fs-xs);
-  color: var(--text-muted);
+  color: var(--muted);
 }
 .canvas-chart__legend-dot {
   width: 10px;
@@ -185,7 +185,7 @@
 .canvas-image__caption {
   margin-top: var(--sp-1);
   font-size: var(--fs-xs);
-  color: var(--text-muted);
+  color: var(--muted);
   text-align: center;
 }
 

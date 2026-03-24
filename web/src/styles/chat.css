@@ -44,7 +44,7 @@
 .chat-mirror-hint {
   padding: var(--sp-1) var(--sp-4);
   font-size: var(--fs-xs);
-  color: var(--text-muted);
+  color: var(--muted);
   background: var(--panel-alt, var(--panel));
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;

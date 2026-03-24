@@ -4,7 +4,7 @@ import { create_guard_from_integration_settings } from "../../security/outbound-
 
 /** 사설망 호스트 차단 패턴 (SSRF 방지). */
 export const PRIVATE_HOST_RE =
-  /^(localhost|127\.\d+\.\d+\.\d+|::1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+|169\.254\.\d+\.\d+)$/i;
+  /^(localhost|127\.\d+\.\d+\.\d+|::1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+|169\.254\.\d+\.\d+|fc[0-9a-f]{2}:.*|fd[0-9a-f]{2}:.*|fe80:.*)$/i;
 
 /** URL 파싱 + 프로토콜/SSRF 검증. 실패 시 에러 문자열 반환. */
 export function validate_url(url_str: string): URL | string {

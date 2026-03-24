@@ -69,6 +69,8 @@ export interface RuntimeApp {
   cli_auth: CliAuthService;
   /** OB-8: optional exporter cleanup — graceful shutdown 시 잔여 버퍼 flush. */
   cleanup_observability?: () => Promise<void>;
+  /** SQLite 연결 풀 — shutdown 시 close_all() 필요. */
+  sqlite_pool?: { close_all(): void };
 }
 
 export async function createRuntime(): Promise<RuntimeApp> {
@@ -289,6 +291,7 @@ export async function createRuntime(): Promise<RuntimeApp> {
       await span_export_adapter.shutdown();
       await metrics_export_adapter.stop();
     },
+    sqlite_pool,
   };
 
   return app;

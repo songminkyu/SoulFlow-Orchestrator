@@ -27,6 +27,7 @@ export function register_shutdown_handlers(
       .then(() => app.agent_backends.close())
       .then(() => app.bus.close())
       .then(() => { if ("close" in app.sessions) (app.sessions as { close(): void }).close(); })
+      .then(() => { app.sqlite_pool?.close_all(); })
       .then(() => on_cleanup?.())
       .catch((err: unknown) => { logger.error(`shutdown error: ${error_message(err)}`); })
       .finally(() => {

@@ -50,11 +50,13 @@ describe("H-10: CORS apply_cors (production)", () => {
     expect(headers.has("Access-Control-Allow-Origin")).toBe(false);
   });
 
-  it("wildcard '*' → 모든 Origin 허용", () => {
+  it("wildcard '*' → 리터럴 '*' 반환 (credentials 차단)", () => {
     const req = make_req("GET", { origin: "http://any-site.com" });
     const { res, state: { headers } } = make_res();
     apply_cors(req, res, ["*"]);
-    expect(headers.get("Access-Control-Allow-Origin")).toBe("http://any-site.com");
+    // PCH-C8: wildcard 시 origin 반사 금지 — 브라우저 자격증명 요청 차단
+    expect(headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(headers.has("Access-Control-Allow-Credentials")).toBe(false);
   });
 
   it("빈 배열 → same-origin만 (모든 Origin 거부)", () => {

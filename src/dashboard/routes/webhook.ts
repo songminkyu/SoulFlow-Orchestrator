@@ -5,36 +5,12 @@
 
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { now_iso, short_id } from "../../utils/common.js";
+import { SlidingWindowRateLimiter } from "../../utils/rate-limiter.js";
 import type { WebhookStore } from "../../services/webhook-store.service.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-/* ─── PCH-S17: Webhook per-IP rate limiter ─────────────────────────────────── */
-/** 요청 IP별 슬라이딩 윈도우 카운터. { count, window_start_ms } */
-const _webhook_ip_hits = new Map<string, { count: number; window_start_ms: number }>();
-/** 60초 윈도우 내 최대 요청 수 */
-const WEBHOOK_RATE_LIMIT = 120;
-const WEBHOOK_RATE_WINDOW_MS = 60_000;
-/** 30분 이상 비활성 IP 정리 간격 */
-const WEBHOOK_CLEANUP_INTERVAL_MS = 30 * 60_000;
-let _webhook_last_cleanup = Date.now();
-
-function _check_webhook_rate(ip: string): boolean {
-  const now = Date.now();
-  if (now - _webhook_last_cleanup > WEBHOOK_CLEANUP_INTERVAL_MS) {
-    for (const [k, v] of _webhook_ip_hits) {
-      if (now - v.window_start_ms > WEBHOOK_CLEANUP_INTERVAL_MS) _webhook_ip_hits.delete(k);
-    }
-    _webhook_last_cleanup = now;
-  }
-  const entry = _webhook_ip_hits.get(ip);
-  if (!entry || now - entry.window_start_ms >= WEBHOOK_RATE_WINDOW_MS) {
-    _webhook_ip_hits.set(ip, { count: 1, window_start_ms: now });
-    return true;
-  }
-  if (entry.count >= WEBHOOK_RATE_LIMIT) return false;
-  entry.count++;
-  return true;
-}
+/** 60초 윈도우 내 IP당 최대 120회, 30분 비활성 정리. */
+const _webhook_rate = new SlidingWindowRateLimiter(120, 60_000, 30 * 60_000);
 
 export type WebhookDeps = {
   webhook_store: WebhookStore;
@@ -210,10 +186,10 @@ export async function dispatch_webhook(
 ): Promise<boolean> {
   if (!url.pathname.startsWith("/hooks/")) return false;
 
-  // PCH-S17: per-IP rate limiting — 60초 윈도우 120회 초과 시 429 반환
-  const client_ip = String(req.headers["x-forwarded-for"] ?? req.socket.remoteAddress ?? "unknown").split(",")[0].trim();
-  if (!_check_webhook_rate(client_ip)) {
-    deps.json(res, 429, { error: "rate_limit_exceeded", retry_after: WEBHOOK_RATE_WINDOW_MS / 1000 });
+  // X-Forwarded-For는 스푸핑 가능 — socket.remoteAddress만 사용 (auth.ts와 동일)
+  const client_ip = String(req.socket?.remoteAddress ?? "unknown");
+  if (!_webhook_rate.check(client_ip)) {
+    deps.json(res, 429, { error: "rate_limit_exceeded", retry_after: _webhook_rate.retry_after_sec(client_ip) });
     (res as ServerResponse & { writableEnded?: boolean }).writableEnded || res.end();
     return true;
   }

@@ -101,7 +101,7 @@ describe("handle_auth — /api/auth/setup", () => {
   it("미초기화 상태에서 setup 성공 → 201, ok: true", async () => {
     const auth_svc = make_auth_svc();
     const { ctx, sent } = make_ctx("POST", "/api/auth/setup",
-      { username: "admin", password: "secret1" }, {}, auth_svc);
+      { username: "admin", password: "secret12" }, {}, auth_svc);
     await handle_auth(ctx);
     expect(sent.status).toBe(201);
     expect((sent.data as Record<string, unknown>).ok).toBe(true);
