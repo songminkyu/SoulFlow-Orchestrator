@@ -62,7 +62,7 @@ NUL
 web/src/assets/fonts/*.woff2
 web/src/assets/fonts/*.woff
 web/src/assets/fonts/*.ttf
-web/src/styles/fonts.css
+# fonts.css는 추적 필수 (main.tsx에서 import, Docker 빌드에 필요)
 
 docs/**/design/improved/**
 docs/**/references/**

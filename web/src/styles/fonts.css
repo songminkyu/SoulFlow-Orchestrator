@@ -1,0 +1,11 @@
+/* PCH-D2: 로컬 폰트 진입점 */
+/*
+ * 이 파일은 scripts/download-fonts.mjs 실행 시 자동으로 교체됩니다.
+ *
+ * 지금은 @font-face 선언이 없으므로 Inter, Noto Sans KR, JetBrains Mono를
+ * 시스템 폰트 폴백으로 제공합니다.
+ *
+ * 로컬 폰트를 활성화하려면:
+ *   node scripts/download-fonts.mjs
+ * 를 실행하세요 (인터넷 접속 환경에서 1회).
+ */
