@@ -302,7 +302,8 @@ export class RedisMessageBus implements MessageBusRuntime, ReliableMessageBus {
 
       log.info("claimed idle message", { key, entry_id, cursor: start });
       return this.build_lease<T>(payload, key, group, entry_id);
-    } catch {
+    } catch (e) {
+      log.debug("claim_idle failed", { key, group, error: error_message(e) });
       return null;
     }
   }

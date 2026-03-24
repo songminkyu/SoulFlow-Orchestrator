@@ -127,7 +127,8 @@ export class SessionRecorder {
           content: String(r.content || ""),
         }))
         .filter((r) => Boolean(r.content));
-    } catch {
+    } catch (e) {
+      this.logger.debug("get_recent_history failed", { error: error_message(e) });
       return [];
     }
   }
@@ -172,7 +173,8 @@ export class SessionRecorder {
         if (String(prev.content || "").trim() === content) return true;
       }
       return false;
-    } catch {
+    } catch (e) {
+      this.logger.debug("is_delivery_retry failed", { error: error_message(e) });
       return false;
     }
   }
@@ -188,7 +190,8 @@ export class SessionRecorder {
         if (msg.role === "assistant" && msg.content) return String(msg.content);
       }
       return null;
-    } catch {
+    } catch (e) {
+      this.logger.debug("get_last_assistant_content failed", { error: error_message(e) });
       return null;
     }
   }

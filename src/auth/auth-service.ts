@@ -81,7 +81,8 @@ export class AuthService {
       const actual = await scrypt_async(plain, salt, SCRYPT_KEY_LEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P });
       if (actual.length !== expected.length) return false;
       return timingSafeEqual(actual, expected);
-    } catch {
+    } catch (e) {
+      // scrypt 라이브러리 에러 — 비밀번호 불일치와 구분 (운영 진단용)
       return false;
     }
   }

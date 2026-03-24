@@ -759,7 +759,7 @@ export class CronService implements CronScheduler, ServiceLike {
   }
 
   private _notify(type: import("./types.js").CronChangeType, job_id?: string, team_id?: string): void {
-    try { this._on_change?.(type, job_id, team_id); } catch { /* noop */ }
+    try { this._on_change?.(type, job_id, team_id); } catch (e) { this.logger?.warn("cron change notify failed", { type, job_id, error: String(e) }); }
   }
 
   private _is_running_fresh(job: CronJob, now = now_ms()): boolean {

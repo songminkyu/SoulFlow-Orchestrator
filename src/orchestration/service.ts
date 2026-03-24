@@ -330,7 +330,7 @@ export class OrchestrationService implements OrchestrationServiceLike {
       });
       const summary = String(result.content || "").trim();
       if (summary) return summary;
-    } catch { /* 오케스트레이터 미설정 시 폴백 */ }
+    } catch (e) { this.logger.debug("guard summary LLM fallback", { error: error_message(e) }); }
     return task_text.slice(0, 200) + (task_text.length > 200 ? "..." : "");
   }
 
@@ -530,7 +530,7 @@ export class OrchestrationService implements OrchestrationServiceLike {
         const now = new Date().toISOString();
         const scope = `${req.provider}:${req.message.chat_id}:-`;
         const line = `- [${now}] [${scope}] SYSTEM: context compaction checkpoint\n`;
-        try { await mem.append_daily(line); } catch { /* best-effort */ }
+        try { await mem.append_daily(line); } catch (e) { this.logger.debug("compaction daily append failed", { error: error_message(e) }); }
       },
     };
   }

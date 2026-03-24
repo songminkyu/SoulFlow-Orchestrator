@@ -103,7 +103,7 @@ export async function create_agent_core(deps: AgentCoreDeps): Promise<AgentCoreR
         for (const p of [join(user_dir, "templates", "SOUL.md"), join(user_dir, "SOUL.md")]) {
           if (existsSync(p)) { const r = readFileSync(p, "utf-8").trim(); if (r) return extract_persona_name(r); }
         }
-      } catch { /* no soul */ }
+      } catch (e) { deps.logger.debug("SOUL.md read failed", { error: String(e) }); }
       return "assistant";
     },
     get_heart: () => {
@@ -111,7 +111,7 @@ export async function create_agent_core(deps: AgentCoreDeps): Promise<AgentCoreR
         for (const p of [join(user_dir, "templates", "HEART.md"), join(user_dir, "HEART.md")]) {
           if (existsSync(p)) { const r = readFileSync(p, "utf-8").trim(); if (r) return r; }
         }
-      } catch { /* no heart */ }
+      } catch (e) { deps.logger.debug("HEART.md read failed", { error: String(e) }); }
       return "";
     },
     get_tone_preference: (chat_key) => tone_pref_store.get(chat_key),

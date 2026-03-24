@@ -156,9 +156,9 @@ export function run_post_boot(deps: PostBootDeps): PostBootResult {
   logger.info(`channels=${enabled_channels.join(",")} primary=${primary_provider}`);
 
   // 만료된 에이전트 세션 정리: 시작 시 즉시 + 1시간 간격
-  try { agent_session_store.prune_expired(); } catch { /* noop */ }
+  try { agent_session_store.prune_expired(); } catch (e) { logger.warn("session prune_expired failed", { error: String(e) }); }
   const session_prune_timer = setInterval(() => {
-    try { agent_session_store.prune_expired(); } catch { /* noop */ }
+    try { agent_session_store.prune_expired(); } catch (e) { logger.warn("session prune_expired failed", { error: String(e) }); }
   }, 60 * 60 * 1000);
   session_prune_timer.unref();
 

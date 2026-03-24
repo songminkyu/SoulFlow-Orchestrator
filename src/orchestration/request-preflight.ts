@@ -162,6 +162,7 @@ async function seal_text(vault: SecretVaultLike, provider: ChannelProvider, chat
     const sealed = await seal_inbound_sensitive_text(raw, { provider, chat_id, vault });
     return sealed.text;
   } catch {
+    // vault seal 실패 시 로컬 redact로 폴백 — 민감 데이터는 항상 마스킹됨
     return redact_sensitive_text(raw).text;
   }
 }
