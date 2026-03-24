@@ -2,6 +2,9 @@
 
 import { spawn } from "node:child_process";
 import { error_message } from "../utils/common.js";
+import { create_logger } from "../logger.js";
+
+const _hook_log = create_logger("hook-runner");
 import type {
   HookDefinition,
   HookEventName,
@@ -178,7 +181,7 @@ export class HookRunner {
       }
 
       if (def.async) {
-        this._run_single(def, input).catch(() => {});
+        this._run_single(def, input).catch((e) => { _hook_log.warn("async hook failed", { hook: def.name, error: error_message(e) }); });
         results.push({ hook_name: def.name, output: { decision: "ignore" }, duration_ms: 0 });
         continue;
       }

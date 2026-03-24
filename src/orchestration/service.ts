@@ -339,7 +339,7 @@ export class OrchestrationService implements OrchestrationServiceLike {
     if (!this.events) return;
     let patched = team_id && !input.team_id ? { ...input, team_id } : input;
     if (user_id && !patched.user_id) patched = { ...patched, user_id };
-    this.events.append(patched).catch(() => { /* 이벤트 로깅 실패가 실행을 차단하면 안 됨 */ });
+    this.events.append(patched).catch((e) => { this.logger.warn("event append failed", { error: error_message(e) }); });
   }
 
   /** runner 함수에 전달할 공유 의존성 조립. req 전달 시 per-request workspace 우선 사용. */

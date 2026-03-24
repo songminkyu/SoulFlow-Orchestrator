@@ -386,7 +386,7 @@ export class SlackChannel extends BaseChannel {
       } else {
         await this.client.reactions.remove({ channel: chat_id, timestamp: anchor_message_id, name });
       }
-    } catch { /* best-effort */ }
+    } catch (e) { this.log.debug("reaction toggle failed", { error: error_message(e) }); }
   }
 
   async edit_message(chat_id: string, message_id: string, content: string, _parse_mode?: string): Promise<{ ok: boolean; error?: string }> {
