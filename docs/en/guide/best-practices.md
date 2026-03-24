@@ -1,3 +1,4 @@
+{% raw %}
 # Recommended Usage & Best Practices
 
 This guide covers SoulFlow's core capabilities and recommended patterns for getting the most out of the orchestrator.
@@ -312,3 +313,4 @@ When no template matches a request, the orchestrator can auto-generate a workflo
 → [Dashboard Guide](./dashboard.md)
 → [Provider Configuration](./providers.md)
 → [Installation & Setup](../getting-started/installation.md)
+{% endraw %}

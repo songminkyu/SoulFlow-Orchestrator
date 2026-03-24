@@ -1,3 +1,4 @@
+{% raw %}
 # 권장 사용법 및 모범 사례
 
 이 가이드는 SoulFlow의 핵심 기능과 오케스트레이터를 최대한 활용하기 위한 권장 패턴을 다룹니다.
@@ -312,3 +313,4 @@ Providers 페이지에서 fallback 체인을 설정하세요. 오케스트레이
 → [대시보드 가이드](./dashboard.md)
 → [프로바이더 설정](./providers.md)
 → [설치 및 시작](../getting-started/installation.md)
+{% endraw %}

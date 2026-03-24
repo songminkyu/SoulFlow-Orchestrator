@@ -1,3 +1,4 @@
+{% raw %}
 # Workflows
 
 Workflows orchestrate multiple AI agents across sequential phases — each phase runs agents in parallel, with optional critic review before advancing. This guide covers template authoring, execution modes, and the visual editor.
@@ -522,3 +523,4 @@ Workflow state is persisted to SQLite (`workspace/runtime/workflows/phase-workfl
 → [Agents](../core-concepts/agents.md)
 → [Security](../core-concepts/security.md)
 → [Provider Configuration](./providers.md)
+{% endraw %}

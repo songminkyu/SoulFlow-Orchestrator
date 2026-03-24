@@ -52,9 +52,9 @@ When to handle directly vs delegate:
 
 ```
 roles/my-role/
-¦§¦¡¦¡ SKILL.md              (role definition, soul/heart inline)
-¦¦¦¡¦¡ resources/
-    ¦¦¦¡¦¡ execution-protocol.md   (step-by-step workflow)
+â”œâ”€â”€ SKILL.md              (role definition, soul/heart inline)
+â”œâ”€â”€ resources/
+    â””â”€â”€ execution-protocol.md   (step-by-step workflow)
 ```
 
 ## Key Differences from General Skills

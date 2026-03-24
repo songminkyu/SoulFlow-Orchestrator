@@ -1,3 +1,4 @@
+{% raw %}
 # Security
 
 SoulFlow implements defense-in-depth across the entire message lifecycle — from inbound ingestion through agent execution to outbound delivery.
@@ -252,3 +253,4 @@ Policies are defined per tool type and can be overridden in dashboard → **Sett
 → [Agents](./agents.md)
 → [Slash Command Reference](../guide/slash-commands.md)
 → [Memory System](./memory.md)
+{% endraw %}

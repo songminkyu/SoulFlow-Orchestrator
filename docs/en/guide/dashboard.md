@@ -1,3 +1,4 @@
+{% raw %}
 # Dashboard
 
 Web-based management UI accessible at `http://127.0.0.1:4200`.
@@ -484,3 +485,4 @@ By default, the server binds to `127.0.0.1` only. To allow external access, chan
 → [OAuth Integration](./oauth.md)
 → [Workflows Guide](./workflows.md)
 → [Heartbeat Setup](./heartbeat.md)
+{% endraw %}

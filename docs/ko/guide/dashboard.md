@@ -1,3 +1,4 @@
+{% raw %}
 # 대시보드
 
 `http://127.0.0.1:4200`에서 접근 가능한 웹 기반 관리 UI입니다.
@@ -489,3 +490,4 @@ Phase Loop 실행 시 추가 이벤트:
 → [OAuth 연동](./oauth.md)
 → [워크플로우 가이드](./workflows.md)
 → [Heartbeat 설정](./heartbeat.md)
+{% endraw %}
