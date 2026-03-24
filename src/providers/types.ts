@@ -141,16 +141,33 @@ export interface LlmProvider {
   get_default_model(): string;
 }
 
-/** JSON 문자열 또는 객체를 Record로 변환. 파싱 실패 시 { raw } 반환. */
+/** JSON 문자열 또는 객체를 Record로 변환. OSS 모델의 잘못된 JSON도 최대한 복구. */
 export function parse_json_or_raw(raw: unknown): Record<string, unknown> {
   if (raw && typeof raw === "object") return raw as Record<string, unknown>;
   if (typeof raw !== "string") return {};
+  const trimmed = raw.trim();
+  if (!trimmed) return {};
+
+  // 1차: 정상 JSON 파싱
   try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : { raw };
+    const parsed = JSON.parse(trimmed);
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : { raw: trimmed };
+  } catch { /* repair 시도 */ }
+
+  // 2차: OSS 모델 흔한 오류 복구 (trailing comma, 단일 따옴표, 코드 펜스 래핑)
+  try {
+    let repaired = trimmed;
+    // 코드 펜스 제거: ```json ... ``` 또는 ``` ... ```
+    repaired = repaired.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/, "");
+    // 단일 따옴표 → 이중 따옴표 (값 내부가 아닌 키/값 구분자만)
+    repaired = repaired.replace(/'/g, '"');
+    // trailing comma 제거: ,} 또는 ,]
+    repaired = repaired.replace(/,\s*([}\]])/g, "$1");
+    const parsed = JSON.parse(repaired);
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : { raw: trimmed };
   } catch {
-    process.stderr.write(`[parse_json_or_raw] tool argument JSON parse failed: ${raw.slice(0, 200)}\n`);
-    return { raw };
+    process.stderr.write(`[parse_json_or_raw] tool argument JSON parse failed: ${trimmed.slice(0, 200)}\n`);
+    return { raw: trimmed };
   }
 }
 
