@@ -1,0 +1,17 @@
+# 멀티 인스턴스 + 외부 Redis 오버라이드
+# base 네트워크에 의존하지 않고 자체 네트워크로 실행
+# --instance + --redis-url 동시 사용 시 적용
+services:
+  docker-proxy:
+    profiles: ["disabled"]
+  redis:
+    profiles: ["disabled"]
+  chunker:
+    profiles: ["disabled"]
+  orchestrator:
+    environment:
+      BUS_BACKEND: redis
+      BUS_REDIS_URL: ${BUS_REDIS_URL:-redis://host.docker.internal:6379}
+      REDIS_URL: ${REDIS_URL:-redis://host.docker.internal:6379}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

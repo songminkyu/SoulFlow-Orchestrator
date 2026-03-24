@@ -172,16 +172,44 @@ run_env() {
   export NODE_HEAP_MB
 
 
-  # instance 모드: 기본 인프라(redis, docker-proxy)를 먼저 보장
-  if [ -n "$INSTANCE" ]; then
-    local base_project="soulflow-$profile"
-    PROJECT_NAME="$base_project" $RUNTIME compose -f docker/docker-compose.yml -p "$base_project" up -d redis docker-proxy 2>/dev/null || true
-  fi
-
   # 외부 Redis 사용 시 override 적용 + BUS 환경변수 설정
   if [ -n "$REDIS_URL" ]; then
     export BUS_REDIS_URL="$REDIS_URL"
     export BUS_BACKEND=redis
+  fi
+
+  # instance 모드: 기본 인프라(redis, docker-proxy)를 먼저 보장
+  if [ -n "$INSTANCE" ]; then
+    local base_project="soulflow-$profile"
+
+    # 외부 Redis 사용 시 base 인프라 불필요
+    if [ -z "$REDIS_URL" ]; then
+      echo -e "   ${YELLOW}인스턴스 모드: base 인프라($base_project) 확인 중...${NC}"
+
+      # base 네트워크 존재 확인
+      if ! $RUNTIME network inspect "soulflow-${profile}-network" &>/dev/null; then
+        echo -e "   ${YELLOW}base 환경이 실행 중이지 않습니다. 인프라 시작 중...${NC}"
+        HOST_WORKSPACE="$WORKSPACE" PROJECT_NAME="$base_project" \
+          $RUNTIME compose -f docker/docker-compose.yml -p "$base_project" up -d redis docker-proxy
+        # Redis 준비 대기 (healthcheck)
+        echo -e "   ${YELLOW}Redis 준비 대기 중...${NC}"
+        local redis_ready=0
+        for i in $(seq 1 15); do
+          if $RUNTIME exec "${base_project}-redis" redis-cli ping &>/dev/null; then
+            redis_ready=1
+            break
+          fi
+          sleep 1
+        done
+        if [ "$redis_ready" = "0" ]; then
+          echo -e "${RED}Redis가 15초 내에 준비되지 않았습니다.${NC}"
+          echo -e "${YELLOW}대안: --redis-url 옵션으로 외부 Redis를 사용하세요.${NC}"
+          echo -e "${YELLOW}예시: ./run.sh $profile --instance=$INSTANCE --redis-url=redis://your-redis:6379${NC}"
+          exit 1
+        fi
+        echo -e "   ${GREEN}Redis 준비 완료${NC}"
+      fi
+    fi
   fi
 
   # compose 실행
@@ -199,7 +227,14 @@ run_env() {
   fi
   if [ -n "$INSTANCE" ]; then
     export BASE_PROFILE="$profile"
-    compose_args+=("-f" "docker/docker-compose.instance.override.yml")
+    # 외부 Redis + instance: base 네트워크 불필요 → instance override만 적용 (네트워크는 자체 생성)
+    # 내장 Redis + instance: base 네트워크 공유 필요 → instance override 적용
+    if [ -n "$REDIS_URL" ]; then
+      # 외부 Redis: 공유 자원 비활성화만, 네트워크는 자체 생성
+      compose_args+=("-f" "docker/docker-compose.instance-external-redis.override.yml")
+    else
+      compose_args+=("-f" "docker/docker-compose.instance.override.yml")
+    fi
   fi
   # 기존 컨테이너 정지 (포트 해제 보장)
   $RUNTIME compose "${compose_args[@]}" -p "$project_name" down --remove-orphans 2>/dev/null || true

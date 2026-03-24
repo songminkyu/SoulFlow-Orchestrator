@@ -22,6 +22,7 @@ services:
         condition: service_healthy
         required: false
     environment:
+      BUS_BACKEND: redis
       BUS_REDIS_URL: ${BUS_REDIS_URL:-redis://host.docker.internal:6379}
       REDIS_URL: ${REDIS_URL:-redis://host.docker.internal:6379}
     # Linux에서 host.docker.internal 해석을 위해 필요
