@@ -14,6 +14,7 @@ vi.mock("node:child_process", () => ({
 vi.mock("node:fs", () => ({
   existsSync: vi.fn(),
   readdirSync: vi.fn(),
+  mkdirSync: vi.fn(),
 }));
 
 import { execFile } from "node:child_process";
@@ -65,7 +66,8 @@ describe("CliAuthService — check_claude", () => {
       callback(null, JSON.stringify({ loggedIn: false }), "");
       return {} as any;
     });
-    vi.mocked(existsSync).mockReturnValue(true);
+    // credential 파일 직접 탐색도 실패해야 최종 false
+    vi.mocked(existsSync).mockReturnValue(false);
     vi.mocked(readdirSync).mockReturnValue([] as any);
 
     const svc = make_service();
@@ -80,7 +82,8 @@ describe("CliAuthService — check_claude", () => {
       callback(new Error("command not found"), "", "");
       return {} as any;
     });
-    vi.mocked(existsSync).mockReturnValue(true);
+    // credential 파일도 없어야 최종 false
+    vi.mocked(existsSync).mockReturnValue(false);
     vi.mocked(readdirSync).mockReturnValue([] as any);
 
     const svc = make_service();

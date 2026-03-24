@@ -46,9 +46,11 @@ services:
       NODE_OPTIONS: "--max-old-space-size=${NODE_HEAP_MB:-768}"
     volumes:
       - ${HOST_WORKSPACE:-.}:/data
-      - ${HOST_WORKSPACE:-.}/.agents/.claude:/root/.claude
-      - ${HOST_WORKSPACE:-.}/.agents/.codex:/root/.codex
-      - ${HOST_WORKSPACE:-.}/.agents/.gemini:/root/.gemini
+      # CLI credential: workspace/.agents/ → 컨테이너 내 /data/.agents/
+      # CliAuthService가 agents_home = user_dir/.agents 또는 /data/.agents 로 탐색
+      - ${HOST_WORKSPACE:-.}/.agents/.claude:/data/.agents/.claude
+      - ${HOST_WORKSPACE:-.}/.agents/.codex:/data/.agents/.codex
+      - ${HOST_WORKSPACE:-.}/.agents/.gemini:/data/.agents/.gemini
     # Agent Browser: /dev/shm 공유 메모리 (Chromium 렌더링 안정성)
     shm_size: "256m"
     healthcheck:

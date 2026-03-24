@@ -241,7 +241,7 @@ agent_login() {
   case "$agent" in
     claude)
       echo -e "\n${YELLOW}🔑 Claude 에이전트 로그인 중...${NC}"
-      mkdir -p "$agents_dir/.claude"
+      mkdir -p "$agents_dir/.claude/debug"
       $RUNTIME run --rm -it -v "$agents_dir/.claude:/root/.claude" soulflow-orchestrator claude login
       ;;
     codex)

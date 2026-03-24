@@ -1,7 +1,7 @@
 /** CLI 에이전트(Claude Code, Codex, Gemini)의 인증 상태 확인. 로그인은 CLI에서 직접 수행. */
 
 import { execFile } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Logger } from "../logger.js";
 
@@ -32,6 +32,16 @@ export class CliAuthService {
   constructor(opts: CliAuthServiceOptions) {
     this.logger = opts.logger;
     this.agents_home = opts.agents_home || process.env.HOME || "/root";
+    // Docker 환경: .claude/debug 디렉토리 사전 생성 (Claude CLI가 쓰기 시도)
+    this._ensure_cli_dirs();
+  }
+
+  /** CLI별 필수 디렉토리 사전 생성. Claude CLI가 debug/ 없이 크래시하는 것 방지. */
+  private _ensure_cli_dirs(): void {
+    try {
+      const claude_dir = join(this.agents_home, ".claude", "debug");
+      if (!existsSync(claude_dir)) mkdirSync(claude_dir, { recursive: true });
+    } catch { /* 권한 없으면 무시 — check()에서 에러 처리 */ }
   }
 
   /** CLI 인증 상태 확인. CLI별 전용 로직 분기. */
@@ -64,15 +74,54 @@ export class CliAuthService {
 
   // ── Claude Code ────────────────────────────────────────────────────────────
 
-  /** `claude auth status` → JSON 출력 파싱. */
-  private check_claude(): Promise<CliAuthStatus> {
-    return new Promise<CliAuthStatus>((resolve) => {
-      const env = { ...process.env, HOME: this.agents_home };
-      execFile("claude", ["auth", "status"], { timeout: 10_000, env }, (error, stdout, stderr) => {
-        const output = (stdout || stderr || "").trim();
+  /**
+   * `claude auth status` → JSON 출력 파싱.
+   * agents_home에서 먼저 시도, 실패 시 /root (Docker 마운트 경로) fallback.
+   * stderr 경고가 stdout과 혼합되는 문제 대응: stdout만 JSON 파싱.
+   */
+  private async check_claude(): Promise<CliAuthStatus> {
+    // 1차: 설정된 agents_home 경로로 시도
+    const result = await this._run_claude_auth(this.agents_home);
+    if (result.authenticated) return result;
 
-        // JSON 파싱 시도: {"loggedIn":true,"authMethod":"oauth","apiProvider":"..."}
-        const json = try_parse_json(output);
+    // 2차: fallback 경로 탐색 — Docker 마운트, HOME, WORKSPACE/.agents
+    const fallback_homes = [
+      process.env.HOME || "/root",                                      // 사용자 HOME
+      join(process.env.WORKSPACE || "/data", ".agents"),                // WORKSPACE/.agents (compose 마운트)
+      "/root",                                                          // Docker 기본
+    ].filter(p => p !== this.agents_home);
+
+    for (const fallback of fallback_homes) {
+      const fallback_result = await this._run_claude_auth(fallback);
+      if (fallback_result.authenticated) {
+        this.logger.info("claude auth: fallback path", { path: fallback });
+        return fallback_result;
+      }
+    }
+
+    // 3차: credential 파일 직접 탐색 (CLI 없이도 인증 확인)
+    const cred_paths = [
+      join(this.agents_home, ".claude", ".credentials.json"),
+      ...fallback_homes.map(p => join(p, ".claude", ".credentials.json")),
+    ];
+    for (const cred_path of cred_paths) {
+      if (existsSync(cred_path)) {
+        return { cli: "claude", authenticated: true, account: `credential: ${cred_path}` };
+      }
+    }
+
+    return result; // 1차 결과 반환 (에러 메시지 포함)
+  }
+
+  /** claude auth status 실행 + stdout 전용 JSON 파싱. */
+  private _run_claude_auth(home: string): Promise<CliAuthStatus> {
+    return new Promise<CliAuthStatus>((resolve) => {
+      const env = { ...process.env, HOME: home };
+      execFile("claude", ["auth", "status"], { timeout: 10_000, env }, (error, stdout, _stderr) => {
+        // stdout만 파싱 — stderr 경고(.claude.json 없음 등)가 JSON을 깨뜨리지 않도록
+        const clean_stdout = (stdout || "").trim();
+
+        const json = try_parse_json(clean_stdout);
         if (json) {
           const logged_in = json.loggedIn === true || json.loggedin === true;
           const account = (json.email ?? json.account ?? null) as string | null;
@@ -85,13 +134,12 @@ export class CliAuthService {
           return;
         }
 
-        // Fallback: exit code 기반
         if (error) {
-          resolve({ cli: "claude", authenticated: false, error: output || error.message });
+          resolve({ cli: "claude", authenticated: false, error: clean_stdout || error.message });
           return;
         }
 
-        resolve({ cli: "claude", authenticated: true, account: extract_account(output) ?? undefined });
+        resolve({ cli: "claude", authenticated: true, account: extract_account(clean_stdout) ?? undefined });
       });
     });
   }
