@@ -12,11 +12,11 @@ export interface VariableRef {
 }
 
 export interface VariableRefChipProps {
-  ref: VariableRef;
+  vref: VariableRef;
   onRemove?: () => void;
 }
 
-export function VariableRefChip({ ref: vref, onRemove }: VariableRefChipProps) {
+export function VariableRefChip({ vref, onRemove }: VariableRefChipProps) {
   return (
     <span className="var-ref-chip" data-ft={vref.field_type} title={`{{${vref.node_id}.${vref.field_name}}}`}>
       <span className="var-ref-chip__node">{vref.node_id}</span>

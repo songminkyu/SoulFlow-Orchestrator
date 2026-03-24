@@ -162,9 +162,7 @@ function StreamingText({ content }: { content: string }) {
 }
 
 export const MarkdownContent = memo(function MarkdownContent({ content, streaming }: { content: string; streaming?: boolean }) {
-  if (streaming) return <StreamingText content={content} />;
-
-  const needs_math = HAS_MATH_RE.test(content);
+  const needs_math = !streaming && HAS_MATH_RE.test(content);
   const [katex, set_katex] = useState(_katex_plugins);
 
   useEffect(() => {
@@ -172,6 +170,8 @@ export const MarkdownContent = memo(function MarkdownContent({ content, streamin
       load_katex().then(set_katex);
     }
   }, [needs_math, katex]);
+
+  if (streaming) return <StreamingText content={content} />;
 
   const remark_plugins = katex ? [...REMARK_BASE, katex.remark] : REMARK_BASE;
   const rehype_plugins = katex

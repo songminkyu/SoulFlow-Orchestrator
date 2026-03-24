@@ -190,7 +190,7 @@ export async function dispatch_webhook(
   const client_ip = String(req.socket?.remoteAddress ?? "unknown");
   if (!_webhook_rate.check(client_ip)) {
     deps.json(res, 429, { error: "rate_limit_exceeded", retry_after: _webhook_rate.retry_after_sec(client_ip) });
-    (res as ServerResponse & { writableEnded?: boolean }).writableEnded || res.end();
+    if (!(res as ServerResponse & { writableEnded?: boolean }).writableEnded) res.end();
     return true;
   }
 

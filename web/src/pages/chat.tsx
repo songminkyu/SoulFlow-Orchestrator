@@ -64,10 +64,13 @@ export default function ChatPage() {
   const dismiss_canvas = useDashboardStore((s) => s.dismiss_canvas);
   const { stream: ndjson_stream, tool_calls: ndjson_tool_calls, thinking_blocks: ndjson_thinking, routing: ndjson_routing, start: start_stream, cancel: cancel_stream } = useNdjsonStream();
 
-  /** 사이드바 세션 클릭 시 URL ?session= 변경 → activeId 동기화 */
-  useEffect(() => {
+  /** 사이드바 세션 클릭 시 URL ?session= 변경 → activeId 동기화.
+   *  getDerivedStateFromProps 패턴: 이전 url_session을 추적하여 변경 시만 동기화. */
+  const [prevUrlSession, setPrevUrlSession] = useState(url_session);
+  if (url_session !== prevUrlSession) {
+    setPrevUrlSession(url_session);
     if (url_session && url_session !== activeId) setActiveId(url_session);
-  }, [url_session]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   const is_mirror = !!mirrorKey;
 
@@ -212,9 +215,10 @@ export default function ChatPage() {
   const pinned_tools_from_items = (items: typeof config.attached_items): string[] =>
     items.filter((i) => i.type === "tool" || i.type === "workflow").map((i) => i.id);
 
-  const raw_messages = is_mirror
+  const raw_messages = useMemo(() => is_mirror
     ? [...(mirrorSession?.messages ?? []), ...mirrorLiveMessages]
-    : activeSession?.messages ?? [];
+    : activeSession?.messages ?? [],
+    [is_mirror, mirrorSession?.messages, mirrorLiveMessages, activeSession?.messages]);
 
   const active_stream = !is_mirror
     ? (ndjson_stream?.chat_id === activeId ? ndjson_stream : (web_stream?.chat_id === activeId ? web_stream : null))
@@ -244,22 +248,28 @@ export default function ChatPage() {
     if (web_stream?.done && web_stream.chat_id === activeId) set_web_stream(null);
   }, [activeSession?.messages, ndjson_stream, web_stream, activeId, cancel_stream, set_web_stream]);
 
-  const stream_start_ref = useRef<string>("");
-  if (stream_active && !stream_start_ref.current) stream_start_ref.current = new Date().toISOString();
-  if (!stream_active) stream_start_ref.current = "";
+  /** 스트리밍 시작 시각 — state로 관리하여 React Compiler 호환. */
+  const [streamStartTime, setStreamStartTime] = useState("");
+  const [prevStreamActive, setPrevStreamActive] = useState(stream_active);
+  if (stream_active !== prevStreamActive) {
+    setPrevStreamActive(stream_active);
+    if (stream_active && !streamStartTime) setStreamStartTime(new Date().toISOString());
+    if (!stream_active) setStreamStartTime("");
+  }
+  if (stream_active && !streamStartTime) setStreamStartTime(new Date().toISOString());
 
   const messages = useMemo(() => {
     if (!stream_active || !active_stream) return raw_messages;
     const virtual_msg: ChatMessage = {
       direction: "assistant",
       content: active_stream.content,
-      at: stream_start_ref.current,
+      at: streamStartTime,
       ...(ndjson_routing?.requested_channel ? { requested_channel: ndjson_routing.requested_channel } : {}),
       ...(ndjson_routing?.delivered_channel ? { delivered_channel: ndjson_routing.delivered_channel } : {}),
       ...(ndjson_routing?.execution_route ? { execution_route: ndjson_routing.execution_route } : {}),
     };
     return [...raw_messages, virtual_msg];
-  }, [raw_messages, stream_active, active_stream?.content, ndjson_routing]);
+  }, [raw_messages, stream_active, active_stream, ndjson_routing, streamStartTime]);
 
   const send = async () => {
     if ((!compose.input.trim() && compose.pending_media.length === 0) || compose.sending || stream_inflight.current) return;

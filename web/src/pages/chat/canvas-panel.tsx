@@ -231,20 +231,22 @@ function SvgPieChart({ component }: { component: CanvasChartComponent }) {
   const values = labels.map((_, i) => Math.max(0, Number(ds.data[i] ?? 0)));
   const total = values.reduce((a, b) => a + b, 0) || 1;
   const cx = 75, cy = 75, r = 60, ir = 28;
-  let angle = -Math.PI / 2;
-  const slices = values.map((v, i) => {
-    const frac = v / total;
-    const a0 = angle;
-    angle += frac * Math.PI * 2;
-    const a1 = angle;
-    const large = frac > 0.5 ? 1 : 0;
-    const x1 = cx + r * Math.cos(a0), y1 = cy + r * Math.sin(a0);
-    const x2 = cx + r * Math.cos(a1), y2 = cy + r * Math.sin(a1);
-    const ix1 = cx + ir * Math.cos(a0), iy1 = cy + ir * Math.sin(a0);
-    const ix2 = cx + ir * Math.cos(a1), iy2 = cy + ir * Math.sin(a1);
-    const d = `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${ir} ${ir} 0 ${large} 0 ${ix1} ${iy1} Z`;
-    return { d, color: CHART_COLORS[i % CHART_COLORS.length], label: labels[i] ?? "", frac, val: v };
-  });
+  const slices = values.reduce<{ items: Array<{ d: string; color: string; label: string; frac: number; val: number }>; angle: number }>(
+    (acc, v, i) => {
+      const frac = v / total;
+      const a0 = acc.angle;
+      const a1 = a0 + frac * Math.PI * 2;
+      const large = frac > 0.5 ? 1 : 0;
+      const x1 = cx + r * Math.cos(a0), y1 = cy + r * Math.sin(a0);
+      const x2 = cx + r * Math.cos(a1), y2 = cy + r * Math.sin(a1);
+      const ix1 = cx + ir * Math.cos(a0), iy1 = cy + ir * Math.sin(a0);
+      const ix2 = cx + ir * Math.cos(a1), iy2 = cy + ir * Math.sin(a1);
+      const d = `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${ir} ${ir} 0 ${large} 0 ${ix1} ${iy1} Z`;
+      acc.items.push({ d, color: CHART_COLORS[i % CHART_COLORS.length], label: labels[i] ?? "", frac, val: v });
+      return { items: acc.items, angle: a1 };
+    },
+    { items: [], angle: -Math.PI / 2 },
+  ).items;
 
   return (
     <svg viewBox="0 0 280 160" className="canvas-chart__svg">

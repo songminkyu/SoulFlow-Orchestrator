@@ -1,7 +1,7 @@
 /** run_once: executor에게 1회 질의. 오케스트레이터 LLM은 분류만 수행하고 실제 응답은 executor가 생성. */
 
 import type { ChatMessage } from "../../providers/types.js";
-import type { ToolSchema, ToolExecutionContext } from "../../agent/tools/types.js";
+import type { ToolSchema } from "../../agent/tools/types.js";
 import { StreamBuffer } from "../../channels/stream-buffer.js";
 import {
   sanitize_provider_output,

@@ -70,8 +70,15 @@ export function WorkflowPromptBar({ name, workflow, onApply, initialPrompt }: {
   const [elapsed, setElapsed] = useState(0);
   const abort_ref = useRef<AbortController | null>(null);
 
+  /** loading 전환 시 elapsed 리셋 — getDerivedStateFromProps 패턴. */
+  const [prevLoading, setPrevLoading] = useState(loading);
+  if (loading !== prevLoading) {
+    setPrevLoading(loading);
+    if (!loading) setElapsed(0);
+  }
+
   useEffect(() => {
-    if (!loading) { setElapsed(0); return; }
+    if (!loading) return;
     const start = Date.now();
     const id = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 500);
     return () => clearInterval(id);

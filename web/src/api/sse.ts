@@ -23,6 +23,7 @@ export function create_sse(
     for (const [event, handler] of Object.entries(handlers)) {
       es.addEventListener(event, (e) => {
         try { handler(JSON.parse((e as MessageEvent).data)); } catch (err) {
+          // eslint-disable-next-line no-console
           console.warn("[sse] JSON parse error on event", event, err);
         }
       });

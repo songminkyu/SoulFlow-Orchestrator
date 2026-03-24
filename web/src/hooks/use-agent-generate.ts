@@ -36,6 +36,7 @@ export async function generate_agent_fields(
     "/api/agent-definitions/generate",
     body,
   );
+  // eslint-disable-next-line no-console
   console.debug("[agent-generate] response:", JSON.stringify(res).slice(0, 500));
 
   if (!res.ok || !res.data) {

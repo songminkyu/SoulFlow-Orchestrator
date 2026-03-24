@@ -67,7 +67,7 @@ function ToolFeatureMenuInner({
     queryFn: () => api.get<ApiMcpServerList>("/api/mcp/servers"),
     staleTime: 30_000,
   });
-  const mcpServers = mcpRaw?.servers ?? [];
+  const mcpServers = useMemo(() => mcpRaw?.servers ?? [], [mcpRaw?.servers]);
 
   const { data: workflows = [] } = useQuery<WorkflowDef[]>({
     queryKey: ["workflow-definitions"],

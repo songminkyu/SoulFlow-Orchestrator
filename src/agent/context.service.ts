@@ -2,7 +2,6 @@ import { SkillsLoader } from "./skills.js";
 import { MemoryStore, type MemoryStoreLike } from "./memory.js";
 import { error_message } from "../utils/common.js";
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, join, resolve } from "node:path";
 import { validate_file_path } from "../utils/path-validation.js";
 import type { ContextMessage } from "./context.types.js";
@@ -12,15 +11,6 @@ import { extract_persona_name } from "../orchestration/prompts.js";
 import type { ReferenceStoreLike } from "../services/reference-store.js";
 import { ContextBudget, type BudgetSection } from "./context-budget.js";
 import type { SqlitePool } from "../utils/sqlite-helper.js";
-
-async function try_read_first_file(candidates: string[]): Promise<string> {
-  for (const path of candidates) {
-    if (!existsSync(path)) continue;
-    const raw = (await readFile(path, "utf-8")).trim();
-    if (raw) return raw;
-  }
-  return "";
-}
 
 const IMAGE_MIME: Record<string, string> = {
   ".png": "image/png",

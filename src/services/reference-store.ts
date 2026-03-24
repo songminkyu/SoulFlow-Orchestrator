@@ -253,7 +253,7 @@ export class ReferenceStore implements ReferenceStoreLike {
     }
   }
 
-  private async _do_sync(opts?: { force?: boolean }): Promise<{ added: number; updated: number; removed: number }> {
+  private async _do_sync(_opts?: { force?: boolean }): Promise<{ added: number; updated: number; removed: number }> {
     this.ensure_init();
 
     if (!existsSync(this.refs_dir)) {

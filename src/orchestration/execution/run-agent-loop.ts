@@ -1,6 +1,6 @@
 /** run_agent_loop: executor 루프 실행. native backend 우선, legacy headless 폴백. */
 
-import type { ToolSchema, ToolExecutionContext } from "../../agent/tools/types.js";
+import type { ToolSchema } from "../../agent/tools/types.js";
 import { StreamBuffer } from "../../channels/stream-buffer.js";
 import {
   sanitize_provider_output,

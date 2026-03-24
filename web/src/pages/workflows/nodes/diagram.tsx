@@ -6,9 +6,17 @@ function DiagramPreview({ source, format }: { source: string; format: string }) 
   const [preview, setPreview] = useState<{ svg?: string; ascii?: string; error?: string } | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /** source가 비어있으면 preview 리셋 — getDerivedStateFromProps 패턴. */
+  const is_empty = !source.trim();
+  const [wasEmpty, setWasEmpty] = useState(is_empty);
+  if (is_empty !== wasEmpty) {
+    setWasEmpty(is_empty);
+    if (is_empty) setPreview(null);
+  }
+
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (!source.trim()) { setPreview(null); return; }
+    if (!source.trim()) { return; }
     timerRef.current = setTimeout(async () => {
       try {
         const res = await fetch("/api/workflow/diagram/preview", {

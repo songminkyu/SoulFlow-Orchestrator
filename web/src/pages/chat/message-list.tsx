@@ -83,6 +83,7 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(function
 function VirtualizedMessageList(
   props: MessageListProps & { forwardedRef: React.ForwardedRef<HTMLDivElement> },
 ) {
+  "use no memo"; // TanStack Virtual's useVirtualizer is incompatible with React Compiler
   const t = useT();
   const last_idx = props.messages.length - 1;
   const localRef = useRef<HTMLDivElement>(null);
@@ -98,6 +99,7 @@ function VirtualizedMessageList(
     [props.forwardedRef],
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- opted out via "use no memo"
   const virtualizer = useVirtualizer({
     count: props.messages.length,
     getScrollElement: () => localRef.current,

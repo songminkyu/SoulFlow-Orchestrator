@@ -278,7 +278,13 @@ function NextNodeSearch({ currentNodeId, workflow, onSelect, t }: {
     return all.filter((n) => n.label.toLowerCase().includes(q) || n.id.toLowerCase().includes(q) || n.type.toLowerCase().includes(q));
   }, [workflow, currentNodeId, query]);
 
-  useEffect(() => { if (open) { setQuery(""); setTimeout(() => inputRef.current?.focus(), 0); } }, [open]);
+  /** open 전환 시 query 리셋 — getDerivedStateFromProps 패턴. */
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) setQuery("");
+  }
+  useEffect(() => { if (open) { setTimeout(() => inputRef.current?.focus(), 0); } }, [open]);
 
   if (!open) {
     return (
