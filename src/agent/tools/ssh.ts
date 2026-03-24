@@ -1,7 +1,7 @@
 /** SSH 도구 — 원격 서버 명령 실행. Node.js child_process + ssh CLI 래퍼. */
 
 import { execFile } from "node:child_process";
-import { resolve, normalize } from "node:path";
+import { normalize } from "node:path";
 import { Tool } from "./base.js";
 import { PRIVATE_HOST_RE } from "./http-utils.js";
 import type { JsonSchema } from "./types.js";

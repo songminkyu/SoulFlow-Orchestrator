@@ -36,7 +36,7 @@ export class FtpTool extends Tool {
 
     if (!host) return "Error: host is required";
     // PCH-S14: SSRF 방어 — 사설망 호스트 차단
-    if (PRIVATE_HOST_RE.test(host)) return `Error: connecting to private/internal host "${host}" is not allowed`;
+    if (PRIVATE_HOST_RE.test(host) || host.endsWith(".local")) return `Error: connecting to private/internal host "${host}" is not allowed`;
     // PCH-S14: 인증 정보 마스킹 — 비밀번호를 로컬 변수로만 유지 (에러 메시지에 노출 금지)
     const _masked_password = password ? "[REDACTED]" : ""; void _masked_password;
 
